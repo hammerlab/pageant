@@ -1,5 +1,5 @@
 
-package org.hammerlab.guacamole.commands
+package org.hammerlab.pageant
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.SparkContext
