@@ -55,4 +55,4 @@ $ head depths-by-max.csv
 $ python plots.py
 ```
 
-![sample plot of joint coverage of two BAMs](http://f.cl.ly/items/0U151w0J0w3w3w0U3U2W/10k.png)
+![sample plot of joint coverage of two BAMs](img/10k.png)
