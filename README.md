@@ -3,6 +3,7 @@ PAltry GEnomic ANalysis Tools
 
 Currently: one tool, [`ReadDepthHistogram`](https://github.com/hammerlab/pageant/blob/master/src/main/scala/org/hammerlab/pageant/ReadDepthHistogram.scala), for analyzing coverage in a BAM file or files.
 
+## `ReadDepthHistogram`
 Example usage:
 
 ```
