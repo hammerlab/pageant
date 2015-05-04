@@ -6,6 +6,9 @@ import numpy as np
 import os
 import sys
 
+# Simple script for plotting joint read coverage of two BAMs,
+# adapted (barely) from http://matplotlib.org/examples/pylab_examples/scatter_hist.html.
+
 def convert_num(arg):
     if arg[-1] == 'k':
         return int(arg[:-1])*1000
@@ -13,7 +16,7 @@ def convert_num(arg):
         return int(arg[:-1])*1000000
     return int(arg)
 
-num_rows = convert_num(sys.argv[1]) if len(sys.argv) > 1 else 1000
+num_rows = convert_num(sys.argv[1]) if len(sys.argv) > 1 else 10000
 depths_filename = sys.argv[2] if len(sys.argv) > 2 else 'depths-by-max.csv'
 
 data_dir = os.path.join(os.getenv('HOME'), 'pt189')
@@ -32,10 +35,6 @@ rdh1nums = rdh1[:,0]
 rdh1weights = rdh1[:,1]
 rdh2nums = rdh2[:,0]
 rdh2weights = rdh2[:,1]
-
-# the random data
-#x = np.random.randn(1000)
-#y = np.random.randn(1000)
 
 nullfmt   = NullFormatter()         # no labels
 
@@ -60,7 +59,7 @@ axHistx.xaxis.set_major_formatter(nullfmt)
 axHisty.yaxis.set_major_formatter(nullfmt)
 
 # the scatter plot:
-axScatter.scatter(x, y, c=v, marker='s', s=[ (1+log(i)**2) for i in v ], alpha=0.002)
+axScatter.scatter(x, y, c=v, marker='s', s=[ (1+log(i)**2) for i in v ], alpha=0.2)
 
 # now determine nice limits by hand:
 binwidth = 1 #0.25
