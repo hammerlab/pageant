@@ -6,6 +6,7 @@ record JointHistogramEntry {
   union { null, long } depth1;
   union { null, long } depth2;
   union { null, long } numLoci;
+  union { null, map<long> } lociPerContig;
 }
 
 record JointHistogram {
