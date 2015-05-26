@@ -2,15 +2,53 @@
 @namespace("org.hammerlab.pageant.avro")
 protocol Pageant {
 
-record JointHistogramEntry {
+record JointHistogramRecord {
   union { null, long } depth1;
   union { null, long } depth2;
   union { null, long } numLoci;
   union { null, map<long> } lociPerContig;
 }
 
-record JointHistogram {
+record JointHistogramEntry {
+  union { null, long } depth1;
+  union { null, long } depth2;
+  union { null, long } numLoci;
+}
+
+record HistogramEntry {
+  union { null, long } depth;
+  union { null, long } numLoci;
+}
+
+record RegressionWeights {
+  union { null, double } slope;
+  union { null, double } intercept;
+  union { null, double } err;
+}
+
+record Histogram {
+  array<HistogramEntry> reads = [];
+  union { null, double } entropy;
+}
+
+record PerContigJointHistogram {
   array<JointHistogramEntry> entries = [];
+  union { null, long } totalLoci;
+
+  union { null, Histogram } hist1 = [];
+  union { null, Histogram } hist2 = [];
+
+  union { null, RegressionWeights } xWeights;
+  union { null, RegressionWeights } yWeights;
+  union { null, RegressionWeights } demingWeights1;
+  union { null, RegressionWeights } demingWeights2;
+
+  union { null, double } mutualInformation;
+}
+
+record JointHistogram {
+  union { null, PerContigJointHistogram } total;
+  map<PerContigJointHistogram> contigHistograms;
 }
 
 }
