@@ -141,10 +141,16 @@ case class PerContigJointHistogram(l: PerContigJointHist) {
     ((e1,e2), (v1,v2))
   }
 
+  lazy val sum_es = e1 + e2
+
   lazy val pcs = for {
     (e,v) <- List((e1,v1), (e2,v2))
   } yield {
-    PrincipalComponent.newBuilder().setValue(e).setVector(List(v._1, v._2).map(double2Double)).build()
+    PrincipalComponent.newBuilder()
+      .setValue(e)
+      .setVector(List(v._1, v._2).map(double2Double))
+      .setVarianceFraction(e / sum_es)
+      .build()
   }
 
   def mse(xx: Double, yy: Double, m: Double, b: Double): Double = {

@@ -30,6 +30,7 @@ record LinearRegressionWeights {
 record PrincipalComponent {
   union { null, double } value;
   array<double> vector = [];
+  union { null, double } varianceFraction;
 }
 
 record Histogram {
