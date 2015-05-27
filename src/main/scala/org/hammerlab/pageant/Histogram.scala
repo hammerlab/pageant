@@ -29,6 +29,7 @@ case class Histogram(l: Hist, n: Long) {
       -p * math.log(p) / math.log(2)
     }).reduce(_ + _)
 
+  lazy val lMap: Map[Long, Long] = l.collectAsMap().toMap
 }
 
 object Histogram {

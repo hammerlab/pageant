@@ -1,9 +1,9 @@
 package org.hammerlab.pageant
 
 import org.hammerlab.pageant.avro.{
-  RegressionWeights => RW
+  LinearRegressionWeights => RW
 }
 
-case class RegressionWeights(slope: Double, intercept: Double, error: Double) {
-  lazy val h = RW.newBuilder().setSlope(slope).setIntercept(intercept).setErr(error).build()
+case class LinearRegressionWeights(slope: Double, intercept: Double, mse: Double) {
+  lazy val h = RW.newBuilder().setSlope(slope).setIntercept(intercept).setMse(mse).build()
 }

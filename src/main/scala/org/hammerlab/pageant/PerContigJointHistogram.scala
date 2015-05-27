@@ -7,7 +7,8 @@ import org.hammerlab.pageant.PerContigJointHistogram.PerContigJointHist
 import org.hammerlab.pageant.avro.{
   PerContigJointHistogram => PCJH,
   JointHistogramEntry,
-  RegressionWeights => RW
+  PrincipalComponent,
+  LinearRegressionWeights => LRW
 }
 
 case class PerContigJointHistogram(l: PerContigJointHist) {
@@ -23,8 +24,7 @@ case class PerContigJointHistogram(l: PerContigJointHist) {
       .setHist2(readDepthHist2.h)
       .setXWeights(regressionWeights)
       .setYWeights(regression2Weights)
-      .setDemingWeights1(demingWeights._1)
-      .setDemingWeights2(demingWeights._2)
+      .setPcs(pcs)
       .setMutualInformation(mutualInformation)
       .build()
   }
@@ -87,7 +87,7 @@ case class PerContigJointHistogram(l: PerContigJointHist) {
       .reduceByKey(_ + _)
       .collect()
 
-  lazy val readsDot =
+  lazy val readsDot: Double =
     (for {
       ((depth1, depth2), numLoci) <- l
     } yield {
@@ -95,62 +95,100 @@ case class PerContigJointHistogram(l: PerContigJointHist) {
     }).reduce(_ + _)
 
   lazy val xy = readsDot
-  lazy val xx =
-    (for {
-      ((depth1, _), numLoci) <- l
-    } yield {
-      numLoci * depth1 * depth1
-    }).reduce(_ + _)
 
-  lazy val yy =
-    (for {
-      ((_, depth2), numLoci) <- l
-    } yield {
-      numLoci * depth2 * depth2
-    }).reduce(_ + _)
+  def addTuples(a: (Long, Long), b: (Long, Long)) = (a._1+b._1, a._2+b._2)
 
-  lazy val regressionWeights =
-    RW.newBuilder
-      .setSlope((xy - n) * 1.0 / (xx - n))
-      .setIntercept((xx - xy) * 1.0 / (xx - n))
-      .build()
+  lazy val (sx: Double, xx: Double) = {
+    val (sx, xx) =
+      (for {
+        ((depth1, _), numLoci) <- l
+      } yield {
+        val xi = numLoci * depth1
+        (xi, xi * depth1)
+      }).reduce(addTuples)
 
-  lazy val regression2Weights =
-    RW.newBuilder()
-      .setSlope((xy - n) * 1.0 / (yy - n))
-      .setIntercept((yy - xy) * 1.0 / (yy - n))
-      .build()
-
-  lazy val demingWeights = {
-    val a: Double = xy - n
-    val b: Double = xx - yy
-    val c: Double = -a
-    val m1 = (-b + math.sqrt(b*b - 4*a*c)) / (2*a)
-    val b1 = 1 - m1
-    val m2 = (-b - math.sqrt(b*b - 4*a*c)) / (2*a)
-    val b2 = 1 - m2
-    (
-      RW.newBuilder().setSlope(m1).setIntercept(b1).build(),
-      RW.newBuilder().setSlope(m2).setIntercept(b2).build()
-    )
+    (sx.toDouble, xx.toDouble)
   }
 
+  lazy val (sy: Double, yy: Double) = {
+    val (sy, yy) =
+      (for {
+        ((_, depth2), numLoci) <- l
+      } yield {
+        val yi = numLoci * depth2
+        (yi, yi * depth2)
+      }).reduce(addTuples)
+
+    (sy.toDouble, yy.toDouble)
+  }
+
+  lazy val vx = (xx - sx*sx*1.0/n) / (n-1)
+  lazy val vy = (yy - sy*sy*1.0/n) / (n-1)
+  lazy val vxy = (xy - sx*sy*1.0/n) / (n-1)
+
+  lazy val ((e1,e2), (v1,v2)) = {
+    val T = (vx + vy) / 2
+    val D = vx*vy - vxy*vxy
+
+    val e1 = T + math.sqrt(T*T - D)
+    val e2 = T - math.sqrt(T*T - D)
+
+    val d1 = math.sqrt((e1-vy)*(e1-vy) + vxy*vxy)
+    val v1 = ((e1 - vy) / d1, vxy / d1)
+
+    val d2 = math.sqrt((e2-vy)*(e2-vy) + vxy*vxy)
+    val v2 = ((e2 - vy) / d2, vxy / d2)
+
+    ((e1,e2), (v1,v2))
+  }
+
+  lazy val pcs = for {
+    (e,v) <- List((e1,v1), (e2,v2))
+  } yield {
+    PrincipalComponent.newBuilder().setValue(e).setVector(List(v._1, v._2).map(double2Double)).build()
+  }
+
+  def mse(xx: Double, yy: Double, m: Double, b: Double): Double = {
+    yy + m*m*xx + b*b*n - 2*m*xy - 2*b*sy + 2*b*m*sx
+  }
+
+  def weights(xx: Double, yy: Double): LRW = {
+    val den = n*xx - sx*sx
+    val m = (n*xy - sx*sy) * 1.0 / den
+    val b = (sy*xx - sx*xy) * 1.0 / den
+    val err = mse(xx, yy, m, b)
+    val num = sx*sy - n*xy
+    val rSquared = num * 1.0 / (sx*sx - n*xx) * num / (sy*sy - n*yy)
+    LRW.newBuilder
+      .setSlope(m)
+      .setIntercept(b)
+      .setMse(err)
+      .setRSquared(rSquared)
+      .build()
+  }
+
+  lazy val regressionWeights = weights(xx, yy)
+  lazy val regression2Weights = weights(yy, xx)
+
   lazy val mutualInformation = {
-    val bc1 = sc.broadcast(readDepthHist1.l.collectAsMap())
-    val bc2 = sc.broadcast(readDepthHist2.l.collectAsMap())
-    val n = totalLoci
+    val bc1 = sc.broadcast(r1.lMap)
+    val bc2 = sc.broadcast(r2.lMap)
     (for {
       ((depth1, depth2), numLoci) <- l
     } yield {
-      val pxy = numLoci * 1.0 / n
-      val px = bc1.value.getOrElse(depth1, {
+
+      val vx = bc1.value.getOrElse(
+        depth1,
         throw new Exception(s"Depth $depth1 not found in RDH1 map")
-      }) * 1.0 / n
-      val py = bc2.value.getOrElse(depth2, {
+      )
+
+      val vy = bc2.value.getOrElse(
+        depth2,
         throw new Exception(s"Depth $depth2 not found in RDH2 map")
-      }) * 1.0 / n
-      pxy * math.log(pxy / px / py) / math.log(2)
-    }).reduce(_ + _)
+      )
+
+      numLoci * (math.log(numLoci) + math.log(n) - math.log(vx) - math.log(vy))
+    }).reduce(_ + _) / math.log(2) / n
   }
 
 }

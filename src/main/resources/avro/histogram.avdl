@@ -20,10 +20,16 @@ record HistogramEntry {
   union { null, long } numLoci;
 }
 
-record RegressionWeights {
+record LinearRegressionWeights {
   union { null, double } slope;
   union { null, double } intercept;
-  union { null, double } err;
+  union { null, double } mse;
+  union { null, double } rSquared;
+}
+
+record PrincipalComponent {
+  union { null, double } value;
+  array<double> vector = [];
 }
 
 record Histogram {
@@ -38,10 +44,10 @@ record PerContigJointHistogram {
   union { null, Histogram } hist1 = [];
   union { null, Histogram } hist2 = [];
 
-  union { null, RegressionWeights } xWeights;
-  union { null, RegressionWeights } yWeights;
-  union { null, RegressionWeights } demingWeights1;
-  union { null, RegressionWeights } demingWeights2;
+  union { null, LinearRegressionWeights } xWeights;
+  union { null, LinearRegressionWeights } yWeights;
+
+  array<PrincipalComponent> pcs = [];
 
   union { null, double } mutualInformation;
 }
