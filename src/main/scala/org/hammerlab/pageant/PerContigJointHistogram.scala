@@ -13,8 +13,7 @@ import org.hammerlab.pageant.avro.{
 
 case class PerContigJointHistogram(l: PerContigJointHist) {
 
-  @transient
-  val sc = l.context
+  @transient val sc = l.context
 
   lazy val h = {
     PCJH.newBuilder()

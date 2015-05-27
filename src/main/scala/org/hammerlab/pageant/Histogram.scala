@@ -10,7 +10,7 @@ import org.hammerlab.pageant.avro.{
 }
 
 case class Histogram(l: Hist, n: Long) {
-  val sc = l.context
+  @transient val sc = l.context
 
   lazy val h: H =
     H.newBuilder()
