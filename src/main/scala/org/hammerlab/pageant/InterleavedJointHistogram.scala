@@ -87,7 +87,8 @@ object InterleavedJointHistogram {
           AlignmentRecordField.readMapped,
           AlignmentRecordField.sequence,
           AlignmentRecordField.contig,
-          AlignmentRecordField.start
+          AlignmentRecordField.start,
+          AlignmentRecordField.cigar
         )
       )
     val reads = sc.loadAlignments(file1, None, projectionOpt).setName("reads1")
