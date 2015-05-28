@@ -1,6 +1,5 @@
 package org.hammerlab.pageant
 
-import htsjdk.samtools.TextCigarCodec
 import org.bdgenomics.adam.rdd.ADAMContext._
 import org.apache.spark.SparkContext
 import org.apache.spark.rdd.RDD
@@ -100,8 +99,8 @@ object InterleavedJointHistogram {
                      reads: RDD[AlignmentRecord],
                      reads2: RDD[AlignmentRecord]): InterleavedJointHist = {
 
-    lazy val readDepthPerLocus: RDD[((String, Long), Long)] = getReadDepthPerLocus(reads)
-    lazy val readDepthPerLocus2: RDD[((String, Long), Long)] = getReadDepthPerLocus(reads2)
+    lazy val readDepthPerLocus: RDD[((String, Long), Long)] = Alignments.getReadDepthPerLocus(reads)
+    lazy val readDepthPerLocus2: RDD[((String, Long), Long)] = Alignments.getReadDepthPerLocus(reads2)
 
     lazy val joinedReadDepthPerLocus: RDD[((String, Long), (Long, Long))] =
       readDepthPerLocus.fullOuterJoin(readDepthPerLocus2).map {
@@ -114,28 +113,6 @@ object InterleavedJointHistogram {
       .sortBy(_._1)
       .setName("joined hist")
       .persist()
-  }
-
-  def getReadDepthPerLocus(reads: RDD[AlignmentRecord]): RDD[((String, Long), Long)] = {
-    (for {
-      read <- reads if read.getReadMapped
-      contig <- Option(read.getContig)
-      name <- Option(contig.getContigName)
-      start <- Option(read.getStart)
-      cigar = TextCigarCodec.getSingleton.decode(read.getCigar)
-    } yield {
-      cigar.getCigarElements.foldLeft((0, List[((String,Long), Long)]()))((p, elem) => {
-        if (elem.getOperator.consumesReferenceBases()) {
-          val (offset, tuples) = p
-          val l =
-            (0 until elem.getLength).map(i => ((name, start + offset + i), 1L)).toList
-
-          (offset + elem.getLength, tuples ++ l)
-        } else {
-          p
-        }
-      })._2
-    }).flatMap(x => x).reduceByKey(_ + _)
   }
 
   def mergeCounts(a: (Long, Map[String, Long]),
