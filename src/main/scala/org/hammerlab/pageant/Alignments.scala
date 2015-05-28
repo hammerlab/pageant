@@ -27,4 +27,15 @@ object Alignments {
         })._2
       }).flatMap(x => x).reduceByKey(_ + _)
   }
+
+  def joinedReadDepths(reads: RDD[AlignmentRecord],
+                       reads2: RDD[AlignmentRecord]): RDD[((String, Long), (Long, Long))] = {
+
+    val readDepthPerLocus: RDD[((String, Long), Long)] = Alignments.getReadDepthPerLocus(reads)
+    val readDepthPerLocus2: RDD[((String, Long), Long)] = Alignments.getReadDepthPerLocus(reads2)
+
+    readDepthPerLocus.fullOuterJoin(readDepthPerLocus2).map {
+      case (locus, (count1Opt, count2Opt)) => (locus, (count1Opt.getOrElse(0L), count2Opt.getOrElse(0L)))
+    }
+  }
 }

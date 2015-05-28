@@ -99,13 +99,7 @@ object InterleavedJointHistogram {
                      reads: RDD[AlignmentRecord],
                      reads2: RDD[AlignmentRecord]): InterleavedJointHist = {
 
-    lazy val readDepthPerLocus: RDD[((String, Long), Long)] = Alignments.getReadDepthPerLocus(reads)
-    lazy val readDepthPerLocus2: RDD[((String, Long), Long)] = Alignments.getReadDepthPerLocus(reads2)
-
-    lazy val joinedReadDepthPerLocus: RDD[((String, Long), (Long, Long))] =
-      readDepthPerLocus.fullOuterJoin(readDepthPerLocus2).map {
-        case (locus, (count1Opt, count2Opt)) => (locus, (count1Opt.getOrElse(0L), count2Opt.getOrElse(0L)))
-      }
+    val joinedReadDepthPerLocus: RDD[((String, Long), (Long, Long))] = Alignments.joinedReadDepths(reads, reads2)
 
     joinedReadDepthPerLocus.map({
       case ((contig, locus), count) => (count, (1L, Map(contig -> 1L)))
