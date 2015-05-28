@@ -37,10 +37,9 @@ object JointHistogram {
     JointHistogram(InterleavedJointHistogram.fromAlignmentFiles(sc, file1, file2))
   }
 
-  def fromAlignments(sc: SparkContext, 
-                     reads: RDD[AlignmentRecord], 
+  def fromAlignments(reads: RDD[AlignmentRecord],
                      reads2: RDD[AlignmentRecord]): JointHistogram = {
-    JointHistogram(InterleavedJointHistogram.fromAlignments(sc, reads, reads2))
+    JointHistogram(InterleavedJointHistogram.fromAlignments(reads, reads2))
   }
 
   def load(sc: SparkContext, fn: String): JointHistogram = {

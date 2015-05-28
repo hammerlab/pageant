@@ -92,11 +92,10 @@ object InterleavedJointHistogram {
       )
     val reads = sc.loadAlignments(file1, None, projectionOpt).setName("reads1")
     val reads2 = sc.loadAlignments(file2, None, projectionOpt).setName("reads2")
-    InterleavedJointHistogram.fromAlignments(sc, reads, reads2)
+    InterleavedJointHistogram.fromAlignments(reads, reads2)
   }
 
-  def fromAlignments(sc: SparkContext,
-                     reads: RDD[AlignmentRecord],
+  def fromAlignments(reads: RDD[AlignmentRecord],
                      reads2: RDD[AlignmentRecord]): InterleavedJointHist = {
 
     val joinedReadDepthPerLocus: RDD[((String, Long), (Long, Long))] = Alignments.joinedReadDepths(reads, reads2)
