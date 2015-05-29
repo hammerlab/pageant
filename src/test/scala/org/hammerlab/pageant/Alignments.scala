@@ -5,7 +5,7 @@ import org.bdgenomics.adam.util.ADAMFunSuite
 import org.bdgenomics.formats.avro.{Contig, AlignmentRecord}
 import org.scalatest.Matchers
 
-class InterleavedJointHistogramTest extends ADAMFunSuite with Matchers {
+class AlignmentsTest extends ADAMFunSuite with Matchers {
 
   def makeRead(start: Long, sequence: String, cigar: String): AlignmentRecord = {
     AlignmentRecord.newBuilder()
@@ -38,7 +38,7 @@ class InterleavedJointHistogramTest extends ADAMFunSuite with Matchers {
       )
     )
 
-    val l: Array[(Long, Long)] = InterleavedJointHistogram.getReadDepthPerLocus(reads).collect().map(p => (p._1._2, p._2)).sortBy(_._1)
+    val l: Array[(Long, Long)] = Alignments.getReadDepthPerLocus(reads).collect().map(p => (p._1._2, p._2)).sortBy(_._1)
 
     l should be(
       Array(
