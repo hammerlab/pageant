@@ -3,7 +3,7 @@ package org.hammerlab.pageant
 import com.esotericsoftware.kryo.Kryo
 import org.apache.spark.serializer.KryoRegistrator
 import org.bdgenomics.adam.serialization.AvroSerializer
-import org.bdgenomics.formats.avro.AlignmentRecord
+import org.bdgenomics.formats.avro.{Contig, Dbxref, Feature, AlignmentRecord}
 import org.hammerlab.pageant.avro.{
   PrincipalComponent,
   HistogramEntry,
@@ -18,6 +18,9 @@ class PageantKryoRegistrar extends KryoRegistrator {
   override def registerClasses(kryo: Kryo): Unit = {
     kryo.register(classOf[AlignmentRecord], new AvroSerializer[JointHistogramEntry]())
     kryo.register(classOf[AlignmentRecord], new AvroSerializer[HistogramEntry]())
+    kryo.register(classOf[AlignmentRecord], new AvroSerializer[Feature]())
+    kryo.register(classOf[Contig], new AvroSerializer[Contig]())
+    kryo.register(classOf[Dbxref], new AvroSerializer[Dbxref]())
     kryo.register(classOf[AlignmentRecord], new AvroSerializer[LRW]())
     kryo.register(classOf[AlignmentRecord], new AvroSerializer[PrincipalComponent]())
     kryo.register(classOf[AlignmentRecord], new AvroSerializer[H]())
