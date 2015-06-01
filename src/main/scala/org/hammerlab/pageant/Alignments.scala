@@ -1,7 +1,8 @@
 package org.hammerlab.pageant
 
-import reflect.{ClassTag, classTag}
-import htsjdk.samtools.TextCigarCodec
+import org.bdgenomics.adam.rich.RichAlignmentRecord
+
+import reflect.classTag
 import org.apache.spark.rdd.RDD
 import org.bdgenomics.adam.models.{ReferenceRegion, ReferencePosition}
 import org.bdgenomics.adam.rdd.ShuffleRegionJoin
@@ -13,23 +14,14 @@ object Alignments {
   def getReadDepthPerLocus(reads: RDD[AlignmentRecord]): RDD[((String, Long), Long)] = {
     (for {
       read <- reads if read.getReadMapped
-      contig <- Option(read.getContig)
-      name <- Option(contig.getContigName)
-      start <- Option(read.getStart)
-      cigar = TextCigarCodec.getSingleton.decode(read.getCigar)
+      contig <- Option(read.getContig).toList
+      name <- Option(contig.getContigName).toList
+      start <- Option(read.getStart).toList
+      refLen = RichAlignmentRecord(read).referenceLength
+      i <- (0 until refLen)
     } yield {
-        cigar.getCigarElements.foldLeft((0, List[((String,Long), Long)]()))((p, elem) => {
-          if (elem.getOperator.consumesReferenceBases()) {
-            val (offset, tuples) = p
-            val l =
-              (0 until elem.getLength).map(i => ((name, start + offset + i), 1L)).toList
-
-            (offset + elem.getLength, tuples ++ l)
-          } else {
-            p
-          }
-        })._2
-      }).flatMap(x => x).reduceByKey(_ + _)
+      ((name, start + i), 1L)
+    }).reduceByKey(_ + _)
   }
 
   def joinedReadDepths(reads: RDD[AlignmentRecord],
