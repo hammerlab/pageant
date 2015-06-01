@@ -3,6 +3,7 @@
 protocol Pageant {
 
 record JointHistogramRecord {
+  union { null, boolean } onGene = null;
   union { null, long } depth1 = null;
   union { null, long } depth2 = null;
   union { null, string } contig = null;
