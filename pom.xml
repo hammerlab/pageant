@@ -20,8 +20,8 @@
 
   <properties>
 
-    <!-- https://github.com/ryan-williams/adam/commit/c547d9 -->
-    <adam.version>c547d9c</adam.version>
+    <!-- https://github.com/ryan-williams/adam/commit/29868ac -->
+    <adam.version>29868ac</adam.version>
     <java.version>1.7</java.version>
     <scala.version>2.10.4</scala.version>
     <scala.version.prefix>2.10</scala.version.prefix>
