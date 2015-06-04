@@ -224,6 +224,17 @@
       <id>central</id>
       <url>http://repo1.maven.org/maven2</url>
     </repository>
+    <repository>
+      <!-- Maven repo for Spark 1.4.0-rc4; unused atm in favor of patched version 901dbd0 -->
+      <id>spark-rc</id>
+      <name>Spark RC</name>
+      <url>https://repository.apache.org/content/repositories/orgapachespark-1112</url>
+      <snapshots>
+        <enabled>
+          false
+        </enabled>
+      </snapshots>
+    </repository>
   </repositories>
 
 
