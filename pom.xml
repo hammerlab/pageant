@@ -19,7 +19,7 @@
   <name>Pageant: Paltry Genomic Analysis Toolkit</name>
 
   <properties>
-    <adam.version>0.16.0</adam.version>
+    <adam.version>c547d9c</adam.version>
     <java.version>1.7</java.version>
     <scala.version>2.10.4</scala.version>
     <scala.version.prefix>2.10</scala.version.prefix>
@@ -230,7 +230,7 @@
   <dependencies>
     <dependency>
       <groupId>org.bdgenomics.adam</groupId>
-      <artifactId>adam-core</artifactId>
+      <artifactId>adam-core_2.10</artifactId>
       <version>${adam.version}</version>
       <scope>provided</scope>
     </dependency>
