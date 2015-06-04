@@ -237,6 +237,41 @@
     </repository>
   </repositories>
 
+  <profiles>
+    <profile>
+      <id>default</id>
+      <activation>
+        <activeByDefault>true</activeByDefault>
+      </activation>
+      <dependencies>
+        <!--Test deps-->
+        <dependency>
+          <groupId>org.scalatest</groupId>
+          <artifactId>scalatest_2.10</artifactId>
+          <version>2.2.2</version>
+          <scope>test</scope>
+        </dependency>
+        <dependency>
+          <groupId>org.bdgenomics.adam</groupId>
+          <artifactId>adam-core_2.10</artifactId>
+          <version>${adam.version}</version>
+          <type>test-jar</type>
+          <scope>test</scope>
+        </dependency>
+        <dependency>
+          <groupId>org.bdgenomics.bdg-utils</groupId>
+          <artifactId>bdg-utils-misc</artifactId>
+          <version>0.1.1</version>
+          <type>test-jar</type>
+          <scope>test</scope>
+        </dependency>
+      </dependencies>
+    </profile>
+    <profile>
+      <id>no-tests</id>
+      <dependencies></dependencies>
+    </profile>
+  </profiles>
 
   <dependencies>
     <dependency>
@@ -256,28 +291,6 @@
       <artifactId>bdg-formats</artifactId>
       <version>0.4.0</version>
       <scope>provided</scope>
-    </dependency>
-
-    <!--Test deps-->
-    <dependency>
-      <groupId>org.scalatest</groupId>
-      <artifactId>scalatest_2.10</artifactId>
-      <version>2.2.2</version>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.bdgenomics.adam</groupId>
-      <artifactId>adam-core</artifactId>
-      <version>${adam.version}</version>
-      <type>test-jar</type>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.bdgenomics.bdg-utils</groupId>
-      <artifactId>bdg-utils-misc</artifactId>
-      <version>0.1.1</version>
-      <type>test-jar</type>
-      <scope>test</scope>
     </dependency>
   </dependencies>
 
