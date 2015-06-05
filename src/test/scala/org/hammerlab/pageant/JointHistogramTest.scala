@@ -34,117 +34,123 @@ class JointHistogramTest extends ADAMFunSuite with Matchers {
     val reads2 = sc.parallelize(List(read2))
     val features = sc.parallelize(List(f))
 
-    val j = JointHistogram.fromAlignments(reads1, reads2, Some((features, 3000000L)))
-    j.totalLoci should be(Map(Some(false) -> 110L, Some(true) -> 6L, None -> 116L))
+    val j = JointHistogram.fromReadsAndFeatures(List(reads1, reads2), List(features))
 
-    j.readsDot should be(
+    j.jh.collectAsMap().toMap should be(
       Map(
-        (Some(true), Some("chr2")) -> 0.0,
-        (Some(false), Some("chr2")) -> 0.0,
-        (None, Some("chr2")) -> 0.0,
-        (Some(true), None) -> 0.0,
-        (Some(false), None) -> 0.0,
-        (None, None) -> 0.0
+        (Some("chr2"), List(Some(1), Some(0), Some(1))) -> 3,
+        (Some("chr2"), List(Some(1), Some(0), Some(0))) -> 10,
+        (Some("chr2"), List(Some(0), Some(1), Some(0))) -> 100,
+        (Some("chr2"), List(Some(0), Some(1), Some(1))) -> 3,
+        (Some("chr2"), List(Some(0), Some(0), Some(1))) -> 4
       )
     )
 
-    j.perContigTotals should be(
+    j.totalLoci should be(
       Map(
-        (None, Some("chr2")) -> 116,
-        (Some(true), Some("chr2")) -> 6,
-        (Some(false), Some("chr2")) -> 110
+        Some("chr2") -> 120L,
+        None -> 120L
       )
     )
 
-    j.sample1Bases should be(
+    j.sums.get(0, 1).collectAsMap().toMap should be(
       Map(
-        (None, Some("chr2")) -> 13,
-        (Some(true), Some("chr2")) -> 3,
-        (Some(false), Some("chr2")) -> 10,
-        (None, None) -> 13,
-        (Some(true), None) -> 3,
-        (Some(false), None) -> 10
+        (Some("chr2"), List(None, None, Some(1))) -> 3.0,
+        (Some("chr2"), List(None, None, Some(0))) -> 10.0
       )
     )
 
-    j.sample2Bases should be(
+    j.sqsums.get(0, 1).collectAsMap().toMap should be(
       Map(
-        (None, Some("chr2")) -> 103,
-        (Some(true), Some("chr2")) -> 3,
-        (Some(false), Some("chr2")) -> 100,
-        (None, None) -> 103,
-        (Some(true), None) -> 3,
-        (Some(false), None) -> 100
+        (Some("chr2"), List(None, None, Some(1))) -> 3.0,
+        (Some("chr2"), List(None, None, Some(0))) -> 10.0
       )
     )
 
-    j.stats should be(
+    j.dots.get(0, 1).collectAsMap().toMap should be(
       Map(
-        (Some(true), Some("chr2")) -> ((3.0,3.0,0.0),(3.0,3.0)),
-        (Some(false), Some("chr2")) -> ((10.0,100.0,0.0),(10.0,100.0)),
-        (None, Some("chr2")) -> ((13.0,103.0,0.0),(13.0,103.0)),
-
-        (Some(true), None) -> ((3.0,3.0,0.0),(3.0,3.0)),
-        (Some(false), None) -> ((10.0,100.0,0.0),(10.0,100.0)),
-        (None, None) -> ((13.0,103.0,0.0),(13.0,103.0))
+        (Some("chr2"), List(None, None, Some(1))) -> 0.0,
+        (Some("chr2"), List(None, None, Some(0))) -> 0.0
       )
     )
 
-    j.weights should be(
+    j.ns.get(0, 1).collectAsMap().toMap should be(
       Map(
-        (Some(true), Some("chr2")) -> (RegressionWeights(-1.0, 1.0, 0.0, 1.0), RegressionWeights(-1.0, 1.0, 0.0, 1.0)),
-        (Some(false), Some("chr2")) -> (RegressionWeights(-1.0, 1.0, 0.0, 1.0), RegressionWeights(-1.0, 1.0, 0.0, 1.0)),
-        (None, Some("chr2")) -> (RegressionWeights(-1.0, 1.0, 0.0, 1.0), RegressionWeights(-1.0, 1.0, 0.0, 1.0)),
-
-        (Some(true), None) -> (RegressionWeights(-1.0, 1.0, 0.0, 1.0), RegressionWeights(-1.0, 1.0, 0.0, 1.0)),
-        (Some(false), None) -> (RegressionWeights(-1.0, 1.0, 0.0, 1.0), RegressionWeights(-1.0, 1.0, 0.0, 1.0)),
-        (None, None) -> (RegressionWeights(-1.0, 1.0, 0.0, 1.0), RegressionWeights(-1.0, 1.0, 0.0, 1.0))
+        (Some("chr2"), List(None, None, Some(1))) -> 10.0,
+        (Some("chr2"), List(None, None, Some(0))) -> 110.0
       )
     )
 
-    j.cov should be(
+    j.weights(0, 1).collectAsMap().toMap should be(
       Map(
-        (Some(true), Some("chr2")) -> (0.3, 0.3, -0.3),
-        (Some(false), Some("chr2")) -> (0.08340283569641369, 0.0834028356964137, -0.08340283569641369),
-        (None, Some("chr2")) -> (0.10037481259370314, 0.10037481259370311, -0.10037481259370314),
-
-        (Some(true), None) -> (0.3, 0.3, -0.3),
-        (Some(false), None) -> (0.08340283569641369, 0.0834028356964137, -0.08340283569641369),
-        (None, None) -> (0.10037481259370314, 0.10037481259370311, -0.10037481259370314)
+        (Some("chr2"), List(None, None, Some(1))) -> (RegressionWeights(-0.42857142857142855, 0.42857142857142855, 1.7142857142857144, 0.18367346938775508), RegressionWeights(-0.42857142857142855, 0.42857142857142855, 1.7142857142857144, 0.18367346938775508)),
+        (Some("chr2"), List(None, None, Some(0))) -> (RegressionWeights(-1.0, 1.0, 0.0, 1.0), RegressionWeights(-1.0, 1.0, 0.0, 1.0))
       )
     )
 
-    j.eigens((Some(true), Some("chr2"))) should be(List((0.6, (0.7071067811865475, -0.7071067811865475)), (0.0, (-0.7071067811865475, -0.7071067811865475))))
-    j.eigens((Some(false), Some("chr2"))) should be(List((0.16680567139282737, (0.7071067811865475, -0.7071067811865476)), (0.0, (-0.7071067811865476, -0.7071067811865475))))
-    j.eigens((None, Some("chr2"))) should be(List((0.20074962518740624, (0.7071067811865475, -0.7071067811865475)), (-1.3877787807814457E-17, (-0.7071067811865475, -0.7071067811865476))))
-
-    j.eigens((Some(true), None)) should be(List((0.6, (0.7071067811865475, -0.7071067811865475)), (0.0, (-0.7071067811865475, -0.7071067811865475))))
-    j.eigens((Some(false), None)) should be(List((0.16680567139282737, (0.7071067811865475, -0.7071067811865476)), (0.0, (-0.7071067811865476, -0.7071067811865475))))
-    j.eigens((None, None)) should be(List((0.20074962518740624, (0.7071067811865475, -0.7071067811865475)), (-1.3877787807814457E-17, (-0.7071067811865475, -0.7071067811865476))))
-
-    j.pcsc should be(
+    j.eigens(0, 1).collectAsMap().toMap should be(
       Map(
-        (Some(true), Some("chr2")) -> List(PrincipalComponent(0.0, (-0.7071067811865475, -0.7071067811865475), 0.0)),
-        (Some(false), Some("chr2")) -> List(PrincipalComponent(0.0, (-0.7071067811865476, -0.7071067811865475), 0.0)),
-        (None, Some("chr2")) -> List(PrincipalComponent(-1.3877787807814457E-17, (-0.7071067811865475, -0.7071067811865476), -6.912983172376583E-17)),
-
-        (Some(true), None) -> List(PrincipalComponent(0.0, (-0.7071067811865475, -0.7071067811865475), 0.0)),
-        (Some(false), None) -> List(PrincipalComponent(0.0, (-0.7071067811865476, -0.7071067811865475), 0.0)),
-        (None, None) -> List(PrincipalComponent(-1.3877787807814457E-17, (-0.7071067811865475, -0.7071067811865476), -6.912983172376583E-17))      )
+        (Some("chr2"), List(None, None, Some(1))) -> (
+          Eigen(0.33333333333333337, (0.7071067811865477, -0.7071067811865475), 0.7142857142857143),
+          Eigen(0.13333333333333333, (-0.7071067811865475, -0.7071067811865475), 0.2857142857142857)
+        ),
+        (Some("chr2"), List(None, None, Some(0))) -> (
+          Eigen(0.16680567139282737, (0.7071067811865475, -0.7071067811865476), 1.0),
+          Eigen(0.0, (-0.7071067811865476, -0.7071067811865475), 0.0)
+        )
+      )
     )
+  }
 
-    j.mutualInformation should be(
-      Map(
-        (Some(true), Some("chr2")) -> 0.9999999999999996,
-        (Some(false), Some("chr2")) -> 0.43949698692151445,
-        (None, Some("chr2")) -> 0.5061252137852826,
+  def makeRead(start: Long, sequence: String, cigar: String): AlignmentRecord = {
+    AlignmentRecord.newBuilder()
+      .setContig(Contig.newBuilder().setContigName("chr1").build())
+      .setSequence(sequence)
+      .setStart(start)
+      .setCigar(cigar)
+      .setReadMapped(true)
+      .build()
+  }
 
-        (Some(true), None) -> 0.9999999999999996,
-        (Some(false), None) -> 0.43949698692151445,
-        (None, None) -> 0.5061252137852826
+  sparkTest("skipInsertionCoverage") {
+
+    /*
+
+       idx:  123456789012
+        r1:  ACGTAACCGGTT
+        r2:      AA----TT
+        r3:   CGTAACCGG
+                 ^
+                AAA
+     depth:  122233333322
+     */
+
+    val reads = sc.parallelize(
+      List(
+        makeRead(1, "ACGTAACCGGTT", "12M"),
+        makeRead(5, "AATT", "2M4D2M"),
+        makeRead(2, "CGTAAAAACCGG", "3M3I6M")
       )
     )
 
+    val l: Array[(Long, Int)] = JointHistogram.readsToDepthMap(reads).collect().map(p => (p._1._2, p._2)).sortBy(_._1)
+
+    l should be(
+      Array(
+        (1,1),
+        (2,2),
+        (3,2),
+        (4,2),
+        (5,3),
+        (6,3),
+        (7,3),
+        (8,3),
+        (9,3),
+        (10,3),
+        (11,2),
+        (12,2)
+      )
+    )
   }
 
 }

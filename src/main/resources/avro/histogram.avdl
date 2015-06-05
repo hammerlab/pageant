@@ -2,61 +2,14 @@
 @namespace("org.hammerlab.pageant.avro")
 protocol Pageant {
 
+record Depth {
+  union { null, int } depth = null;
+}
+
 record JointHistogramRecord {
-  union { null, boolean } onGene = null;
-  union { null, long } depth1 = null;
-  union { null, long } depth2 = null;
   union { null, string } contig = null;
+  array<Depth> depths = [];
   long numLoci;
-}
-
-record JointHistogramEntry {
-  union { null, long } depth1;
-  union { null, long } depth2;
-  union { null, long } numLoci;
-}
-
-record HistogramEntry {
-  union { null, long } depth;
-  union { null, long } numLoci;
-}
-
-record LinearRegressionWeights {
-  union { null, double } slope;
-  union { null, double } intercept;
-  union { null, double } mse;
-  union { null, double } rSquared;
-}
-
-record PrincipalComponent {
-  union { null, double } value;
-  array<double> vector = [];
-  union { null, double } varianceFraction;
-}
-
-record Histogram {
-  array<HistogramEntry> reads = [];
-  union { null, double } entropy;
-}
-
-record PerContigJointHistogram {
-  array<JointHistogramEntry> entries = [];
-  union { null, long } totalLoci;
-
-  union { null, Histogram } hist1 = [];
-  union { null, Histogram } hist2 = [];
-
-  union { null, LinearRegressionWeights } xWeights;
-  union { null, LinearRegressionWeights } yWeights;
-
-  array<PrincipalComponent> pcs = [];
-
-  union { null, double } mutualInformation;
-}
-
-record JointHistogram {
-  union { null, PerContigJointHistogram } total;
-  map<PerContigJointHistogram> contigHistograms;
 }
 
 }
