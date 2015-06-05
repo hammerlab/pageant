@@ -6,11 +6,11 @@ import org.apache.spark.SparkContext
 import org.apache.spark.rdd.RDD
 import org.bdgenomics.formats.avro.{Feature, AlignmentRecord}
 import org.hammerlab.pageant.JointHistogram.{OB, D, JointHistKey, OS, OL, S, L, JointHist}
-import org.hammerlab.pageant.avro.{
-  PrincipalComponent,
-  JointHistogramRecord,
-  LinearRegressionWeights => LRW
-}
+import org.hammerlab.pageant.avro.JointHistogramRecord
+
+case class RegressionWeights(slope: Double, intercept: Double, mse: Double, rSquared: Double)
+
+case class PrincipalComponent(value: Double, vector: (Double, Double), varianceFraction: Double)
 
 case class JointHistWithSums(name: String,
                              readDepthsHist: JointHist,
@@ -385,19 +385,14 @@ case class JointHistogram(all: JointHistWithSums,
       (c, ((xx, yy, xy), (sx, sy))) <- stats
       n = contigTotal(c)
     } yield {
-      def weights(xx: D, yy: D, sx: D, sy: D): LRW = {
+      def weights(xx: D, yy: D, sx: D, sy: D): RegressionWeights = {
         val den = n*xx - sx*sx
         val m = (n*xy - sx*sy) * 1.0 / den
         val b = (sy*xx - sx*xy) * 1.0 / den
         val err = yy + m*m*xx + b*b*n - 2*m*xy - 2*b*sy + 2*b*m*sx
         val num = sx*sy - n*xy
         val rSquared = num * 1.0 / (sx*sx - n*xx) * num / (sy*sy - n*yy)
-        LRW.newBuilder
-        .setSlope(m)
-        .setIntercept(b)
-        .setMse(err)
-        .setRSquared(rSquared)
-        .build()
+        RegressionWeights(m, b, err, rSquared)
       }
 
       c -> (weights(xx, yy, sx, sy), weights(yy, xx, sy, sx))
@@ -441,17 +436,12 @@ case class JointHistogram(all: JointHistWithSums,
     (c,e) <- eigens
   } yield c -> e.map(_._1).sum
 
-  lazy val pcsc = (for {
+  @transient lazy val pcsc = (for {
     (c, es) <- eigens
     (e,v) <- es
     sum = sum_esc(c)
   } yield {
-    c ->
-      PrincipalComponent.newBuilder()
-        .setValue(e)
-        .setVector(List(v._1, v._2).map(double2Double))
-        .setVarianceFraction(e / sum)
-        .build()
+    c -> PrincipalComponent(e, (v._1, v._2), e / sum)
   }).groupBy(_._1).mapValues(_.map(_._2).toList)
 
   lazy val mutualInformation: Map[(OB, OS), Double] = {
@@ -548,7 +538,7 @@ object JointHistogram {
   }
 
   def load(sc: SparkContext, fn: String): JointHistogram = {
-    val rdd: RDD[JointHistogramRecord] = sc.adamLoad(fn)
+    val rdd: RDD[JointHistogramRecord] = sc.loadParquet(fn)
     val jointHist =
       rdd.map(e => {
         val onGene: OB = Option(e.getOnGene).map(Boolean2boolean)
@@ -584,8 +574,8 @@ object JointHistogram {
           AlignmentRecordField.cigar
         )
       )
-    val reads = sc.loadAlignments(readsFile1, None, projectionOpt).setName("reads1")
-    val reads2 = sc.loadAlignments(readsFile2, None, projectionOpt).setName("reads2")
+    val reads = sc.loadAlignments(readsFile1, projectionOpt).setName("reads1")
+    val reads2 = sc.loadAlignments(readsFile2, projectionOpt).setName("reads2")
     val featuresOpt = intervalsFileOpt.map(f => sc.loadFeatures(f))
     JointHistogram.fromAlignments(
       reads,
