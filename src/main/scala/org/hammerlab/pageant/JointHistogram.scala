@@ -194,7 +194,7 @@ case class JointHistogram(jh: JointHist) {
           RegressionWeights(m, b, err, rSquared)
         }
 
-        (contig, drop(depths, i1, i2)) -> (weights(xx, yy, sx, sy), weights(yy, xx, sy, sx))
+        (contig, depths) -> (weights(xx, yy, sx, sy), weights(yy, xx, sy, sx))
       }
     })
   }
@@ -205,7 +205,7 @@ case class JointHistogram(jh: JointHist) {
       for {
         ((contig, depths), Stats(xx, yy, xy, sx, sy, n)) <- stats(i1, i2)
       } yield {
-        (contig, drop(depths, i1, i2)) ->
+        (contig, depths) ->
           Covariance(
             (xx - sx*sx/n) / (n - 1),
             (yy - sy*sy/n) / (n - 1),
@@ -232,7 +232,7 @@ case class JointHistogram(jh: JointHist) {
 
         val d2 = math.sqrt((e2-vy)*(e2-vy) + vxy*vxy)
         val v2 = ((e2 - vy) / d2, vxy / d2)
-        (contig, drop(depths, i1, i2)) -> (Eigen(e1, v1, e1 / (e1 + e2)), Eigen(e2, v2, e2 / (e1 + e2)))
+        (contig, depths) -> (Eigen(e1, v1, e1 / (e1 + e2)), Eigen(e2, v2, e2 / (e1 + e2)))
       }
     })
   }
