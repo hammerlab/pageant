@@ -237,8 +237,9 @@ case class JointHistogram(jh: JointHist) {
     })
   }
 
-  def write(filename: String): Unit = {
+  def write(filename: String): JointHistogram = {
     JointHistogram.write(jh, filename)
+    this
   }
 }
 
