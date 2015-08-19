@@ -33,14 +33,19 @@ case class JointHistogram(jh: JointHist) {
 
   val _hists: MMap[(Boolean, Set[Int]), JointHist] = MMap()
 
-  def drop(depths: Depths, idxs: Int*): Depths = drop(depths, idxs.toSet)
-  def drop(depths: Depths, idxs: Set[Int]): Depths = {
+  def select(depths: Depths, keep: Boolean, idxs: Set[Int]): Depths = {
     for {
       (depth, idx) <- depths.zipWithIndex
     } yield {
-      (if (idxs(idx)) None else depth)
+      (if (idxs(idx) == keep) depth else None)
     }
   }
+
+  def drop(depths: Depths, idxs: Int*): Depths = drop(depths, idxs.toSet)
+  def drop(depths: Depths, idxs: Set[Int]): Depths = select(depths, keep = false, idxs)
+
+  def keep(depths: Depths, idxs: Int*): Depths = keep(depths, idxs.toSet)
+  def keep(depths: Depths, idxs: Set[Int]): Depths =  select(depths, keep = true, idxs)
 
   def hist(keepIdxs: Set[Int], sumContigs: Boolean = false): JointHist = {
     _hists.getOrElseUpdate((sumContigs, keepIdxs), {
