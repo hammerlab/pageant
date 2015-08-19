@@ -269,20 +269,22 @@ object JointHistogram {
   def write(l: JointHist, filename: String): Unit = {
     val entries =
       for {
-        ((onGene, depths), numLoci) <- l
+        ((contigOpt, depths), numLoci) <- l
       } yield {
-        JointHistogramRecord.newBuilder()
-          .setNumLoci(numLoci)
-          .setDepths(
-            (for {
-              depth <- depths
-            } yield {
-              val b = Depth.newBuilder()
-              depth.foreach(d => b.setDepth(d))
-              b.build()
-            }).toList
-          )
-          .build()
+        val jhr =
+          JointHistogramRecord.newBuilder()
+            .setNumLoci(numLoci)
+            .setDepths(
+              (for {
+                depth <- depths
+              } yield {
+                val b = Depth.newBuilder()
+                depth.foreach(d => b.setDepth(d))
+                b.build()
+              }).toList
+            )
+          contigOpt.map(jhr.setContig)
+          jhr.build()
       }
 
     entries.adamParquetSave(filename)
