@@ -80,7 +80,7 @@ case class JointHistogram(jh: JointHist) {
         c <- cO
       } yield
         (gO, None: OS) -> nl
-      ).groupBy(_._1).mapValues(_.map(_._2).sum)
+      ).groupBy(_._1).mapValues(_.values.sum)
 
     val pct =
       if (includesTotals)
@@ -116,8 +116,8 @@ case class JointHistogram(jh: JointHist) {
 
   def ppc = printPerContigs _
 
-  lazy val totalLoci = for {
-    ((contig, _), nl) <- (hist(Set()) ++ hist(Set(), true)).collect().toMap
+  lazy val totalLoci: Map[OS, L] = for {
+    ((contig, _), nl) <- (hist(Set()) ++ hist(Set(), sumContigs = true)).collect().toMap
   } yield {
     contig -> nl
   }
@@ -131,7 +131,7 @@ case class JointHistogram(jh: JointHist) {
           d1 <- depths(i1)
           d2 <- depths(i2)
         } yield
-          ((contig, drop(depths, i1, i2)) -> fn(d1, d2, nl))
+          (contig, drop(depths, i1, i2)) -> fn(d1, d2, nl)
         ).reduceByKey(_ + _)
       )
 
@@ -143,15 +143,25 @@ case class JointHistogram(jh: JointHist) {
       }
   }
 
-  val sums = Comp2("sum", (d1, d2, nl) => d1 * nl)
-  val sqsums = Comp2("sqsum", (d1, d2, nl) => d1 * d1 * nl)
+  val sums = Comp2("sum", (d1, _, nl) => d1 * nl)
+  val sqsums = Comp2("sqsum", (d1, _, nl) => d1 * d1 * nl)
   val dots = Comp2("dot", (d1, d2, nl) => d1 * d2 * nl)
   val ns = Comp2("n", (_, _, nl) => nl)
 
   val _stats: MMap[(Int, Int), RDD[(JointHistKey, Stats)]] = MMap()
   def stats(i1: Int, i2: Int): RDD[(JointHistKey, Stats)] = {
     _stats.getOrElseUpdate((i1, i2), {
-      val merged = (sums.getMap(i1, i2) ++ sums.getMap(i2, i1) ++ dots.getMap(i1, i2) ++ sqsums.getMap(i1, i2) ++ sqsums.getMap(i2, i1) ++ ns.getMap(i1, i2)).reduceByKey(_ ++ _)
+
+      val merged =
+        (
+          sums.getMap(i1, i2) ++
+            sums.getMap(i2, i1) ++
+            dots.getMap(i1, i2) ++
+            sqsums.getMap(i1, i2) ++
+            sqsums.getMap(i2, i1) ++
+            ns.getMap(i1, i2)
+          ).reduceByKey(_ ++ _)
+
       for {
         ((contig, depths), m) <- merged
         foo = println(s"merged: $m")
@@ -197,9 +207,9 @@ case class JointHistogram(jh: JointHist) {
       } yield {
         (contig, drop(depths, i1, i2)) ->
           Covariance(
-            (xx - sx*sx/n) / (n-1),
-            (yy - sy*sy/n) / (n-1),
-            (xy - sx*sy/n) / (n-1)
+            (xx - sx*sx/n) / (n - 1),
+            (yy - sy*sy/n) / (n - 1),
+            (xy - sx*sy/n) / (n - 1)
           )
       }
     })
@@ -358,7 +368,7 @@ object JointHistogram {
 
   def fromDepthMaps(rdds: Seq[DepthMap]): JointHistogram = {
     val union: RDD[(Pos, Depths)] =
-      rdds(0).context.union(for {
+      rdds.head.context.union(for {
         (rdd, idx) <- rdds.zipWithIndex
       } yield {
           for {
