@@ -11,13 +11,21 @@ import org.hammerlab.pageant.avro.{Depth, JointHistogramRecord}
 
 import scala.collection.mutable.{Map => MMap}
 
-case class RegressionWeights(slope: Double, intercept: Double, mse: Double, rSquared: Double)
+case class RegressionWeights(slope: Double, intercept: Double, mse: Double, rSquared: Double) {
+  override def toString: String = {
+    "(%.3f %.3f, %.3f, %.3f)".format(slope, intercept, mse, rSquared)
+  }
+}
 
 case class Stats(xx: Double, yy: Double, xy: Double, sx: Double, sy: Double, n: Double)
 
 case class Covariance(vx: Double, vy: Double, vxy: Double)
 
-case class Eigen(value: Double, vector: (Double, Double), varianceExplained: Double)
+case class Eigen(value: Double, vector: (Double, Double), varianceExplained: Double) {
+  override def toString: String = {
+    "%.3f (%.3f, %.3f) (%.3f)".format(value, vector._1, vector._2, varianceExplained)
+  }
+}
 
 case class JointHistogram(jh: JointHist) {
 
