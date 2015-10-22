@@ -6,7 +6,7 @@ import org.apache.spark.SparkContext
 import org.apache.spark.rdd.RDD
 import org.bdgenomics.adam.rich.RichAlignmentRecord
 import org.bdgenomics.formats.avro.{Feature, AlignmentRecord}
-import org.hammerlab.pageant.JointHistogram.{Depths, OB, D, JointHistKey, OS, OL, S, L, JointHist}
+import org.hammerlab.pageant.JointHistogram.{Depths, OB, D, JointHistKey, OS, OL, OI, S, L, I, JointHist}
 import org.hammerlab.pageant.avro.{Depth, JointHistogramRecord}
 
 import scala.collection.mutable.{Map => MMap}
@@ -27,11 +27,14 @@ case class Eigen(value: Double, vector: (Double, Double), varianceExplained: Dou
   }
 }
 
+object Utils {
+  def on(v: OI): S = v.map(_.toString).getOrElse("*")
+  def dgs(d: D, n: I = 3) = s"%.${n}f".format(d)
+}
+
 case class JointHistogram(jh: JointHist) {
 
   @transient val sc = jh.context
-
-  val _hists: MMap[(Boolean, Set[Int]), JointHist] = MMap()
 
   def select(depths: Depths, keep: Boolean, idxs: Set[Int]): Depths = {
     for {
@@ -47,28 +50,30 @@ case class JointHistogram(jh: JointHist) {
   def keep(depths: Depths, idxs: Int*): Depths = keep(depths, idxs.toSet)
   def keep(depths: Depths, idxs: Set[Int]): Depths =  select(depths, keep = true, idxs)
 
+  val _hists: MMap[(Boolean, Set[Int]), JointHist] = MMap()
   def hist(keepIdxs: Set[Int], sumContigs: Boolean = false): JointHist = {
     _hists.getOrElseUpdate((sumContigs, keepIdxs), {
 
       val ib = sc.broadcast(keepIdxs)
 
-      def keep(r: JointHistKey): JointHistKey = {
+      def dropUnkeptDepths(k: JointHistKey): JointHistKey = {
+        val (cO, depths) = k
         (
-          if (sumContigs) None else r._1,
-          r._2.zipWithIndex.map(p =>
-            if (ib.value(p._2))
-              p._1
-            else
-              None
-          )
+          if (sumContigs) None else cO,
+          for {
+            (dO, idx) <- depths.zipWithIndex
+            if (ib.value(idx))
+          } yield dO
         )
       }
 
       (for {
         (k, nl) <- jh
       } yield
-        keep(k) -> nl
-      ).reduceByKey(_ + _).setName((if (sumContigs) "t" else "") + ib.value.toList.sortBy(x => x).mkString(",")).cache()
+        dropUnkeptDepths(k) -> nl
+      ).reduceByKey(_ + _)
+       .setName((if (sumContigs) "t" else "") + ib.value.toList.sortBy(x => x).mkString(","))
+       .cache()
 
     })
   }
@@ -265,6 +270,10 @@ object JointHistogram {
   type JointHistKey = (OS, Depths)
   type JointHistElem = (JointHistKey, L)
   type JointHist = RDD[JointHistElem]
+
+  object Implicits {
+    implicit def wrapJointHist(jh: JointHist): JointHistogram = JointHistogram(jh)
+  }
 
   def write(l: JointHist, filename: String): Unit = {
     val entries =
