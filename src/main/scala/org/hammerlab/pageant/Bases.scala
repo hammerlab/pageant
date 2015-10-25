@@ -1,5 +1,8 @@
 package org.hammerlab.pageant
 
+import org.apache.hadoop.fs.{Path, FileSystem}
+import org.apache.spark.SparkContext
+
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.{mutable, SeqLike}
 
@@ -95,3 +98,6 @@ object Bases {
     bldr.result()
   }
 }
+
+
+
