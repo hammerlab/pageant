@@ -1,5 +1,9 @@
 package org.hammerlab.pageant
 
+case class BasesTuple(b: Bases, numFirst: Long, numOther: Long) {
+  def num: Long = numFirst + numOther
+}
+
 object TuplesRDD {
 
   import org.hammerlab.pageant.BasesRDD._
