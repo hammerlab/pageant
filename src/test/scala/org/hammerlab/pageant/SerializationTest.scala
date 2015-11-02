@@ -6,6 +6,7 @@ import java.nio.file.Files
 import org.apache.commons.io.FilenameUtils
 import org.apache.commons.io.filefilter.PrefixFileFilter
 import org.apache.spark.SparkContext
+import org.apache.spark.rdd.RDD
 import org.bdgenomics.utils.misc.SparkFunSuite
 import Serialization._
 import org.scalatest.Matchers
@@ -60,31 +61,45 @@ class SerializationTest extends SparkFunSuite with Matchers {
   }
 }
 
-trait CheckpointRDDTest extends SparkFunSuite with Matchers {
-  def serdeListAsRDD[T](name: String,
+trait KryoSerializerTest {
+  self: SparkFunSuite =>
+
+  override val properties = Map(
+    "spark.serializer" -> "org.apache.spark.serializer.KryoSerializer"
+  )
+}
+
+trait SerdeRDDTest extends SparkFunSuite with Matchers {
+
+  def serializeRDD[T: ClassTag](rdd: RDD[T], path: String)
+  def deserializeRDD[T: ClassTag](path: String): RDD[T]
+
+  def serializeListAsRDD[T](name: String,
                         l: Seq[T],
                         numPartitions: Int = 4,
                         files: Map[String, Int])(implicit ct: ClassTag[T]): Unit = {
     val tmpFile = Files.createTempDirectory("").toAbsolutePath.toString + "/" + name
     val rdd = sc.parallelize(l, numPartitions)
-    rdd.serializeToFile(tmpFile)
+    serializeRDD(rdd, tmpFile)
 
     val filter: FilenameFilter = new PrefixFileFilter("part-")
     new File(tmpFile).listFiles(filter).map(f => {
       FilenameUtils.getBaseName(f.getAbsolutePath) -> f.length
     }).toMap should be(files)
 
-    sc.fromFile[T](tmpFile).collect() should be(l.toArray)
+    deserializeRDD(tmpFile).collect() should be(l.toArray)
   }
 }
 
-class KryoCheckpointRDDTest extends CheckpointRDDTest {
-  override val properties = Map(
-    "spark.serializer" -> "org.apache.spark.serializer.KryoSerializer"
-  )
+class CheckpointRDDTest extends SerdeRDDTest {
+  def serializeRDD[T: ClassTag](rdd: RDD[T], path: String) = rdd.serializeToFile(path)
+  def deserializeRDD[T: ClassTag](path: String): RDD[T] = sc.fromFile[T](path)
+}
+
+class KryoCheckpointRDDTest extends CheckpointRDDTest with KryoSerializerTest {
 
   sparkTest("rdd ints") {
-    serdeListAsRDD(
+    serializeListAsRDD(
       "ints",
       1 to 200,
       4,
@@ -97,7 +112,7 @@ class KryoCheckpointRDDTest extends CheckpointRDDTest {
   }
 
   sparkTest("rdd foos") {
-    serdeListAsRDD(
+    serializeListAsRDD(
       "foos",
       List(
         Foo(111, "aaaaaaaa"),
@@ -117,7 +132,7 @@ class KryoCheckpointRDDTest extends CheckpointRDDTest {
   }
 
   sparkTest("more foos") {
-    serdeListAsRDD(
+    serializeListAsRDD(
       "foos",
       Foos(10000, 20),
       4,
@@ -133,7 +148,7 @@ class KryoCheckpointRDDTest extends CheckpointRDDTest {
 
 class JavaCheckpointRDDTest extends CheckpointRDDTest {
   sparkTest("rdd ints") {
-    serdeListAsRDD(
+    serializeListAsRDD(
       "ints",
       1 to 200,
       4,
@@ -147,7 +162,7 @@ class JavaCheckpointRDDTest extends CheckpointRDDTest {
   }
 
   sparkTest("rdd foos") {
-    serdeListAsRDD(
+    serializeListAsRDD(
       "foos",
       List(
         Foo(111, "aaaaaaaa"),
@@ -167,7 +182,7 @@ class JavaCheckpointRDDTest extends CheckpointRDDTest {
   }
 
   sparkTest("more foos") {
-    serdeListAsRDD(
+    serializeListAsRDD(
       "foos",
       Foos(10000, 20),
       4,
@@ -182,22 +197,9 @@ class JavaCheckpointRDDTest extends CheckpointRDDTest {
 
 }
 
-trait SerializedRDDTest extends SparkFunSuite with Matchers {
-  def serializeListAsRDD[T](name: String,
-                            l: Seq[T],
-                            numPartitions: Int = 4,
-                            files: Map[String, Int])(implicit ct: ClassTag[T]): Unit = {
-    val tmpFile = Files.createTempDirectory("").toAbsolutePath.toString + "/" + name
-    val rdd = sc.parallelize(l, numPartitions)
-    rdd.serializeToFileDirectly(tmpFile)
-
-    val filter: FilenameFilter = new PrefixFileFilter("part-")
-    new File(tmpFile).listFiles(filter).map(f => {
-      FilenameUtils.getBaseName(f.getAbsolutePath) -> f.length
-    }).toMap should be(files)
-
-    sc.fromDirectFile[T](tmpFile).collect() should be(l.toArray)
-  }
+class SerializedRDDTest extends SerdeRDDTest {
+  def serializeRDD[T: ClassTag](rdd: RDD[T], path: String) = rdd.serializeToFileDirectly(path)
+  def deserializeRDD[T: ClassTag](path: String): RDD[T] = sc.fromDirectFile[T](path)
 }
 
 class JavaSerializedRDDTest extends SerializedRDDTest {
@@ -250,10 +252,7 @@ class JavaSerializedRDDTest extends SerializedRDDTest {
   }
 }
 
-class KryoSerializedRDDTest extends SerializedRDDTest {
-  override val properties = Map(
-    "spark.serializer" -> "org.apache.spark.serializer.KryoSerializer"
-  )
+class KryoSerializedRDDTest extends SerializedRDDTest with KryoSerializerTest {
 
   sparkTest("rdd ints") {
     serializeListAsRDD(
