@@ -89,6 +89,45 @@ trait SerdeRDDTest extends SparkFunSuite with Matchers {
 
     deserializeRDD(tmpFile).collect() should be(l.toArray)
   }
+
+  def testInts(p0: Int, p1: Int, p2: Int, p3: Int): Unit = {
+    sparkTest("rdd ints") {
+      serializeListAsRDD(
+        "ints",
+        1 to 200,
+        4,
+        Map("part-00000" -> p0, "part-00001" -> p1, "part-00002" -> p2, "part-00003" -> p3)
+      )
+    }
+  }
+
+  def testFewFoos(p0: Int, p1: Int, p2: Int, p3: Int): Unit = {
+    sparkTest("rdd foos") {
+      serializeListAsRDD(
+        "foos",
+        List(
+          Foo(111, "aaaaaaaa"),
+          Foo(222, "bbbbbbbb"),
+          Foo(333, "cccccccc"),
+          Foo(444, "dddddddd"),
+          Foo(555, "eeeeeeee")
+        ),
+        4,
+        Map("part-00000" -> p0, "part-00001" -> p1, "part-00002" -> p2, "part-00003" -> p3)
+      )
+    }
+  }
+
+  def testManyFoos(p0: Int, p1: Int, p2: Int, p3: Int): Unit = {
+    sparkTest("more foos") {
+      serializeListAsRDD(
+        "foos",
+        Foos(10000, 20),
+        4,
+        Map("part-00000" -> p0, "part-00001" -> p1, "part-00002" -> p2, "part-00003" -> p3)
+      )
+    }
+  }
 }
 
 class CheckpointRDDTest extends SerdeRDDTest {
@@ -97,104 +136,15 @@ class CheckpointRDDTest extends SerdeRDDTest {
 }
 
 class KryoCheckpointRDDTest extends CheckpointRDDTest with KryoSerializerTest {
-
-  sparkTest("rdd ints") {
-    serializeListAsRDD(
-      "ints",
-      1 to 200,
-      4,
-      Map(
-        "part-00000" -> 795,
-        "part-00001" -> 832,
-        "part-00002" -> 845,
-        "part-00003" -> 845)
-    )
-  }
-
-  sparkTest("rdd foos") {
-    serializeListAsRDD(
-      "foos",
-      List(
-        Foo(111, "aaaaaaaa"),
-        Foo(222, "bbbbbbbb"),
-        Foo(333, "cccccccc"),
-        Foo(444, "dddddddd"),
-        Foo(555, "eeeeeeee")
-      ),
-      4,
-      Map(
-        "part-00000" -> 146,
-        "part-00001" -> 146,
-        "part-00002" -> 146,
-        "part-00003" -> 197
-      )
-    )
-  }
-
-  sparkTest("more foos") {
-    serializeListAsRDD(
-      "foos",
-      Foos(10000, 20),
-      4,
-      Map(
-        "part-00000" -> 159092,
-        "part-00001" -> 159155,
-        "part-00002" -> 159155,
-        "part-00003" -> 160964
-      )
-    )
-  }
+  testInts(795, 832, 845, 845)
+  testFewFoos(146, 146, 146, 197)
+  testManyFoos(159092, 159155, 159155, 160964)
 }
 
 class JavaCheckpointRDDTest extends CheckpointRDDTest {
-  sparkTest("rdd ints") {
-    serializeListAsRDD(
-      "ints",
-      1 to 200,
-      4,
-      Map(
-        "part-00000" -> 4785,
-        "part-00001" -> 4785,
-        "part-00002" -> 4785,
-        "part-00003" -> 4785
-      )
-    )
-  }
-
-  sparkTest("rdd foos") {
-    serializeListAsRDD(
-      "foos",
-      List(
-        Foo(111, "aaaaaaaa"),
-        Foo(222, "bbbbbbbb"),
-        Foo(333, "cccccccc"),
-        Foo(444, "dddddddd"),
-        Foo(555, "eeeeeeee")
-      ),
-      4,
-      Map(
-        "part-00000" -> 197,
-        "part-00001" -> 197,
-        "part-00002" -> 197,
-        "part-00003" -> 299
-      )
-    )
-  }
-
-  sparkTest("more foos") {
-    serializeListAsRDD(
-      "foos",
-      Foos(10000, 20),
-      4,
-      Map(
-        "part-00000" -> 287855,
-        "part-00001" -> 287855,
-        "part-00002" -> 287855,
-        "part-00003" -> 287855
-      )
-    )
-  }
-
+  testInts(4785, 4785, 4785, 4785)
+  testFewFoos(197, 197, 197, 299)
+  testManyFoos(287855, 287855, 287855, 287855)
 }
 
 class SerializedRDDTest extends SerdeRDDTest {
@@ -203,104 +153,14 @@ class SerializedRDDTest extends SerdeRDDTest {
 }
 
 class JavaSerializedRDDTest extends SerializedRDDTest {
-  sparkTest("rdd ints") {
-    serializeListAsRDD(
-      "ints",
-      1 to 200,
-      4,
-      Map(
-        "part-00000" -> 571,
-        "part-00001" -> 571,
-        "part-00002" -> 571,
-        "part-00003" -> 571
-      )
-    )
-  }
-
-  sparkTest("rdd foos") {
-    serializeListAsRDD(
-      "foos",
-      List(
-        Foo(111, "aaaaaaaa"),
-        Foo(222, "bbbbbbbb"),
-        Foo(333, "cccccccc"),
-        Foo(444, "dddddddd"),
-        Foo(555, "eeeeeeee")
-      ),
-      4,
-      Map(
-        "part-00000" -> 90,
-        "part-00001" -> 90,
-        "part-00002" -> 90,
-        "part-00003" -> 111
-      )
-    )
-  }
-
-  sparkTest("more foos") {
-    serializeListAsRDD(
-      "foos",
-      Foos(10000, 20),
-      4,
-      Map(
-        "part-00000" -> 84154,
-        "part-00001" -> 84154,
-        "part-00002" -> 84154,
-        "part-00003" -> 84154
-      )
-    )
-  }
+  testInts(571, 571, 571, 571)
+  testFewFoos(90, 90, 90, 111)
+  testManyFoos(84154, 84154, 84154, 84154)
 }
 
 class KryoSerializedRDDTest extends SerializedRDDTest with KryoSerializerTest {
-
-  sparkTest("rdd ints") {
-    serializeListAsRDD(
-      "ints",
-      1 to 200,
-      4,
-      Map(
-        "part-00000" -> 100,
-        "part-00001" -> 137,
-        "part-00002" -> 150,
-        "part-00003" -> 150
-      )
-    )
-  }
-
-  sparkTest("rdd foos") {
-    serializeListAsRDD(
-      "foos",
-      List(
-        Foo(111, "aaaaaaaa"),
-        Foo(222, "bbbbbbbb"),
-        Foo(333, "cccccccc"),
-        Foo(444, "dddddddd"),
-        Foo(555, "eeeeeeee")
-      ),
-      4,
-      Map(
-        "part-00000" -> 39,
-        "part-00001" -> 39,
-        "part-00002" -> 39,
-        "part-00003" -> 78
-      )
-    )
-  }
-
-  sparkTest("more foos") {
-    serializeListAsRDD(
-      "foos",
-      Foos(10000, 20),
-      4,
-      Map(
-        "part-00000" -> 127437,
-        "part-00001" -> 127500,
-        "part-00002" -> 127500,
-        "part-00003" -> 129309
-      )
-    )
-  }
-
+  testInts(100, 137, 150, 150)
+  testFewFoos(39, 39, 39, 78)
+  testManyFoos(127437, 127500, 127500, 129309)
 }
 
