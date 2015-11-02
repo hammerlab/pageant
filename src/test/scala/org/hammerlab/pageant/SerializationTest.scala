@@ -60,8 +60,7 @@ class SerializationTest extends SparkFunSuite with Matchers {
   }
 }
 
-trait CheckpointRDDTest extends Matchers {
-  def sc: SparkContext
+trait CheckpointRDDTest extends SparkFunSuite with Matchers {
   def serdeListAsRDD[T](name: String,
                         l: Seq[T],
                         numPartitions: Int = 4,
@@ -79,7 +78,7 @@ trait CheckpointRDDTest extends Matchers {
   }
 }
 
-class KryoCheckpointRDDTest extends SparkFunSuite with CheckpointRDDTest {
+class KryoCheckpointRDDTest extends CheckpointRDDTest {
   override val properties = Map(
     "spark.serializer" -> "org.apache.spark.serializer.KryoSerializer"
   )
@@ -132,7 +131,7 @@ class KryoCheckpointRDDTest extends SparkFunSuite with CheckpointRDDTest {
   }
 }
 
-class JavaCheckpointRDDTest extends SparkFunSuite with CheckpointRDDTest {
+class JavaCheckpointRDDTest extends CheckpointRDDTest {
   sparkTest("rdd ints") {
     serdeListAsRDD(
       "ints",
@@ -182,3 +181,127 @@ class JavaCheckpointRDDTest extends SparkFunSuite with CheckpointRDDTest {
   }
 
 }
+
+trait SerializedRDDTest extends SparkFunSuite with Matchers {
+  def serializeListAsRDD[T](name: String,
+                            l: Seq[T],
+                            numPartitions: Int = 4,
+                            files: Map[String, Int])(implicit ct: ClassTag[T]): Unit = {
+    val tmpFile = Files.createTempDirectory("").toAbsolutePath.toString + "/" + name
+    val rdd = sc.parallelize(l, numPartitions)
+    rdd.serializeToFileDirectly(tmpFile)
+
+    val filter: FilenameFilter = new PrefixFileFilter("part-")
+    new File(tmpFile).listFiles(filter).map(f => {
+      FilenameUtils.getBaseName(f.getAbsolutePath) -> f.length
+    }).toMap should be(files)
+
+    sc.fromDirectFile[T](tmpFile).collect() should be(l.toArray)
+  }
+}
+
+class JavaSerializedRDDTest extends SerializedRDDTest {
+  sparkTest("rdd ints") {
+    serializeListAsRDD(
+      "ints",
+      1 to 200,
+      4,
+      Map(
+        "part-00000" -> 571,
+        "part-00001" -> 571,
+        "part-00002" -> 571,
+        "part-00003" -> 571
+      )
+    )
+  }
+
+  sparkTest("rdd foos") {
+    serializeListAsRDD(
+      "foos",
+      List(
+        Foo(111, "aaaaaaaa"),
+        Foo(222, "bbbbbbbb"),
+        Foo(333, "cccccccc"),
+        Foo(444, "dddddddd"),
+        Foo(555, "eeeeeeee")
+      ),
+      4,
+      Map(
+        "part-00000" -> 90,
+        "part-00001" -> 90,
+        "part-00002" -> 90,
+        "part-00003" -> 111
+      )
+    )
+  }
+
+  sparkTest("more foos") {
+    serializeListAsRDD(
+      "foos",
+      Foos(10000, 20),
+      4,
+      Map(
+        "part-00000" -> 84154,
+        "part-00001" -> 84154,
+        "part-00002" -> 84154,
+        "part-00003" -> 84154
+      )
+    )
+  }
+}
+
+class KryoSerializedRDDTest extends SerializedRDDTest {
+  override val properties = Map(
+    "spark.serializer" -> "org.apache.spark.serializer.KryoSerializer"
+  )
+
+  sparkTest("rdd ints") {
+    serializeListAsRDD(
+      "ints",
+      1 to 200,
+      4,
+      Map(
+        "part-00000" -> 100,
+        "part-00001" -> 137,
+        "part-00002" -> 150,
+        "part-00003" -> 150
+      )
+    )
+  }
+
+  sparkTest("rdd foos") {
+    serializeListAsRDD(
+      "foos",
+      List(
+        Foo(111, "aaaaaaaa"),
+        Foo(222, "bbbbbbbb"),
+        Foo(333, "cccccccc"),
+        Foo(444, "dddddddd"),
+        Foo(555, "eeeeeeee")
+      ),
+      4,
+      Map(
+        "part-00000" -> 39,
+        "part-00001" -> 39,
+        "part-00002" -> 39,
+        "part-00003" -> 78
+      )
+    )
+  }
+
+  sparkTest("more foos") {
+    serializeListAsRDD(
+      "foos",
+      Foos(10000, 20),
+      4,
+      Map(
+        "part-00000" -> 127437,
+        "part-00001" -> 127500,
+        "part-00002" -> 127500,
+        "part-00003" -> 129309
+      )
+    )
+  }
+
+}
+
