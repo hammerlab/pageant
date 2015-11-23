@@ -1,19 +1,15 @@
 package org.hammerlab.pageant
 
-import java.io.{FilenameFilter, File}
-import java.nio.file.Files
+import java.io.ByteArrayInputStream
 
-import org.apache.commons.io.FilenameUtils
-import org.apache.commons.io.filefilter.PrefixFileFilter
-import org.apache.spark.SparkContext
-import org.apache.spark.rdd.RDD
+import com.esotericsoftware.kryo.io.Input
 import org.bdgenomics.utils.misc.SparkFunSuite
-import Serialization._
+import JavaSerialization._
+import KryoSerialization._
 import org.scalatest.Matchers
-import CheckpointRDD._
+import SerializedRDD.byteToHex
 
 import scala.collection.immutable.StringOps
-import scala.reflect.ClassTag
 
 case class Foo(n: Int, s: String)
 
@@ -59,108 +55,71 @@ class SerializationTest extends SparkFunSuite with Matchers {
     bytes.size should be(12)
     kryoRead[Foo](bytes) should be(foo)
   }
-}
 
-trait KryoSerializerTest {
-  self: SparkFunSuite =>
-
-  override val properties = Map(
-    "spark.serializer" -> "org.apache.spark.serializer.KryoSerializer"
-  )
-}
-
-trait SerdeRDDTest extends SparkFunSuite with Matchers {
-
-  def serializeRDD[T: ClassTag](rdd: RDD[T], path: String)
-  def deserializeRDD[T: ClassTag](path: String): RDD[T]
-
-  def serializeListAsRDD[T](name: String,
-                        l: Seq[T],
-                        numPartitions: Int = 4,
-                        files: Map[String, Int])(implicit ct: ClassTag[T]): Unit = {
-    val tmpFile = Files.createTempDirectory("").toAbsolutePath.toString + "/" + name
-    val rdd = sc.parallelize(l, numPartitions)
-    serializeRDD(rdd, tmpFile)
-
-    val filter: FilenameFilter = new PrefixFileFilter("part-")
-    new File(tmpFile).listFiles(filter).map(f => {
-      FilenameUtils.getBaseName(f.getAbsolutePath) -> f.length
-    }).toMap should be(files)
-
-    deserializeRDD(tmpFile).collect() should be(l.toArray)
+  sparkTest("kryo foo class") {
+    implicit val isc = sc
+//    val foo = Foo(187, "dddddddd")
+//    val bytes = kryoBytes(foo, includeClass = true)
+    val b1 = kryoBytes(Foo(127, "dddddddd"), includeClass = true)
+    bs(b1)
+//    b1.size should be(38)
+    val b2 = kryoBytes(Foo(128, "dddddddd"), includeClass = true)
+    bs(b2)
+//    b2.size should be(39)
+    val b3 = kryoBytes(Foo(129, "dddddddddddddddd"), includeClass = true)
+    bs(b3)
+//    b3.size should be(46)
+    val b4 = kryoBytes(Foo(130, "dddddddddddddddd"), includeClass = true)
+    bs(b4)
+//    b4.size should be(47)
+//    bytes.size should be(13)
+//    kryoRead[Foo](bytes) should be(foo)
   }
 
-  def testInts(p0: Int, p1: Int, p2: Int, p3: Int): Unit = {
-    sparkTest("rdd ints") {
-      serializeListAsRDD(
-        "ints",
-        1 to 200,
-        4,
-        Map("part-00000" -> p0, "part-00001" -> p1, "part-00002" -> p2, "part-00003" -> p3)
-      )
-    }
+  def bs(bytes: Array[Byte]): Unit = {
+    println(bytes.map(byteToHex).mkString(" "))
   }
 
-  def testFewFoos(p0: Int, p1: Int, p2: Int, p3: Int): Unit = {
-    sparkTest("rdd foos") {
-      serializeListAsRDD(
-        "foos",
-        List(
-          Foo(111, "aaaaaaaa"),
-          Foo(222, "bbbbbbbb"),
-          Foo(333, "cccccccc"),
-          Foo(444, "dddddddd"),
-          Foo(555, "eeeeeeee")
-        ),
-        4,
-        Map("part-00000" -> p0, "part-00001" -> p1, "part-00002" -> p2, "part-00003" -> p3)
-      )
-    }
+  sparkTest("kryo 1 string") {
+    implicit val isc = sc
+    val bytes = kryoBytes("aaaaaaaa")
+    bytes.size should be(9)
+    println(bytes.map(byteToHex).mkString(" "))
+    val bais = new ByteArrayInputStream(bytes)
+    kryoRead[String](bais) should be("aaaaaaaa")
   }
 
-  def testManyFoos(p0: Int, p1: Int, p2: Int, p3: Int): Unit = {
-    sparkTest("more foos") {
-      serializeListAsRDD(
-        "foos",
-        Foos(10000, 20),
-        4,
-        Map("part-00000" -> p0, "part-00001" -> p1, "part-00002" -> p2, "part-00003" -> p3)
-      )
-    }
+  sparkTest("kryo class and 1 string") {
+    implicit val isc = sc
+    val bytes = kryoBytes("aaaaaaaa", includeClass = true)
+    bytes.size should be(10)
+    println(bytes.map(byteToHex).mkString(" "))
+    val bais = new ByteArrayInputStream(bytes)
+    kryoRead[String](bais, includeClass = true) should be("aaaaaaaa")
   }
-}
 
-class CheckpointRDDTest extends SerdeRDDTest {
-  def serializeRDD[T: ClassTag](rdd: RDD[T], path: String) = rdd.serializeToFile(path)
-  def deserializeRDD[T: ClassTag](path: String): RDD[T] = sc.fromFile[T](path)
-}
+  sparkTest("kryo strings") {
+    implicit val isc = sc
+    val bytes = kryoBytes("aaaaaaaa") ++ kryoBytes("bbbbbbbb")
+    bytes.size should be(18)
+    println(bytes.map(byteToHex).mkString(" "))
+    val ip = new Input(bytes)
+    //val bais = new ByteArrayInputStream(bytes)
+    kryoRead[String](ip, includeClass = false) should be("aaaaaaaa")
+    kryoRead[String](ip, includeClass = false) should be("bbbbbbbb")
+    ip.close()
+  }
 
-class KryoCheckpointRDDTest extends CheckpointRDDTest with KryoSerializerTest {
-  testInts(795, 832, 845, 845)
-  testFewFoos(146, 146, 146, 197)
-  testManyFoos(159092, 159155, 159155, 160964)
-}
-
-class JavaCheckpointRDDTest extends CheckpointRDDTest {
-  testInts(4785, 4785, 4785, 4785)
-  testFewFoos(197, 197, 197, 299)
-  testManyFoos(287855, 287855, 287855, 287855)
-}
-
-class SerializedRDDTest extends SerdeRDDTest {
-  def serializeRDD[T: ClassTag](rdd: RDD[T], path: String) = rdd.serializeToFileDirectly(path)
-  def deserializeRDD[T: ClassTag](path: String): RDD[T] = sc.fromDirectFile[T](path)
-}
-
-class JavaSerializedRDDTest extends SerializedRDDTest {
-  testInts(571, 571, 571, 571)
-  testFewFoos(90, 90, 90, 111)
-  testManyFoos(84154, 84154, 84154, 84154)
-}
-
-class KryoSerializedRDDTest extends SerializedRDDTest with KryoSerializerTest {
-  testInts(100, 137, 150, 150)
-  testFewFoos(39, 39, 39, 78)
-  testManyFoos(127437, 127500, 127500, 129309)
+  sparkTest("kryo class and strings") {
+    implicit val isc = sc
+    val bytes = kryoBytes("aaaaaaaa", includeClass = true) ++ kryoBytes("bbbbbbbb", includeClass = true)
+    bytes.size should be(20)
+    println(bytes.map(byteToHex).mkString(" "))
+//    val bais = new ByteArrayInputStream(bytes)
+    val ip = new Input(bytes)
+    kryoRead[String](ip, includeClass = true) should be("aaaaaaaa")
+    kryoRead[String](ip, includeClass = true) should be("bbbbbbbb")
+    ip.close()
+  }
 }
 
