@@ -1,9 +1,9 @@
-package org.hammerlab.pageant
+package org.hammerlab.pageant.serialization
 
-import java.io.{ByteArrayOutputStream, OutputStream, InputStream}
+import java.io.{ByteArrayOutputStream, InputStream, OutputStream}
 
-import com.esotericsoftware.kryo.io.{Output, Input}
-import org.apache.hadoop.fs.{Path, FileSystem}
+import com.esotericsoftware.kryo.io.{Input, Output}
+import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.spark.SparkContext
 import org.apache.spark.serializer.KryoSerializer
 

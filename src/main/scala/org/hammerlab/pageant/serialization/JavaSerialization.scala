@@ -1,8 +1,8 @@
-package org.hammerlab.pageant
+package org.hammerlab.pageant.serialization
 
-import java.io.{ByteArrayOutputStream, ObjectOutputStream, OutputStream, ObjectInputStream, InputStream, ByteArrayInputStream}
+import java.io.{ByteArrayInputStream, ByteArrayOutputStream, InputStream, ObjectInputStream, ObjectOutputStream, OutputStream}
 
-import org.apache.hadoop.fs.{Path, FileSystem}
+import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.spark.SparkContext
 
 object JavaSerialization {

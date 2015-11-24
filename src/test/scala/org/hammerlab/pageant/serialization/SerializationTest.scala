@@ -1,26 +1,18 @@
-package org.hammerlab.pageant
+package org.hammerlab.pageant.serialization
 
 import java.io.ByteArrayInputStream
 
+import com.esotericsoftware.kryo.Kryo
 import com.esotericsoftware.kryo.io.Input
+import org.apache.spark.serializer.KryoRegistrator
 import org.bdgenomics.utils.misc.SparkFunSuite
+import org.hammerlab.pageant.utils.Utils._
+import org.scalatest.Matchers
+
 import JavaSerialization._
 import KryoSerialization._
-import org.scalatest.Matchers
-import SerializedRDD.byteToHex
 
 import scala.collection.immutable.StringOps
-
-case class Foo(n: Int, s: String)
-
-object Foos {
-  def apply(n: Int, k: Int = 8): Seq[Foo] = {
-    (1 to n).map(i => {
-      val ch = ((i%26) + 96).toChar
-      Foo(i, new StringOps(ch.toString) * k)
-    })
-  }
-}
 
 class SerializationTest extends SparkFunSuite with Matchers {
   val l = List("aaaaaaaa", "bbbbbbbb", "cccccccc")

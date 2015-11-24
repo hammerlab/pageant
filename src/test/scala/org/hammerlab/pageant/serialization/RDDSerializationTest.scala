@@ -1,4 +1,4 @@
-package org.hammerlab.pageant
+package org.hammerlab.pageant.serialization
 
 import java.io.{File, FilenameFilter}
 import java.nio.file.Files
@@ -6,25 +6,27 @@ import java.nio.file.Files
 import org.apache.commons.io.FilenameUtils
 import org.apache.commons.io.filefilter.PrefixFileFilter
 import org.apache.spark.rdd.RDD
+import org.apache.spark.serializer.DirectFileRDDSerializer
 import org.bdgenomics.utils.misc.SparkFunSuite
 import org.scalatest.Matchers
-import SerializableRDD._
+
+import SequenceFileSerializableRDD._
+import DirectFileRDDSerializer._
 
 import scala.reflect.ClassTag
 
 trait KryoSerializerTest {
   self: SparkFunSuite =>
-
   override val properties = Map(
     "spark.serializer" -> "org.apache.spark.serializer.KryoSerializer"
   )
 }
 
-trait KryoObjectSerializerTest {
+trait KryoFooRegistrarTest {
   self: SparkFunSuite =>
-
   override val properties = Map(
-    "spark.serializer" -> "org.apache.spark.serializer.KryoObjectSerializer"
+    "spark.serializer" -> "org.apache.spark.serializer.KryoSerializer",
+    "spark.kryo.registrator" -> "org.hammerlab.pageant.serialization.FooKryoRegistrator"
   )
 }
 
@@ -39,14 +41,14 @@ trait SerdeRDDTest extends SparkFunSuite with Matchers {
                             files: Map[String, Int])(implicit ct: ClassTag[T]): Unit = {
     val tmpFile = Files.createTempDirectory("").toAbsolutePath.toString + "/" + name
     val rdd = sc.parallelize(l, numPartitions)
-    serializeRDD(rdd, tmpFile)
+    serializeRDD[T](rdd, tmpFile)
 
     val filter: FilenameFilter = new PrefixFileFilter("part-")
     new File(tmpFile).listFiles(filter).map(f => {
       FilenameUtils.getBaseName(f.getAbsolutePath) -> f.length
     }).toMap should be(files)
 
-    //    deserializeRDD(tmpFile).collect() should be(l.toArray)
+    deserializeRDD[T](tmpFile).collect() should be(l.toArray)
   }
 
   def testInts(p0: Int, p1: Int, p2: Int, p3: Int): Unit = {
@@ -99,11 +101,22 @@ trait SerdeRDDTest extends SparkFunSuite with Matchers {
     }
   }
 
+  def testSomeFoos(n: Int, p0: Int, p1: Int, p2: Int, p3: Int): Unit = {
+    sparkTest(s"some foos $n") {
+      serializeListAsRDD(
+        "foos",
+        Foos(4*n, 20),
+        4,
+        Map("part-00000" -> p0, "part-00001" -> p1, "part-00002" -> p2, "part-00003" -> p3)
+      )
+    }
+  }
+
   def testManyFoos(p0: Int, p1: Int, p2: Int, p3: Int): Unit = {
     sparkTest("many foos") {
       serializeListAsRDD(
         "foos",
-        Foos(10000, 20),
+        Foos(40000, 20),
         4,
         Map("part-00000" -> p0, "part-00001" -> p1, "part-00002" -> p2, "part-00003" -> p3)
       )
@@ -120,52 +133,73 @@ class JavaSequenceFileRDDTest extends SequenceFileRDDTest {
   testInts(4785, 4785, 4785, 4785)
   testShorts(4785, 4785, 4785, 4785)
   testLongs(4835, 4835, 4835, 4835)
-  testFewFoos(197, 197, 197, 299)
-  testManyFoos(287855, 287855, 287855, 287855)
+
+  testSomeFoos(1, 223, 223, 223, 223)
+  testSomeFoos(10, 1375, 1375, 1375, 1375)
+  testSomeFoos(100, 13015, 13015, 13015, 13015)
 }
 
 class KryoSequenceFileRDDTest extends SequenceFileRDDTest with KryoSerializerTest {
   testInts(795, 832, 845, 845)
   testShorts(845, 845, 845, 845)
   testLongs(945, 945, 945, 945)
-  testFewFoos(146, 146, 146, 197)
-  testManyFoos(159092, 159155, 159155, 160964)
+
+  testSomeFoos(1, 171, 171, 171, 171)
+  testSomeFoos(10, 855, 855, 855, 855)
+  testSomeFoos(100, 7792, 7855, 7855, 7855)
 }
 
-class KryoObjectSequenceFileRDDTest extends SequenceFileRDDTest with KryoObjectSerializerTest {
+class KryoSequenceFileFooRDDTest extends SequenceFileRDDTest with KryoFooRegistrarTest {
   testInts(795, 832, 845, 845)
   testShorts(845, 845, 845, 845)
   testLongs(945, 945, 945, 945)
-  testFewFoos(146, 146, 146, 197)
-  testManyFoos(159092, 159155, 159155, 160964)
+
+  testSomeFoos(1, 131, 131, 131, 131)
+  testSomeFoos(10, 455, 455, 455, 455)
+  testSomeFoos(100, 3752, 3815, 3815, 3815)
 }
 
-class DirectFileRDDTest extends SerdeRDDTest {
-  def serializeRDD[T: ClassTag](rdd: RDD[T], path: String) = rdd.serializeToDirectFile(path)
-  def deserializeRDD[T: ClassTag](path: String): RDD[T] = sc.fromDirectFile[T](path)
+class DirectFileRDDTest(withClasses: Boolean = false) extends SerdeRDDTest {
+  def serializeRDD[T: ClassTag](rdd: RDD[T], path: String) = rdd.serializeToDirectFile(path, withClasses)
+  def deserializeRDD[T: ClassTag](path: String): RDD[T] = sc.fromDirectFile[T](path, withClasses)
 }
 
 class JavaDirectFileRDDTest extends DirectFileRDDTest {
   testInts(571, 571, 571, 571)
   testShorts(571, 571, 571, 571)
   testLongs(768, 768, 768, 768)
-  testFewFoos(90, 90, 90, 111)
-  testManyFoos(84154, 84154, 84154, 84154)
+
+  testSomeFoos(1, 116, 116, 116, 116)
+  testSomeFoos(10, 413, 413, 413, 413)
+  testSomeFoos(100, 3384, 3384, 3384, 3384)
 }
 
 class KryoDirectFileRDDTest extends DirectFileRDDTest with KryoSerializerTest {
+  testInts(50, 87, 100, 100)
+  testShorts(100, 100, 100, 100)
+  testLongs(200, 200, 200, 200)
+
+  testSomeFoos(1, 23, 23, 23, 23)
+  testSomeFoos(10, 230, 230, 230, 230)
+  testSomeFoos(100, 2337, 2400, 2400, 2400)
+}
+
+class KryoDirectFileWithClassesRDDTest extends DirectFileRDDTest(true) with KryoSerializerTest {
   testInts(100, 137, 150, 150)
   testShorts(150, 150, 150, 150)
   testLongs(250, 250, 250, 250)
-  testFewFoos(39, 39, 39, 78)
-  testManyFoos(127437, 127500, 127500, 129309)
+
+  testSomeFoos(1, 64, 64, 64, 64)
+  testSomeFoos(10, 640, 640, 640, 640)
+  testSomeFoos(100, 6437, 6500, 6500, 6500)
 }
 
-class KryoObjectDirectFileRDDTest extends DirectFileRDDTest with KryoObjectSerializerTest {
+class KryoDirectFileWithClassesAndFooRDDTest extends DirectFileRDDTest(true) with KryoFooRegistrarTest {
   testInts(100, 137, 150, 150)
   testShorts(150, 150, 150, 150)
   testLongs(250, 250, 250, 250)
-  testFewFoos(39, 39, 39, 78)
-  testManyFoos(127437, 127500, 127500, 129309)
-}
 
+  testSomeFoos(1, 24, 24, 24, 24)
+  testSomeFoos(10, 240, 240, 240, 240)
+  testSomeFoos(100, 2437, 2500, 2500, 2500)
+}
