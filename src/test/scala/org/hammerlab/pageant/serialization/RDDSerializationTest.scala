@@ -51,22 +51,22 @@ trait SerdeRDDTest extends SparkFunSuite with Matchers {
     deserializeRDD[T](tmpFile).collect() should be(l.toArray)
   }
 
-  def testInts(p0: Int, p1: Int, p2: Int, p3: Int): Unit = {
-    sparkTest("rdd ints") {
+  def testSmallInts(p0: Int, p1: Int, p2: Int, p3: Int): Unit = {
+    sparkTest("rdd small ints") {
       serializeListAsRDD(
-        "ints",
-        1 to 200,
+        "small-ints",
+        1 to 400,
         4,
         Map("part-00000" -> p0, "part-00001" -> p1, "part-00002" -> p2, "part-00003" -> p3)
       )
     }
   }
 
-  def testShorts(p0: Int, p1: Int, p2: Int, p3: Int): Unit = {
-    sparkTest("rdd shorts") {
+  def testMediumInts(p0: Int, p1: Int, p2: Int, p3: Int): Unit = {
+    sparkTest("rdd medium ints") {
       serializeListAsRDD(
-        "shorts",
-        (1 to 200).map(_ + 500),
+        "medium-ints",
+        (1 to 400).map(_ + 500),
         4,
         Map("part-00000" -> p0, "part-00001" -> p1, "part-00002" -> p2, "part-00003" -> p3)
       )
@@ -77,7 +77,7 @@ trait SerdeRDDTest extends SparkFunSuite with Matchers {
     sparkTest("rdd longs") {
       serializeListAsRDD(
         "longs",
-        (1 to 200).map(_ + 12345678L),
+        (1 to 400).map(_ + 12345678L),
         4,
         Map("part-00000" -> p0, "part-00001" -> p1, "part-00002" -> p2, "part-00003" -> p3)
       )
@@ -130,9 +130,9 @@ class SequenceFileRDDTest extends SerdeRDDTest {
 }
 
 class JavaSequenceFileRDDTest extends SequenceFileRDDTest {
-  testInts(4785, 4785, 4785, 4785)
-  testShorts(4785, 4785, 4785, 4785)
-  testLongs(4835, 4835, 4835, 4835)
+    testSmallInts(9475, 9475, 9475, 9475)
+  testMediumInts(9475, 9475, 9475, 9475)
+  testLongs(9575, 9575, 9575, 9575)
 
   testSomeFoos(1, 223, 223, 223, 223)
   testSomeFoos(10, 1375, 1375, 1375, 1375)
@@ -140,9 +140,9 @@ class JavaSequenceFileRDDTest extends SequenceFileRDDTest {
 }
 
 class KryoSequenceFileRDDTest extends SequenceFileRDDTest with KryoSerializerTest {
-  testInts(795, 832, 845, 845)
-  testShorts(845, 845, 845, 845)
-  testLongs(945, 945, 945, 945)
+  testSmallInts(1532, 1595, 1595, 1595)
+  testMediumInts(1595, 1595, 1595, 1595)
+  testLongs(1795, 1795, 1795, 1795)
 
   testSomeFoos(1, 171, 171, 171, 171)
   testSomeFoos(10, 855, 855, 855, 855)
@@ -150,9 +150,9 @@ class KryoSequenceFileRDDTest extends SequenceFileRDDTest with KryoSerializerTes
 }
 
 class KryoSequenceFileFooRDDTest extends SequenceFileRDDTest with KryoFooRegistrarTest {
-  testInts(795, 832, 845, 845)
-  testShorts(845, 845, 845, 845)
-  testLongs(945, 945, 945, 945)
+  testSmallInts(1532, 1595, 1595, 1595)
+  testMediumInts(1595, 1595, 1595, 1595)
+  testLongs(1795, 1795, 1795, 1795)
 
   testSomeFoos(1, 131, 131, 131, 131)
   testSomeFoos(10, 455, 455, 455, 455)
@@ -165,9 +165,9 @@ class DirectFileRDDTest(withClasses: Boolean = false) extends SerdeRDDTest {
 }
 
 class JavaDirectFileRDDTest extends DirectFileRDDTest {
-  testInts(571, 571, 571, 571)
-  testShorts(571, 571, 571, 571)
-  testLongs(768, 768, 768, 768)
+  testSmallInts(1072, 1072, 1072, 1072)
+  testMediumInts(1072, 1072, 1072, 1072)
+  testLongs(1469, 1469, 1469, 1469)
 
   testSomeFoos(1, 116, 116, 116, 116)
   testSomeFoos(10, 413, 413, 413, 413)
@@ -175,9 +175,9 @@ class JavaDirectFileRDDTest extends DirectFileRDDTest {
 }
 
 class KryoDirectFileRDDTest extends DirectFileRDDTest with KryoSerializerTest {
-  testInts(50, 87, 100, 100)
-  testShorts(100, 100, 100, 100)
-  testLongs(200, 200, 200, 200)
+  testSmallInts(137, 200, 200, 200)
+  testMediumInts(200, 200, 200, 200)
+  testLongs(400, 400, 400, 400)
 
   testSomeFoos(1, 23, 23, 23, 23)
   testSomeFoos(10, 230, 230, 230, 230)
@@ -185,9 +185,9 @@ class KryoDirectFileRDDTest extends DirectFileRDDTest with KryoSerializerTest {
 }
 
 class KryoDirectFileWithClassesRDDTest extends DirectFileRDDTest(true) with KryoSerializerTest {
-  testInts(100, 137, 150, 150)
-  testShorts(150, 150, 150, 150)
-  testLongs(250, 250, 250, 250)
+  testSmallInts(237, 300, 300, 300)
+  testMediumInts(300, 300, 300, 300)
+  testLongs(500, 500, 500, 500)
 
   testSomeFoos(1, 64, 64, 64, 64)
   testSomeFoos(10, 640, 640, 640, 640)
@@ -195,9 +195,9 @@ class KryoDirectFileWithClassesRDDTest extends DirectFileRDDTest(true) with Kryo
 }
 
 class KryoDirectFileWithClassesAndFooRDDTest extends DirectFileRDDTest(true) with KryoFooRegistrarTest {
-  testInts(100, 137, 150, 150)
-  testShorts(150, 150, 150, 150)
-  testLongs(250, 250, 250, 250)
+  testSmallInts(237, 300, 300, 300)
+  testMediumInts(300, 300, 300, 300)
+  testLongs(500, 500, 500, 500)
 
   testSomeFoos(1, 24, 24, 24, 24)
   testSomeFoos(10, 240, 240, 240, 240)
