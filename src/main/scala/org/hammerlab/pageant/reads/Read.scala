@@ -1,4 +1,4 @@
-package org.hammerlab.pageant
+package org.hammerlab.pageant.reads
 
 import org.bdgenomics.formats.avro.AlignmentRecord
 

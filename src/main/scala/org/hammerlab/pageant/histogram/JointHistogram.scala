@@ -1,13 +1,13 @@
-package org.hammerlab.pageant
+package org.hammerlab.pageant.histogram
 
-import org.bdgenomics.adam.projections.{AlignmentRecordField, Projection}
-import org.bdgenomics.adam.rdd.ADAMContext._
 import org.apache.spark.SparkContext
 import org.apache.spark.rdd.RDD
+import org.bdgenomics.adam.projections.{AlignmentRecordField, Projection}
+import org.bdgenomics.adam.rdd.ADAMContext._
 import org.bdgenomics.adam.rich.RichAlignmentRecord
-import org.bdgenomics.formats.avro.{Feature, AlignmentRecord}
-import org.hammerlab.pageant.JointHistogram.{Depths, OB, D, JointHistKey, OS, OL, OI, S, L, I, JointHist}
-import org.hammerlab.pageant.avro.{Depth, JointHistogramRecord}
+import org.bdgenomics.formats.avro.{AlignmentRecord, Feature}
+import org.hammerlab.pageant.histogram.JointHistogram._
+import org.hammerlab.pageant.avro._
 
 import scala.collection.mutable.{Map => MMap}
 

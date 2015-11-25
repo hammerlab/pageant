@@ -1,4 +1,6 @@
-package org.hammerlab.pageant
+package org.hammerlab.pageant.scratch
+
+import org.hammerlab.pageant.reads.Bases
 
 object CountsRDD {
 

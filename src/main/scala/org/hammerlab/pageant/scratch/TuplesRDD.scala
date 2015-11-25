@@ -1,4 +1,7 @@
-package org.hammerlab.pageant
+package org.hammerlab.pageant.scratch
+
+import org.hammerlab.pageant.reads.Bases
+import org.hammerlab.pageant.scratch.BasesRDD.BasesRDD
 
 case class BasesTuple(b: Bases, numFirst: Long, numOther: Long) {
   def num: Long = numFirst + numOther
@@ -6,7 +9,6 @@ case class BasesTuple(b: Bases, numFirst: Long, numOther: Long) {
 
 object TuplesRDD {
 
-  import org.hammerlab.pageant.BasesRDD._
   import org.apache.spark.rdd.RDD
 
   type TuplesRDD = RDD[(Bases, (Long, Long))]

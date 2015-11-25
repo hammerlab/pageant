@@ -1,7 +1,7 @@
-package org.hammerlab.pageant
+package org.hammerlab.pageant.histogram
 
 import org.bdgenomics.adam.util.ADAMFunSuite
-import org.bdgenomics.formats.avro.{Contig, Feature, AlignmentRecord}
+import org.bdgenomics.formats.avro.{AlignmentRecord, Contig, Feature}
 import org.scalatest.Matchers
 
 class JointHistogramTest extends ADAMFunSuite with Matchers {

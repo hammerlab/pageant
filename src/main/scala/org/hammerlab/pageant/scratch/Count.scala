@@ -1,12 +1,11 @@
-package org.hammerlab.pageant
+package org.hammerlab.pageant.scratch
 
 import org.apache.hadoop.fs.{FileSystem, Path}
+import BasesRDD._
+import TuplesRDD._
+import CountsRDD._
 
 object Count {
-
-  import org.hammerlab.pageant.CountsRDD._
-  import org.hammerlab.pageant.BasesRDD._
-  import org.hammerlab.pageant.TuplesRDD._
 
   def countFn(k: Int) = s"$filePrefix.${k}mers.count"
   def countPath(k: Int) = new Path(countFn(k))

@@ -1,6 +1,6 @@
-package org.hammerlab.pageant
+package org.hammerlab.pageant.reads
 
-import org.scalatest.{Matchers, FunSuite}
+import org.scalatest.{FunSuite, Matchers}
 
 class BasesTest extends FunSuite with Matchers {
   test("Bases") {

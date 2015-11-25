@@ -1,8 +1,10 @@
-package org.hammerlab.pageant
+package org.hammerlab.pageant.scratch
+
+import org.hammerlab.pageant.reads.Bases
+import org.hammerlab.pageant.scratch.CountsRDD._
 
 object BasesRDD {
 
-  import org.hammerlab.pageant.CountsRDD._
   import org.apache.spark.rdd.RDD
 
   type BasesRDD = RDD[((Bases, Boolean), Long)]
