@@ -111,13 +111,13 @@ object Bases {
 
 class BasesSerializer extends Serializer[Bases] {
   override def write(kryo: Kryo, output: Output, o: Bases): Unit = {
-    output.writeInt(o.length)
+    output.writeByte(o.length)
     output.write(o.bytes)
   }
 
   override def read(kryo: Kryo, input: Input, tpe: Class[Bases]): Bases = {
-    val length = input.readInt()
-    Bases(input.readBytes(length), length)
+    val length: Int = input.readByte()
+    Bases(input.readBytes((length + 3)/4), length)
   }
 }
 

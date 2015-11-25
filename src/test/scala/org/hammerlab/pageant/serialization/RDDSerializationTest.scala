@@ -1,132 +1,48 @@
 package org.hammerlab.pageant.serialization
 
-import java.io.{File, FilenameFilter}
-import java.nio.file.Files
-
-import org.apache.commons.io.FilenameUtils
-import org.apache.commons.io.filefilter.PrefixFileFilter
-import org.apache.spark.rdd.RDD
-import org.apache.spark.serializer.DirectFileRDDSerializer
 import org.bdgenomics.utils.misc.SparkFunSuite
-import org.scalatest.Matchers
 
-import SequenceFileSerializableRDD._
-import DirectFileRDDSerializer._
+trait SerdeRDDTest extends Utils {
 
-import scala.reflect.ClassTag
-
-trait KryoSerializerTest {
-  self: SparkFunSuite =>
-  override val properties = Map(
-    "spark.serializer" -> "org.apache.spark.serializer.KryoSerializer"
-  )
-}
-
-trait KryoFooRegistrarTest {
-  self: SparkFunSuite =>
-  override val properties = Map(
-    "spark.serializer" -> "org.apache.spark.serializer.KryoSerializer",
-    "spark.kryo.registrator" -> "org.hammerlab.pageant.serialization.FooKryoRegistrator"
-  )
-}
-
-trait SerdeRDDTest extends SparkFunSuite with Matchers {
-
-  def serializeRDD[T: ClassTag](rdd: RDD[T], path: String)
-  def deserializeRDD[T: ClassTag](path: String): RDD[T]
-
-  def serializeListAsRDD[T](name: String,
-                            l: Seq[T],
-                            numPartitions: Int = 4,
-                            files: Map[String, Int])(implicit ct: ClassTag[T]): Unit = {
-    val tmpFile = Files.createTempDirectory("").toAbsolutePath.toString + "/" + name
-    val rdd = sc.parallelize(l, numPartitions)
-    serializeRDD[T](rdd, tmpFile)
-
-    val filter: FilenameFilter = new PrefixFileFilter("part-")
-    new File(tmpFile).listFiles(filter).map(f => {
-      FilenameUtils.getBaseName(f.getAbsolutePath) -> f.length
-    }).toMap should be(files)
-
-    deserializeRDD[T](tmpFile).collect() should be(l.toArray)
-  }
-
-  def testSmallInts(p0: Int, p1: Int, p2: Int, p3: Int): Unit = {
+  def testSmallInts(ps: Int*): Unit = {
     sparkTest("rdd small ints") {
-      serializeListAsRDD(
+      verifyFileSizeListAndSerde(
         "small-ints",
         1 to 400,
-        4,
-        Map("part-00000" -> p0, "part-00001" -> p1, "part-00002" -> p2, "part-00003" -> p3)
+        ps
       )
     }
   }
 
-  def testMediumInts(p0: Int, p1: Int, p2: Int, p3: Int): Unit = {
+  def testMediumInts(ps: Int*): Unit = {
     sparkTest("rdd medium ints") {
-      serializeListAsRDD(
+      verifyFileSizeListAndSerde(
         "medium-ints",
         (1 to 400).map(_ + 500),
-        4,
-        Map("part-00000" -> p0, "part-00001" -> p1, "part-00002" -> p2, "part-00003" -> p3)
+        ps
       )
     }
   }
 
-  def testLongs(p0: Int, p1: Int, p2: Int, p3: Int): Unit = {
+  def testLongs(ps: Int*): Unit = {
     sparkTest("rdd longs") {
-      serializeListAsRDD(
+      verifyFileSizeListAndSerde(
         "longs",
         (1 to 400).map(_ + 12345678L),
-        4,
-        Map("part-00000" -> p0, "part-00001" -> p1, "part-00002" -> p2, "part-00003" -> p3)
+        ps
       )
     }
   }
 
-  def testFewFoos(p0: Int, p1: Int, p2: Int, p3: Int): Unit = {
-    sparkTest("few foos") {
-      serializeListAsRDD(
-        "foos",
-        List(
-          Foo(111, "aaaaaaaa"),
-          Foo(222, "bbbbbbbb"),
-          Foo(333, "cccccccc"),
-          Foo(444, "dddddddd"),
-          Foo(555, "eeeeeeee")
-        ),
-        4,
-        Map("part-00000" -> p0, "part-00001" -> p1, "part-00002" -> p2, "part-00003" -> p3)
-      )
-    }
-  }
-
-  def testSomeFoos(n: Int, p0: Int, p1: Int, p2: Int, p3: Int): Unit = {
+  def testSomeFoos(n: Int, ps: Int*): Unit = {
     sparkTest(s"some foos $n") {
-      serializeListAsRDD(
+      verifyFileSizeListAndSerde(
         "foos",
-        Foos(4*n, 20),
-        4,
-        Map("part-00000" -> p0, "part-00001" -> p1, "part-00002" -> p2, "part-00003" -> p3)
+        Foos(ps.size*n, 20),
+        ps
       )
     }
   }
-
-  def testManyFoos(p0: Int, p1: Int, p2: Int, p3: Int): Unit = {
-    sparkTest("many foos") {
-      serializeListAsRDD(
-        "foos",
-        Foos(40000, 20),
-        4,
-        Map("part-00000" -> p0, "part-00001" -> p1, "part-00002" -> p2, "part-00003" -> p3)
-      )
-    }
-  }
-}
-
-class SequenceFileRDDTest extends SerdeRDDTest {
-  def serializeRDD[T: ClassTag](rdd: RDD[T], path: String) = rdd.serializeToSequenceFile(path)
-  def deserializeRDD[T: ClassTag](path: String): RDD[T] = sc.fromSequenceFile[T](path)
 }
 
 class JavaSequenceFileRDDTest extends SequenceFileRDDTest {
@@ -157,11 +73,6 @@ class KryoSequenceFileFooRDDTest extends SequenceFileRDDTest with KryoFooRegistr
   testSomeFoos(1, 131, 131, 131, 131)
   testSomeFoos(10, 455, 455, 455, 455)
   testSomeFoos(100, 3752, 3815, 3815, 3815)
-}
-
-class DirectFileRDDTest(withClasses: Boolean = false) extends SerdeRDDTest {
-  def serializeRDD[T: ClassTag](rdd: RDD[T], path: String) = rdd.serializeToDirectFile(path, withClasses)
-  def deserializeRDD[T: ClassTag](path: String): RDD[T] = sc.fromDirectFile[T](path, withClasses)
 }
 
 class JavaDirectFileRDDTest extends DirectFileRDDTest {
