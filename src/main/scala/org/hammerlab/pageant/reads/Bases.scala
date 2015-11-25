@@ -4,6 +4,7 @@ package org.hammerlab.pageant.reads
 
 import com.esotericsoftware.kryo.io.{Input, Output}
 import com.esotericsoftware.kryo.{Kryo, Serializer}
+import org.bdgenomics.formats.avro.AlignmentRecord
 
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.{SeqLike, mutable}
@@ -43,7 +44,7 @@ case class Bases(bytes: Array[Byte], length: Int) extends SeqLike[Char, Bases] {
   }
 
   def rc: Bases = {
-    Bases(seq.reverse.map(Bases.complement.apply))
+    Bases(Bases.rc(seq.mkString("")))
   }
 
   override def equals(o: Any): Boolean = {
@@ -99,6 +100,12 @@ object Bases {
     s.foreach(bldr += _)
     bldr.result()
   }
+
+  def apply(ar: AlignmentRecord): List[Bases] = {
+    List(ar.getSequence).filterNot(_.contains('N')).flatMap(x => List(x, rc(x))).map(Bases.apply)
+  }
+
+  def rc(seq: String): String = seq.reverse.map(complement.apply)
 }
 
 class BasesSerializer extends Serializer[Bases] {

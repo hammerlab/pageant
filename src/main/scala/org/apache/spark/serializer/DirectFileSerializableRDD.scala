@@ -70,7 +70,7 @@ object DirectFileSerializableRDD {
 }
 
 class DirectFileRDDSerializer[T: ClassTag](@transient val rdd: RDD[T]) extends Serializable {
-  def serializeToDirectFile(path: String, writeClass: Boolean = false): Unit = {
+  def saveAsDirectFile(path: String, writeClass: Boolean = false): Unit = {
     def writePartition(ctx: TaskContext, iter: Iterator[T]): Unit = {
       val idx = ctx.partitionId()
       val serializer = SparkEnv.get.serializer.newInstance()
@@ -95,7 +95,7 @@ object DirectFileRDDSerializer {
 }
 
 class DirectFileRDDDeserializer(val sc: SparkContext) {
-  def fromDirectFile[T: ClassTag](path: String, readClass: Boolean = false): RDD[T] = {
+  def directFile[T: ClassTag](path: String, readClass: Boolean = false): RDD[T] = {
     new DirectFileSerializableRDD[T](sc, path, readClass)
   }
 }

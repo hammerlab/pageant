@@ -1,13 +1,13 @@
 package org.hammerlab.pageant.scratch
 
 import org.apache.hadoop.fs.{FileSystem, Path}
-import BasesRDD._
+//import BasesRDD._
 import TuplesRDD._
 import CountsRDD._
 
 object Count {
 
-  def countFn(k: Int) = s"$filePrefix.${k}mers.count"
+  def countFn(k: Int) = s"$dir/${k}mers.count"
   def countPath(k: Int) = new Path(countFn(k))
 
   def writeCount(k: Int, rdd: TuplesRDD): Long = {
@@ -45,7 +45,7 @@ object Count {
   def checkTuples(k: Int): (Long, Long) = {
     val rdd = loadTuples(k)
     val count = rdd.count
-    val total = rdd.map(p => p._2._1 + p._2._2).reduce(_ + _)
+    val total = rdd.map(_.num).reduce(_ + _)
     println(s"*** Count: $count, Total: $total ***")
     (count, total)
   }
@@ -62,12 +62,12 @@ object Count {
       val count =
         if (fs.exists(new Path(tuplesFn(k))))
           loadTuples(k).count
-        else if (fs.exists(new Path(countsFn(k))))
-          loadCounts(k).count
-        else if (fs.exists(new Path(stepsFn(k)))) {
-          val tuples = basesRddToTuplesRdd(loadSteps(k))
-          tuples.saveAsObjectFile(tuplesFn(k))
-          tuples.count
+        else if (fs.exists(new Path(countsFn(k)))) {
+          loadCountsObjFile(k).count
+//        else if (fs.exists(new Path(stepsFn(k)))) {
+//          val tuples = basesRddToTuplesRdd(loadSteps(k))
+//          tuples.saveAsObjectFile(tuplesFn(k))
+//          tuples.count
         } else
           throw new Exception(s"Can't find ${tuplesFn(k)} or ${countsFn(k)}")
 

@@ -39,7 +39,7 @@ trait Misc {
     val path = new Path(histFn(k))
     val h =
       (for {
-        (_, (first, other)) <- loadTuples(k)
+        BasesTuple(_, first, other) <- loadTuples(k)
         num = first + other
       } yield {
         num -> 1L
