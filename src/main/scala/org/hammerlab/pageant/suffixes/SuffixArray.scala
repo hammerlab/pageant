@@ -1,4 +1,4 @@
-package org.hammerlab.pageant
+package org.hammerlab.pageant.suffixes
 
 object SuffixArray {
   def radixPass(a: Array[Int], b: Array[Int], r: Seq[Int], n: Int, K: Int): Unit = {

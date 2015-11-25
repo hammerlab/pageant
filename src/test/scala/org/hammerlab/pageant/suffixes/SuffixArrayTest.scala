@@ -1,6 +1,6 @@
-package org.hammerlab.pageant
+package org.hammerlab.pageant.suffixes
 
-import org.scalatest.{Matchers, FunSuite}
+import org.scalatest.{FunSuite, Matchers}
 
 trait SuffixArrayTestBase extends FunSuite with Matchers {
   def arr: (Array[Int], Int) => Array[Int]
