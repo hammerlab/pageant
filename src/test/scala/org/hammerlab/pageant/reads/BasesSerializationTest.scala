@@ -24,7 +24,7 @@ trait KryoBasesRegistrarNoReferencesTest {
 
 class BasesSerializationTest(withClasses: Boolean = false)
   extends DirectFileRDDTest(withClasses)
-    with TestUtils{
+    with TestUtils {
 
   val bases = "ACGT".zipWithIndex.map(p => (p._2, p._1)).toMap
 

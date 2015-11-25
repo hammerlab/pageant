@@ -50,12 +50,12 @@ trait Utils extends SparkFunSuite with Matchers {
   }
 }
 
-class SequenceFileRDDTest extends SerdeRDDTest {
+class SequenceFileRDDTest extends Utils {
   def serializeRDD[T: ClassTag](rdd: RDD[T], path: String) = rdd.serializeToSequenceFile(path)
   def deserializeRDD[T: ClassTag](path: String): RDD[T] = sc.fromSequenceFile[T](path)
 }
 
-class DirectFileRDDTest(withClasses: Boolean = false) extends SerdeRDDTest {
+class DirectFileRDDTest(withClasses: Boolean = false) extends Utils {
   def serializeRDD[T: ClassTag](rdd: RDD[T], path: String) = rdd.serializeToDirectFile(path, withClasses)
   def deserializeRDD[T: ClassTag](path: String): RDD[T] = sc.fromDirectFile[T](path, withClasses)
 }

@@ -103,25 +103,12 @@ object Bases {
 
 class BasesSerializer extends Serializer[Bases] {
   override def write(kryo: Kryo, output: Output, o: Bases): Unit = {
-    //output.writeByte(o.length)
-    output.writeLong(o.length)
+    output.writeByte(o.length)
     output.write(o.bytes)
   }
 
   override def read(kryo: Kryo, input: Input, tpe: Class[Bases]): Bases = {
-    //val length: Int = input.readByte()
-    val length: Int = input.readLong().toInt
+    val length: Int = input.readByte()
     Bases(input.readBytes((length + 3)/4), length)
   }
 }
-
-//urdd.flatMap(ar => {
-//val s = ar.getSequence
-//for {
-//(k, rcd, idx) <- cklb.value
-//i = s.indexOf(k)
-//if i >= 0
-//} yield {
-//(ar, k, rcd, idx)
-//}
-//})
