@@ -71,9 +71,8 @@ object TuplesRDD {
                   to: Int,
                   by: Int = -1,
                   numPartitions: Int = 10000,
-                  cache: Boolean = true,
-                  fromTuples: TuplesRDD = null,
-                  printCounts: Boolean = true): TuplesRDD = {
+                  cache: Boolean = false,
+                  printCounts: Boolean = false): TuplesRDD = {
     stepFrom(from, to, by, numPartitions, cache, t101, printCounts)
   }
 
