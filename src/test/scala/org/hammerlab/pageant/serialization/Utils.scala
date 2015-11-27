@@ -30,7 +30,7 @@ trait Utils extends SparkFunSuite with Matchers {
                                     origFileSizes: Seq[Int])(implicit ct: ClassTag[T]): Unit = {
     val fileSizes: Seq[Int] =
       if (origFileSizes.size == 1)
-        Array.fill(4)(origFileSizes(0))
+        Array.fill(4)(origFileSizes.head)
       else
         origFileSizes
 
