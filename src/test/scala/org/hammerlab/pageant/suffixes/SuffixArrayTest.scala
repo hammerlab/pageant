@@ -46,12 +46,12 @@ trait SuffixArrayTestBase extends FunSuite with Matchers {
   }
 }
 
-class SuffixArrayTest extends SuffixArrayTestBase {
-  override def arr = SuffixArray.apply _
+class WIPSuffixArrayTest extends SuffixArrayTestBase {
+  override def arr = WIPSuffixArray.make
   override def name = "SuffixArrayTest"
 }
 
 class KarkkainenTest extends SuffixArrayTestBase {
-  override def arr = SuffixArray.make _
+  override def arr = KarkainnenSuffixArray.make _
   override def name = "KarkkainenTest"
 }
