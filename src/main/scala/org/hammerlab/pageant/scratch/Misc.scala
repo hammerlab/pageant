@@ -35,7 +35,7 @@ trait Misc {
   def histFn(k: Int) = s"$filePrefix.${k}mers.hist"
 
   def hist(k: Int, numPartitions: Int = 5000) = {
-    val fs = FileSystem.get(sc.hadoopConfiguration)
+    val fs = FileSystem.get(c.hadoopConfiguration)
     val path = new Path(histFn(k))
     val h =
       (for {
@@ -51,7 +51,7 @@ trait Misc {
   }
 
   def loadHist(k: Int): Hist = {
-    val fs = FileSystem.get(sc.hadoopConfiguration)
+    val fs = FileSystem.get(c.hadoopConfiguration)
     val path = new Path(histFn(k))
     val is = fs.open(path)
     (for {
@@ -118,7 +118,7 @@ trait Misc {
 
     val lines = headerLine :: bodyLines
 
-    val fs = FileSystem.get(sc.hadoopConfiguration)
+    val fs = FileSystem.get(c.hadoopConfiguration)
     val path = new Path(histsCsvFn)
     val os = fs.create(path)
     lines.foreach(line => os.writeBytes(line + '\n'))

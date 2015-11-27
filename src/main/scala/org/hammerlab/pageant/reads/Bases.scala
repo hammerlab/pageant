@@ -115,7 +115,7 @@ class BasesSerializer extends Serializer[Bases] {
   }
 
   override def read(kryo: Kryo, input: Input, tpe: Class[Bases]): Bases = {
-    val length: Int = input.readByte()
+    val length: Int = input.readByte() & 0xFF
     Bases(input.readBytes((length + 3)/4), length)
   }
 }

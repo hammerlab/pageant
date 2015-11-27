@@ -11,7 +11,7 @@ object Count {
   def countPath(k: Int) = new Path(countFn(k))
 
   def writeCount(k: Int, rdd: TuplesRDD): Long = {
-    val fs = FileSystem.get(sc.hadoopConfiguration)
+    val fs = FileSystem.get(c.hadoopConfiguration)
     if (!fs.exists(countPath(k))) {
       writeCount(k, rdd.count)
     } else {
@@ -22,7 +22,7 @@ object Count {
     }
   }
   def writeCount(k: Int, count: Long): Long = {
-    val fs = FileSystem.get(sc.hadoopConfiguration)
+    val fs = FileSystem.get(c.hadoopConfiguration)
     val os = fs.create(countPath(k))
     os.writeLong(count)
     os.close()
@@ -51,7 +51,7 @@ object Count {
   }
 
   def getCount(k: Int): Long = {
-    val fs = FileSystem.get(sc.hadoopConfiguration)
+    val fs = FileSystem.get(c.hadoopConfiguration)
     val path = countPath(k)
     if (fs.exists(path)) {
       val is = fs.open(path)
@@ -63,7 +63,7 @@ object Count {
         if (fs.exists(new Path(tuplesFn(k))))
           loadTuples(k).count
         else if (fs.exists(new Path(countsFn(k)))) {
-          loadCountsObjFile(k).count
+          loadCounts(k).count
 //        else if (fs.exists(new Path(stepsFn(k)))) {
 //          val tuples = basesRddToTuplesRdd(loadSteps(k))
 //          tuples.saveAsObjectFile(tuplesFn(k))

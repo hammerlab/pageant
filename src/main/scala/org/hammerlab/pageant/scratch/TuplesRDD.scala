@@ -5,14 +5,13 @@ import com.esotericsoftware.kryo.{Kryo, Serializer}
 import org.apache.spark.rdd.RDD
 import org.hammerlab.pageant.reads.Bases
 import org.hammerlab.pageant.utils.VarLong
+import org.apache.spark.serializer.DirectFileRDDSerializer._
 
 case class BasesTuple(bases: Bases, numFirst: Long, numOther: Long) {
   def b = bases
   def f = numFirst
   def o = numOther
   def num: Long = numFirst + numOther
-
-  //def +(o: BasesTuple): BasesTuple = B
 }
 
 class BasesTupleSerializer extends Serializer[BasesTuple] {
@@ -38,10 +37,11 @@ object BasesTuple {
 object TuplesRDD {
 
   type TuplesRDD = RDD[BasesTuple]
+  type TRDD = TuplesRDD
 
   def tuplesFn(k: Int) = s"$dir/${k}mers.tuples"
 
-  def loadTuples(k: Int): TuplesRDD = sc.objectFile(tuplesFn(k)).setName(s"${k}tuples")
+  def loadTuples(k: Int): TuplesRDD = c.directFile[BasesTuple](tuplesFn(k)).setName(s"${k}tuples")
 
   def sumTuples(ta: (Long, Long), tb: (Long, Long)): (Long, Long) = (ta._1 + tb._1, ta._2 + tb._2)
 
@@ -50,7 +50,31 @@ object TuplesRDD {
       bases <- rdd
     } yield {
       (bases, (1L, 0L))
-    }).reduceByKey(sumTuples(_, _), numPartitions).map(BasesTuple.apply)
+    }).reduceByKey(sumTuples _, numPartitions).map(BasesTuple.apply)
+  }
+
+  var _t101: TuplesRDD = null
+  def t101: TuplesRDD = {
+    if (_t101 == null) {
+      _t101 = loadTuples(101).cache
+    }
+    _t101
+  }
+
+  def from101(k: Int,
+              numPartitions: Int = 10000,
+              cache: Boolean = true): TuplesRDD = {
+    stepTupleRdd(t101, k, numPartitions, cache)
+  }
+
+  def stepFrom101(from: Int,
+                  to: Int,
+                  by: Int = -1,
+                  numPartitions: Int = 10000,
+                  cache: Boolean = true,
+                  fromTuples: TuplesRDD = null,
+                  printCounts: Boolean = true): TuplesRDD = {
+    stepFrom(from, to, by, numPartitions, cache, t101, printCounts)
   }
 
   def stepTupleRdd(rdd: TuplesRDD,
@@ -68,10 +92,61 @@ object TuplesRDD {
         (
           if (i == 0) numFirsts else 0L,
           (if (i > 0) numFirsts else 0L) + (if (i == bases.length - k) num else 0L)
-          )
         )
-    }).reduceByKey(sumTuples(_, _), numPartitions).map(BasesTuple.apply).setName(s"${k}tuples")
-    if (cache) ks.cache
-    else ks
+      )
+    }).reduceByKey(sumTuples _, numPartitions).map(BasesTuple.apply).setName(s"${k}tuples")
+
+    if (cache)
+      ks.cache
+    else
+      ks
+  }
+
+  def stepFrom(from: Int,
+               to: Int,
+               by: Int = -1,
+               numPartitions: Int = 10000,
+               cache: Boolean = true,
+               fromTuples: TuplesRDD = null,
+               printCounts: Boolean = true): TuplesRDD = {
+    stepSeq(from to to by by, numPartitions, cache, fromTuples, printCounts)
+  }
+
+  def stepSeq(idxs: Seq[Int],
+              numPartitions: Int = 10000,
+              cache: Boolean = true,
+              fromTuples: TuplesRDD = null,
+              printCounts: Boolean = true,
+              saveFiles: Boolean = true,
+              alwaysUseFirstAsBase: Boolean = false): TuplesRDD = {
+    val sortedIdxs = idxs.sorted.reverse
+    val (firstRdd, idxsTodo) = Option(fromTuples) match {
+      case Some(rdd) => (rdd, sortedIdxs)
+      case _ => (loadTuples(sortedIdxs(0)), sortedIdxs.tail)
+    }
+    idxsTodo.foldLeft(firstRdd)((tuplesRdd, k) => {
+      val r =
+        stepTupleRdd(
+          if (alwaysUseFirstAsBase)
+            firstRdd
+          else
+            tuplesRdd,
+          k,
+          numPartitions,
+          cache
+        )
+
+      if (saveFiles)
+        r.saveAsDirectFile(tuplesFn(k))
+
+      if (cache) {
+        tuplesRdd.unpersist()
+      }
+      if (printCounts) {
+        val count = r.count
+        println(s"${k}tuples: $count")
+      }
+      r
+    })
   }
 }
