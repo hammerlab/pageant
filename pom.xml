@@ -26,8 +26,7 @@
     <scala.version>2.10.4</scala.version>
     <scala.version.prefix>2.10</scala.version.prefix>
 
-    <!-- https://github.com/ryan-williams/spark/commit/901dbd0 -->
-    <spark.version>1.5.1</spark.version>
+    <spark.version>1.5.2</spark.version>
     <avro.version>1.7.6</avro.version>
   </properties>
 

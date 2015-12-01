@@ -29,7 +29,7 @@ object KarkainnenSuffixArray extends SuffixArray {
         )
   }
 
-  def make(s: Array[Int], K: Int): Array[Int] = make(s.map(_ + 1) ++ Array(0, 0, 0), s.size, K)
+  def make(s: Array[Int], K: Int): Array[Int] = make(s.map(_ + 1) ++ Array(0, 0, 0), s.length, K)
 
   def make(s: Array[Int], n: Int, K: Int): Array[Int] = {
     if (n == 0) return Array()
