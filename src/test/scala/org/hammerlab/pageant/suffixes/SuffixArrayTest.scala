@@ -74,6 +74,24 @@ trait SuffixArrayTestBase extends FunSuite with Matchers {
       )
     arr(a, 10) should be (expected)
   }
+
+  def intsFromFile(file: String): Array[Int] = {
+    val inPath = ClassLoader.getSystemClassLoader.getResource(file).getFile
+    (for {
+      line <- scala.io.Source.fromFile(inPath).getLines()
+      if line.trim.nonEmpty
+      s <- line.split(",")
+      i = s.trim().toInt
+    } yield {
+      i
+    }).toArray
+  }
+
+  testFn(s"$name random 1000") {
+    val a = intsFromFile("random1000.in")
+    val expected = intsFromFile("random1000.expected")
+    arr(a, 10) should be(expected)
+  }
 }
 
 trait SuffixArrayLocalTestBase extends SuffixArrayTestBase {
