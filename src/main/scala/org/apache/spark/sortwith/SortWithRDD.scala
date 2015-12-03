@@ -6,13 +6,15 @@ import org.apache.spark.rdd.{ShuffledRDD, RDD}
 
 import scala.reflect.ClassTag
 
-class SortWithRDD[T: ClassTag](rdd: RDD[T]) extends Serializable {
+class SortWithRDD[T: ClassTag](@transient rdd: RDD[T]) extends Serializable {
 
   def sortWithCmp(comparator: Comparator[T],
                   numPartitions: Int = rdd.partitions.length,
                   ascending: Boolean = true): RDD[T] = {
     sortWith(comparator.compare, numPartitions, ascending)
   }
+
+  var nil: T = _
 
   def sortWith(cmpFn: (T, T) => Int,
                numPartitions: Int = rdd.partitions.length,
@@ -26,8 +28,8 @@ class SortWithRDD[T: ClassTag](rdd: RDD[T]) extends Serializable {
       else
         cmpFn(t1, t2) > 0
 
-    new ShuffledRDD[T, T, T](rdd.keyBy(x => x), partitioner).mapPartitions(iter => {
-      iter.map(_._2).toArray.sortWith(boolCmpFn).toIterator
+    new ShuffledRDD[T, T, T](rdd.map(_ -> nil), partitioner).mapPartitions(iter => {
+      iter.map(_._1).toArray.sortWith(boolCmpFn).toIterator
     })
   }
 }
