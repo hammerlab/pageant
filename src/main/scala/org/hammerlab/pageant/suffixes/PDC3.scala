@@ -39,7 +39,7 @@ object PDC3 {
 
   def name(s: RDD[L3I], N: String): (Boolean, RDD[(Long, Name)]) = {
 
-    print(s"s: ${s.collect.mkString(",")}")
+    //print(s"s: ${s.collect.mkString(",")}")
 
     val namedTupleRDD: RDD[(Name, L3, Long)] =
       s.mapPartitions(iter => {
@@ -74,7 +74,7 @@ object PDC3 {
 
     val lastTuples = lastTuplesRDD.collect.sortBy(_._1)
 
-    print(s"lastTuples: ${lastTuples.mkString(", ")}")
+    //print(s"lastTuples: ${lastTuples.mkString(", ")}")
 
     var partitionStartIdxs = ArrayBuffer[(PartitionIdx, Name)]()
     var foundDupes = false
@@ -102,7 +102,7 @@ object PDC3 {
 
     val partitionStartIdxsBroadcast = s.sparkContext.broadcast(partitionStartIdxs.toMap)
 
-    print(s"partitionStartIdxs: $partitionStartIdxs")
+    //print(s"partitionStartIdxs: $partitionStartIdxs")
 
     (
       foundDupes,
@@ -195,7 +195,7 @@ object PDC3 {
   }
 
   def apply(t: RDD[Long], n: Long, target: Long): RDD[Long] = {
-    print(s"PDC3: $n, $target")
+    println(s"PDC3: $n, $target")
     if (n <= target) {
       val r = t.map(_.toInt).collect()
       return t.context.parallelize(
@@ -209,13 +209,13 @@ object PDC3 {
     val numDigits = n.toString.length
     val N = s"${n.toString.head}e${numDigits - 1}"
 
-    print(s"n: $n ($n0, $n1, $n2), n02: $n02")
+    //print(s"n: $n ($n0, $n1, $n2), n02: $n02")
 
-    pm("SA", t)
+    //pm("SA", t)
 
     val ti = t.zipWithIndex().setName(s"$N-zipped-t").cache()
 
-    pm("ti", ti)
+    //pm("ti", ti)
 
     val tuples: RDD[L3I] =
       (for {
@@ -246,12 +246,12 @@ object PDC3 {
        .sortByKey().setName(s"$N-post-sort")
        .keys.setName(s"$N-S")
 
-    pm("S", S)
+    //pm("S", S)
 
     val (foundDupes, named) = name(S, N)
 
-    print(s"foundDupes: $foundDupes")
-    pm("named", named)
+    //print(s"foundDupes: $foundDupes")
+    //pm("named", named)
 
     val P: RDD[(Long, Name)] =
       if (foundDupes) {
@@ -260,11 +260,11 @@ object PDC3 {
             .map(p => ((p._1 % 3, p._1 / 3), p._2)).setName(s"$N-mod-div-keyed")
             .sortByKey().setName(s"$N-mod-div-sorted")
             .values.setName(s"$N-onesThenTwos")
-        pm("onesThenTwos", onesThenTwos)
+        //pm("onesThenTwos", onesThenTwos)
 
         val SA12: RDD[Long] = this.apply(onesThenTwos, n02, target).setName(s"$N-SA12")
-        print(s"Done recursing: $n")
-        pm("SA12", SA12)
+        println(s"Done recursing: $n")
+        //pm("SA12", SA12)
 
         SA12
           .zipWithIndex().setName(s"$N-SA12-zipped")
@@ -277,12 +277,12 @@ object PDC3 {
               p._2 + 1
             )
           }).setName(s"$N-indices-remapped")
-          .sortByKey().setName(s"$N-name-index-sorted")
+          .sortByKey().setName(s"$N-index-name-sorted")
 
       } else
-        named.sortByKey().setName(s"$N-name-index-sorted-no-dupes")
+        named.sortByKey().setName(s"$N-index-name-sorted-no-dupes")
 
-    pm("P", P)
+    //pm("P", P)
 
     val keyedP: RDD[(Long, Joined)] =
       (for {
@@ -305,7 +305,7 @@ object PDC3 {
       }).setName(s"$N-keyedP")
         .reduceByKey(Joined.merge).setName(s"$N-reducedP")
 
-    pm("keyedP", keyedP)
+    //pm("keyedP", keyedP)
 
     val keyedT: RDD[(Long, Joined)] =
       (for {
@@ -327,16 +327,17 @@ object PDC3 {
       }).setName(s"$N-keyedT")
         .reduceByKey(Joined.merge).setName(s"$N-reducedT")
 
-    pm("keyedT", keyedT)
+    //pm("keyedT", keyedT)
 
     val joined = keyedT.join(keyedP).mapValues(Joined.merge).setName(s"$N-joined")
     //val joined = (keyedT ++ keyedP).setName(s"$N-keyed-T+P").reduceByKey(Joined.merge).setName(s"$N-joined")
 
-    pm("joined", joined)
+    //pm("joined", joined)
 
     val sorted = joined.sortWith(cmpFn).setName(s"$N-sorted")
-    pm("sorted", sorted)
+    //pm("sorted", sorted)
 
+    println(s"Returning: $N")
     sorted.map(_._1).setName(s"$N-ret")
   }
 }
