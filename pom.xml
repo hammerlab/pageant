@@ -21,13 +21,14 @@
   <properties>
 
     <!-- https://github.com/ryan-williams/adam/commit/29868ac -->
-    <adam.version>0.18.0</adam.version>
+    <adam.version>0.18.2</adam.version>
     <java.version>1.7</java.version>
     <scala.version>2.10.4</scala.version>
     <scala.version.prefix>2.10</scala.version.prefix>
 
     <spark.version>1.5.2</spark.version>
     <avro.version>1.7.6</avro.version>
+    <formats.version>0.6.1</formats.version>
   </properties>
 
   <licenses>
@@ -282,7 +283,6 @@
       <groupId>org.bdgenomics.adam</groupId>
       <artifactId>adam-core_2.10</artifactId>
       <version>${adam.version}</version>
-      <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>org.apache.spark</groupId>
@@ -293,8 +293,7 @@
     <dependency>
       <groupId>org.bdgenomics.bdg-formats</groupId>
       <artifactId>bdg-formats</artifactId>
-      <version>0.4.0</version>
-      <scope>provided</scope>
+      <version>${formats.version}</version>
     </dependency>
   </dependencies>
 
