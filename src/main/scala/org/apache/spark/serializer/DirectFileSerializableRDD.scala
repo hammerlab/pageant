@@ -70,6 +70,7 @@ object DirectFileSerializableRDD {
 }
 
 class DirectFileRDDSerializer[T: ClassTag](@transient val rdd: RDD[T]) extends Serializable {
+  def directFile = saveAsDirectFile _
   def saveAsDirectFile(path: String, writeClass: Boolean = false): RDD[T] = {
     def writePartition(ctx: TaskContext, iter: Iterator[T]): Unit = {
       val idx = ctx.partitionId()
