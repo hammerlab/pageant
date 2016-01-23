@@ -26,7 +26,7 @@
     <scala.version>2.10.4</scala.version>
     <scala.version.prefix>2.10</scala.version.prefix>
 
-    <spark.version>1.5.2</spark.version>
+    <spark.version>1.6.0</spark.version>
     <avro.version>1.7.6</avro.version>
     <formats.version>0.6.1</formats.version>
   </properties>
@@ -294,6 +294,11 @@
       <groupId>org.bdgenomics.bdg-formats</groupId>
       <artifactId>bdg-formats</artifactId>
       <version>${formats.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>joda-time</groupId>
+      <artifactId>joda-time</artifactId>
+      <version>2.9.1</version>
     </dependency>
   </dependencies>
 

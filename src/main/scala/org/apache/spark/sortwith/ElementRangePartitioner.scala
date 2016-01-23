@@ -162,7 +162,7 @@ private[spark] object ElementRangePartitioner {
     * @return (total number of items, an array of (partitionId, number of items, sample))
     */
   def sketch[T : ClassTag](rdd: RDD[T],
-                           sampleSizePerPartition: Int): (Long, Array[(Int, Int, Array[T])]) = {
+                           sampleSizePerPartition: Int): (Long, Array[(Int, Long, Array[T])]) = {
     val shift = rdd.id
     // val classTagK = classTag[K] // to avoid serializing the entire partitioner object
     val sketched = rdd.mapPartitionsWithIndex { (idx, iter) =>
