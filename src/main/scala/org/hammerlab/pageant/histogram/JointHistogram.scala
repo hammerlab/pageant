@@ -40,7 +40,7 @@ case class JointHistogram(jh: JointHist) {
     for {
       (depth, idx) <- depths.zipWithIndex
     } yield {
-      (if (idxs(idx) == keep) depth else None)
+      if (idxs(idx) == keep) depth else None
     }
   }
 
@@ -62,7 +62,7 @@ case class JointHistogram(jh: JointHist) {
           if (sumContigs) None else cO,
           for {
             (dO, idx) <- depths.zipWithIndex
-            if (ib.value(idx))
+            if ib.value(idx)
           } yield dO
         )
       }
@@ -348,7 +348,7 @@ object JointHistogram {
       name <- Option(contig.getContigName).toList
       start <- Option(read.getStart).toList
       refLen = RichAlignmentRecord(read).referenceLength
-      i <- (0 until refLen)
+      i <- 0 until refLen
     } yield {
         ((name, start + i), 1)
       }).reduceByKey(_ + _)
@@ -362,7 +362,7 @@ object JointHistogram {
       start <- Option(feature.getStart).toList
       end <- Option(feature.getEnd).toList
       refLen = end - start
-      i <- (0 until refLen.toInt)
+      i <- 0 until refLen.toInt
     } yield {
         ((name, start + i), 1)
       }).reduceByKey(_ + _)

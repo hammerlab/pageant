@@ -262,6 +262,10 @@ object PDC3 {
 
   def apply(t: RDD[T]): RDD[T] = {
     val count = LtoT(t.count)
+    apply(t, count)
+  }
+
+  def apply(t: RDD[T], count: Long): RDD[T] = {
     val startTime = System.currentTimeMillis()
     lastPrintedTime = startTime
     apply(t.setName("t").cache(), count, count / t.partitions.length, startTime)
