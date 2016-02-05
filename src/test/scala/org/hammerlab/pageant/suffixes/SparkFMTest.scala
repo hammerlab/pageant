@@ -1,200 +1,201 @@
 package org.hammerlab.pageant.suffixes
 
-import org.apache.spark.rdd.RDD
 import org.bdgenomics.utils.misc.SparkFunSuite
-import org.scalatest.{BeforeAndAfterAll, Matchers}
+import org.scalatest.Matchers
 
-object Test {
-  //val ref: Seq[Char] = "CCTGAGGCATGATCCTGACTTCGGGTGCAGGACATTAATTGGTAGCTAATCCAGGCATTAAACGCGGTCGGGAAGTATGAAATCCTGAATGCTCCGTGCC"
-  val toI = "$ACGT".zipWithIndex.toMap
-  val toC = toI.map(p => (p._2, p._1))
-  val ref: Seq[Char] = "ACGTTGCA$"
-}
+import scala.collection.mutable.ArrayBuffer
 
 class SparkFMTest extends SparkFunSuite with Matchers with Serializable {
 
-  import Test.{ref, toC, toI}
+  val toI = "$ACGT".zipWithIndex.toMap
+  val toC = toI.map(p => (p._2, p._1))
 
-  @transient var refRdd: RDD[Char] = _
-  @transient var fm: SparkFM[Char] = _
+  def fmTest(name: String,
+             sa: Array[Int],
+             saPartitions: Int,
+             ts: String,
+             tsPartitions: Int,
+             countInterval: Int)(body: SparkFM => Unit): Unit = {
+    sparkTest(name) {
+      sa.length should be(ts.length)
 
-  sparkTest("simple") {
+      val saZipped = sc.parallelize(sa.map(_.toLong), saPartitions).zipWithIndex()
+      val tZipped = sc.parallelize(ts.map(toI), tsPartitions).zipWithIndex().map(p => (p._2, p._1))
 
-    println(s"test: $sc")
-    sc.setCheckpointDir("tmp")
+      sc.setCheckpointDir("tmp")
 
-    refRdd = sc.parallelize(ref, 2)
-    fm = new SparkFM(refRdd, 5, 2, toI.apply)
-
-    fm.count should be(9)
-
-    fm.sa.getNumPartitions should be(6)
-    val sa = fm.sa.collect
-    sa should be(Array(8, 7, 0, 6, 1, 5, 2, 4, 3))
-
-    fm.tShifted.getNumPartitions should be(2)
-    val tShifted = fm.tShifted.collect
-    tShifted should be(
-      Array(
-        (1, 1),
-        (2, 2),
-        (3, 3),
-        (4, 4),
-        (5, 4),
-        (6, 3),
-        (7, 2),
-        (8, 1),
-        (0, 0)
+      body(
+        SparkFM(saZipped, tZipped, count = sa.length, N = 5, countInterval = countInterval)
       )
-    )
-
-    fm.indexedBwtt.getNumPartitions should be(6)
-    val ibwt = fm.indexedBwtt.collect
-    ibwt should be(
-      Array(
-        (0, 1),
-        (1, 2),
-        (2, 0),
-        (3, 3),
-        (4, 1),
-        (5, 4),
-        (6, 2),
-        (7, 4),
-        (8, 3)
-      )
-    )
-
-    fm.bwtt.getNumPartitions should be(6)
-    val bwt = fm.bwtt.collect
-    bwt should be(Array(1, 2, 0, 3, 1, 4, 2, 4, 3))
-
-    bwt.map(toC).mkString("") should be("AC$GATCTG")
-
-    fm.lastCounts should be(
-      Array(
-        Array(0, 1, 1, 0, 0),  // AC
-        Array(1, 0, 0, 0, 0),  // $
-        Array(0, 1, 0, 1, 0),  // GA
-        Array(0, 0, 0, 0, 1),  // T
-        Array(0, 0, 1, 0, 1),  // CT
-        Array(0, 0, 0, 1, 0)   // G
-      )
-    )
-
-    fm.totalSums should be(Array(0L, 1L, 3L, 5L, 7L))
-
-    fm.summedCounts.map(_._2) should be(Array(0, 2, 3, 5, 6, 8))
-    fm.summedCounts.map(_._1) should be(
-      Array(
-        Array(0, 0, 0, 0, 0),
-        Array(0, 1, 1, 0, 0),
-        Array(1, 1, 1, 0, 0),
-        Array(1, 2, 1, 1, 0),
-        Array(1, 2, 1, 1, 1),
-        Array(1, 2, 2, 1, 2)
-      )
-    )
-
-    val chunks = fm.bwtChunks.collect.map(p => (p._1, p._2.toString()))
-    val expected = Array(
-      (0, BWTChunk(0, 2, Array(0,0,0,0,0), Array(1,2))),
-      (1, BWTChunk(2, 4, Array(0,1,1,0,0), Array(0,3))),
-      (2, BWTChunk(4, 6, Array(1,1,1,1,0), Array(1,4))),
-      (3, BWTChunk(6, 8, Array(1,2,1,1,1), Array(2,4))),
-      (4, BWTChunk(8, 9, Array(1,2,2,1,2), Array(3)))
-    ).map(p => (p._1, p._2.toString()))
-
-    chunks should be(expected)
-
-    val needles: List[Array[Int]] = List("A", "C", "G", "T"/*, "CAT"*/).map(_.toArray.map(toI))
-
-    val needlesRdd = sc.parallelize(needles, 2)
-    val actual = fm.occ(needlesRdd).collect.map(p => (p._1.map(toC).mkString(""), p._2, p._3))
-
-    actual should be(
-      Array(
-        ("A", 1, 3),
-        ("C", 3, 5),
-        ("G", 5, 7),
-        ("T", 7, 9)
-      )
-    )
+    }
   }
+
+  def fmTest(name: String,
+             saPartitions: Int,
+             ts: String,
+             tsPartitions: Int,
+             countInterval: Int)(body: SparkFM => Unit): Unit = {
+    val sa = KarkainnenSuffixArray.make(ts.map(toI).toArray, 5)
+    fmTest(name, sa, saPartitions, ts, tsPartitions, countInterval)(body)
+  }
+
+
+  val sequence = "ACGTTGCA$"
+
+  val sa = KarkainnenSuffixArray.make(sequence.map(toI).toArray, 5)
+  sa should be(Array(8, 7, 0, 6, 1, 5, 2, 4, 3))
+
+  val bwtu =
+    sa
+    .map(x => if (x == 0) sequence.length - 1 else x - 1)
+    .zipWithIndex
+    .sortBy(_._1)
+    .map(_._2)
+    .zip(sequence)
+    .sortBy(_._1)
+    .map(_._2)
+
+  val bwt = bwtu.map(toI)
+  bwt should be(Array(1, 2, 0, 3, 1, 4, 2, 4, 3))
+
+  def BWTChunksTest(saPartitions: Int,
+                    tsPartitions: Int,
+                    countInterval: Int): Unit = {
+
+    fmTest(
+      s"bwtchunks-$saPartitions-$tsPartitions-$countInterval",
+      sa,
+      saPartitions,
+      sequence,
+      tsPartitions,
+      countInterval
+    )((fm) => {
+
+      fm.tShifted.getNumPartitions should be(tsPartitions)
+      val tShifted = fm.tShifted.collect
+      tShifted should be(
+        Array(
+          (1, 1),
+          (2, 2),
+          (3, 3),
+          (4, 4),
+          (5, 4),
+          (6, 3),
+          (7, 2),
+          (8, 1),
+          (0, 0)
+        )
+      )
+
+      val maxPartitions = math.max(saPartitions, tsPartitions)
+
+      fm.indexedBwtt.getNumPartitions should be(maxPartitions)
+      val ibwt = fm.indexedBwtt.collect
+      ibwt should be(
+        Array(
+          (0, 1),
+          (1, 2),
+          (2, 0),
+          (3, 3),
+          (4, 1),
+          (5, 4),
+          (6, 2),
+          (7, 4),
+          (8, 3)
+        )
+      )
+
+      fm.bwtt.getNumPartitions should be(maxPartitions)
+      val bwtt = fm.bwtt.collect
+      bwtt should be(bwt)
+
+      bwt.map(toC).mkString("") should be("AC$GATCTG")
+
+      fm.partitionCounts.getNumPartitions should be(maxPartitions)
+
+      fm.totalSums should be(Array(0L, 1L, 3L, 5L, 7L))
+
+      val curCounts = Array.fill(5)(0)
+      val counts = ArrayBuffer[Array[Int]]()
+      for { i <- bwt } {
+        counts.append(curCounts.clone())
+        curCounts(i) += 1
+      }
+
+      val chunks =
+        (for {
+          start <- bwt.indices by countInterval
+        } yield {
+          val end = math.min(start + countInterval, bwt.length)
+          BWTChunk(start, end, counts(start).map(_.toLong), bwt.slice(start, end))
+        }).toArray.zipWithIndex.map(p => (p._2, p._1))
+
+      fm.bwtChunks.collect.sortBy(_._1) should be(chunks)
+    })
+  }
+
+  for {
+    saPartitions <- List(1, 3, 6)
+    tsPartitions <- List(1, 3, 6)
+    countInterval <- 1 to 6
+  } {
+    BWTChunksTest(saPartitions, tsPartitions, countInterval)
+  }
+
+
+  def testLF(strs: List[String], tuples: (String, Int, Int)*): Unit = {
+    fmTest(s"occ-${strs.mkString(",")}", 3, sequence, 2, 4)((fm) => {
+      val needles: List[Array[Int]] = strs.map(_.toArray.map(toI))
+
+      val needlesRdd = sc.parallelize(needles, 2)
+      val actual = fm.occ(needlesRdd).collect.map(p => (p._1.map(toC).mkString(""), p._2, p._3))
+
+      actual should be(tuples.toArray)
+    })
+  }
+
+  testLF(
+    List("$", "A", "C", "G", "T"),
+    ("$", 0, 1),
+    ("A", 1, 3),
+    ("C", 3, 5),
+    ("G", 5, 7),
+    ("T", 7, 9)
+  )
+
+  testLF(
+    List("A$", "AA", "AC", "AG", "AT"),
+    ("A$", 1, 2),
+    ("AA", 2, 2),
+    ("AC", 2, 3),
+    ("AG", 3, 3),
+    ("AT", 3, 3)
+  )
+
+  testLF(
+    List("C$", "CA", "CC", "CG", "CT"),
+    ("C$", 3, 3),
+    ("CA", 3, 4),
+    ("CC", 4, 4),
+    ("CG", 4, 5),
+    ("CT", 5, 5)
+  )
+
+  testLF(
+    List("G$", "GA", "GC", "GG", "GT"),
+    ("G$", 5, 5),
+    ("GA", 5, 5),
+    ("GC", 5, 6),
+    ("GG", 6, 6),
+    ("GT", 6, 7)
+  )
+
+  testLF(
+    List("T$", "TA", "TC", "TG", "TT"),
+    ("T$", 7, 7),
+    ("TA", 7, 7),
+    ("TC", 7, 7),
+    ("TG", 7, 8),
+    ("TT", 8, 9)
+  )
 }
-
-
-/*
-
-gca$
-gca$
-aca$
-tca$
-gta$
-ata$
-tta$
-tta$
-tag$
-cag$
-acg$
-gtg$
-ggc$
-tcc$
-aac$
-ctc$
-
-$gca
-$gca
-$aca
-$tca
-$gta
-$ata
-$tta
-$tta
-$tag
-$cag
-$acg
-$gtg
-$ggc
-$tcc
-$aac
-$ctc
-
-a$gc
-a$gc
-a$ac
-a$tc
-a$gt
-a$at
-a$tt
-a$tt
-aac$
-ac$a
-ag$c
-ag$t
-ata$
-
-c$gg
-c$tc
-c$aa
-c$ct
-ca$a
-ca$g
-ca$g
-ca$t
-cc$t
-cg$a
-
-g$ta
-g$ca
-g$ac
-g$gt
-gc$g
-
-ta$g
-ta$a
-ta$t
-ta$t
-tc$c
-tg$g
-
- */

@@ -3,7 +3,7 @@ package org.hammerlab.pageant.suffixes
 import org.apache.spark.rdd.RDD
 import scala.collection.mutable.ArrayBuffer
 
-import SparkFM.{T, V, Idx, PartitionIdx}
+import SparkFM.{T, V, Idx}
 
 case class PartialSum(a: Array[Long], n: Long)
 object PartialSum {
@@ -16,8 +16,18 @@ case class BWTChunk(startIdx: Long, endIdx: Long, startCounts: Array[Long], data
   }
 
   override def toString: String = {
-    s"BWTC([$startIdx,$endIdx): ${startCounts.mkString(",")}, ${data.mkString(",")}})"
-//    s"BWTChunk($startIdx, $endIdx, Array(${startCounts.mkString(",")}), Array(${data.mkString(",")})"
+    s"BWTC([$startIdx,$endIdx): ${startCounts.mkString(",")}, ${data.mkString(",")})"
+  }
+
+  override def equals(other: Any): Boolean = {
+    other match {
+      case b: BWTChunk =>
+        startIdx == b.startIdx &&
+        endIdx == b.endIdx &&
+        startCounts.sameElements(b.startCounts) &&
+        data.sameElements(b.data)
+      case _ => false
+    }
   }
 }
 
@@ -27,27 +37,24 @@ case class Needle(idx: Idx, ts: Array[T], bound: Long, isLow: Boolean) {
   }
 }
 
-class SparkFM[U](us: RDD[U], N: Int, countInterval: Int = 100, implicit val toT: (U) => T) extends Serializable {
-  @transient val sc = us.context
-  us.cache()
-  val count = us.count
-  @transient val t: RDD[T] = us.map(toT)
-  t.cache()
-  @transient val tZipped: RDD[(Idx, T)] = t.zipWithIndex().map(p => (p._2, p._1))
-  @transient val sa = PDC3(t.map(_.toLong), count)
-  @transient val saZipped: RDD[(V, Idx)] = sa.zipWithIndex()//.map(p => (p._2, p._1))
+case class SparkFM(saZipped: RDD[(V, Idx)],
+                   tZipped: RDD[(Idx, T)],
+                   count: Long,
+                   N: Int,
+                   countInterval: Int = 100) extends Serializable {
+  @transient val sc = saZipped.sparkContext
 
   @transient val tShifted: RDD[(Idx, T)] =
     tZipped
-      .map(p =>
-        (
-          if (p._1 + 1 == count)
-            0L
-          else
-            p._1 + 1,
-          p._2
+    .map(p =>
+      (
+        if (p._1 + 1 == count)
+          0L
+        else
+          p._1 + 1,
+        p._2
         )
-      )
+    )
 
   @transient val indexedBwtt: RDD[(Idx, T)] =
     saZipped.join(tShifted).map(p => {
@@ -96,7 +103,7 @@ class SparkFM[U](us: RDD[U], N: Int, countInterval: Int = 100, implicit val toT:
   val summedCounts: Array[(Array[Long], Long)] = summedCountsBuf.toArray
   val summedCountsRDD = sc.parallelize(summedCounts, summedCounts.length)
 
-  val bwtChunks =
+  val bwtChunks: RDD[(Long, BWTChunk)] =
     indexedBwtt.zipPartitions(summedCountsRDD)((bwtIter, summedCountIter) => {
       var (startCounts, total) = summedCountIter.next()
       assert(
@@ -122,7 +129,7 @@ class SparkFM[U](us: RDD[U], N: Int, countInterval: Int = 100, implicit val toT:
           counts = startCounts.clone()
         } else if (idx % countInterval == 0) {
           val chunk = BWTChunk(startIdx, idx, startCounts.clone(), data.toArray)
-          println(s"new chunk: $chunk, ${startCounts.mkString(",")}, ${counts.mkString(",")}")
+          //println(s"new chunk: $chunk, ${startCounts.mkString(",")}, ${counts.mkString(",")}")
           chunks.append((chunkIdx, chunk))
           chunkIdx = idx / countInterval
           startIdx = idx
@@ -179,7 +186,7 @@ class SparkFM[U](us: RDD[U], N: Int, countInterval: Int = 100, implicit val toT:
       assert(tsIter.size == 1, s"Found ${tsIter.size} ts with idx $idx")
       val ts = tsIter.head
 
-      assert(bounds.size == 2, s"Found ${bounds.size} bounds for idx $idx, t $t")
+      assert(bounds.size == 2, s"Found ${bounds.size} bounds for idx $idx, ts $ts")
       val (first, second) = (bounds.head, bounds.tail.head)
       val (lo, hi) = (first, second) match {
         case ((l, true), (h, false)) => (l, h)
@@ -196,14 +203,14 @@ class SparkFM[U](us: RDD[U], N: Int, countInterval: Int = 100, implicit val toT:
 
   def occRec(cur: RDD[(Long, Needle)],
              finished: RDD[(Idx, (Long, Boolean))]): RDD[(Idx, (Long, Boolean))] = {
-    println(s"recurse:\n\t${cur.collect.mkString("\n\t")}")
+//    println(s"recurse:\n\t${cur.collect.mkString("\n\t")}")
     val next: RDD[(Long, Needle)] =
       cur.cogroup(bwtChunks).flatMap {
         case (chunkIdx, (tuples, chunks)) =>
           assert(chunks.size == 1, s"Got ${chunks.size} chunks for chunk idx $chunkIdx")
           val chunk = chunks.head
           val totalSumsV = totalSumsBC.value
-          println(s"chunk: $chunk")
+//          println(s"chunk: $chunk")
           for {
             Needle(idx, ts, bound, isLow) <- tuples
             lastT = ts.last
@@ -212,7 +219,7 @@ class SparkFM[U](us: RDD[U], N: Int, countInterval: Int = 100, implicit val toT:
             o = chunk.occ(lastT, bound)
             newBound = c + o
           } yield {
-            println(s"${newTs.mkString(",")}($lastT${if (isLow) "↓" else "↑"}): $bound -> $newBound ($c + $o)")
+//            println(s"${newTs.mkString(",")}($lastT${if (isLow) "↓" else "↑"}): $bound -> $newBound ($c + $o)")
             (newBound / countInterval, Needle(idx, newTs, newBound, isLow))
           }
       }
@@ -243,4 +250,20 @@ object SparkFM {
   type V = Long
   type Idx = Long
   type PartitionIdx = Int
+
+  def apply[U](us: RDD[U],
+               N: Int,
+               countInterval: Int = 100,
+               toT: (U) => T): SparkFM = {
+    @transient val sc = us.context
+    us.cache()
+    val count = us.count
+    @transient val t: RDD[T] = us.map(toT)
+    t.cache()
+    @transient val tZipped: RDD[(Idx, T)] = t.zipWithIndex().map(p => (p._2, p._1))
+    @transient val sa = PDC3(t.map(_.toLong), count)
+    @transient val saZipped: RDD[(V, Idx)] = sa.zipWithIndex()
+
+    SparkFM(saZipped, tZipped, count, N, countInterval)
+  }
 }
