@@ -198,4 +198,61 @@ class SparkFMTest extends SparkFunSuite with Matchers with Serializable {
     ("TG", 7, 8),
     ("TT", 8, 9)
   )
+
+  testLF(
+    List("ACG", "CGT", "GTT", "TTG", "TGC", "GCA", "CA$"),
+    ("ACG", 2, 3),
+    ("CGT", 4, 5),
+    ("GTT", 6, 7),
+    ("TTG", 8, 9),
+    ("TGC", 7, 8),
+    ("GCA", 5, 6),
+    ("CA$", 3, 4)
+  )
+
+  testLF(
+    List("ACGT", "CGTT", "GTTG", "TTGC", "TGCA", "GCA$"),
+    ("ACGT", 2, 3),
+    ("CGTT", 4, 5),
+    ("GTTG", 6, 7),
+    ("TTGC", 8, 9),
+    ("TGCA", 7, 8),
+    ("GCA$", 5, 6)
+  )
+
+  testLF(
+    List("ACGTT", "CGTTG", "GTTGC", "TTGCA", "TGCA$"),
+    ("ACGTT", 2, 3),
+    ("CGTTG", 4, 5),
+    ("GTTGC", 6, 7),
+    ("TTGCA", 8, 9),
+    ("TGCA$", 7, 8)
+  )
+
+  testLF(
+    List("ACGTTG", "CGTTGC", "GTTGCA", "TTGCA$"),
+    ("ACGTTG", 2, 3),
+    ("CGTTGC", 4, 5),
+    ("GTTGCA", 6, 7),
+    ("TTGCA$", 8, 9)
+  )
+
+  testLF(
+    List("ACGTTGC", "CGTTGCA", "GTTGCA$"),
+    ("ACGTTGC", 2, 3),
+    ("CGTTGCA", 4, 5),
+    ("GTTGCA$", 6, 7)
+  )
+
+  testLF(
+    List("ACGTTGCA", "CGTTGCA$"),
+    ("ACGTTGCA", 2, 3),
+    ("CGTTGCA$", 4, 5)
+  )
+
+  testLF(
+    List("ACGTTGCA$"),
+    ("ACGTTGCA$", 2, 3)
+  )
+
 }
