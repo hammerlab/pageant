@@ -36,7 +36,6 @@ class SparkFM[U](us: RDD[U], N: Int, countInterval: Int = 100, implicit val toT:
   @transient val tZipped: RDD[(Idx, T)] = t.zipWithIndex().map(p => (p._2, p._1))
   @transient val sa = PDC3(t.map(_.toLong), count)
   @transient val saZipped: RDD[(V, Idx)] = sa.zipWithIndex()//.map(p => (p._2, p._1))
-  //@transient val uZipped: RDD[(Idx, U)] = us.zipWithIndex().map(p => (p._2, p._1))
 
   @transient val tShifted: RDD[(Idx, T)] =
     tZipped
@@ -94,10 +93,10 @@ class SparkFM[U](us: RDD[U], N: Int, countInterval: Int = 100, implicit val toT:
   }
   val totalSumsBC = sc.broadcast(totalSums)
 
-  @transient val summedCounts: Array[(Array[Long], Long)] = summedCountsBuf.toArray
-  @transient val summedCountsRDD = sc.parallelize(summedCounts, summedCounts.length)
+  val summedCounts: Array[(Array[Long], Long)] = summedCountsBuf.toArray
+  val summedCountsRDD = sc.parallelize(summedCounts, summedCounts.length)
 
-  @transient val bwtChunks =
+  val bwtChunks =
     indexedBwtt.zipPartitions(summedCountsRDD)((bwtIter, summedCountIter) => {
       var (startCounts, total) = summedCountIter.next()
       assert(
