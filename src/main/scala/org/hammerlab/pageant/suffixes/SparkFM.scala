@@ -196,7 +196,7 @@ case class SparkFM(saZipped: RDD[(V, Idx)],
         var i = ts.length
         var prefixes: ArrayBuffer[(Idx, TPos, AT)] = ArrayBuffer()
         ts.foreach(t => {
-          prefixes.append((tIdx, i, cur/*.clone()*/))
+          prefixes.append((tIdx, i, cur))
           cur = cur.dropRight(1)
           i -= 1
         })
