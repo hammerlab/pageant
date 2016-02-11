@@ -58,12 +58,12 @@ class SparkFMTest extends SparkFunSuite with Matchers with Serializable {
   val bwt = bwtu.map(toI)
   bwt should be(Array(1, 2, 0, 3, 1, 4, 2, 4, 3))
 
-  def BWTChunksTest(saPartitions: Int,
+  def BWTBlocksTest(saPartitions: Int,
                     tsPartitions: Int,
                     countInterval: Int): Unit = {
 
     fmTest(
-      s"bwtchunks-$saPartitions-$tsPartitions-$countInterval",
+      s"bwtblocks-$saPartitions-$tsPartitions-$countInterval",
       sa,
       saPartitions,
       sequence,
@@ -122,15 +122,15 @@ class SparkFMTest extends SparkFunSuite with Matchers with Serializable {
         curCounts(i) += 1
       }
 
-      val chunks =
+      val blocks =
         (for {
           start <- bwt.indices by countInterval
         } yield {
           val end = math.min(start + countInterval, bwt.length)
-          BWTChunk(start, end, counts(start).map(_.toLong), bwt.slice(start, end))
+          BWTBlock(start, end, counts(start).map(_.toLong), bwt.slice(start, end))
         }).toArray.zipWithIndex.map(p => (p._2, p._1))
 
-      fm.bwtChunks.collect.sortBy(_._1) should be(chunks)
+      fm.bwtBlocks.collect.sortBy(_._1) should be(blocks)
     })
   }
 
@@ -139,23 +139,23 @@ class SparkFMTest extends SparkFunSuite with Matchers with Serializable {
     tsPartitions <- List(1, 3, 6)
     countInterval <- 1 to 6
   } {
-    BWTChunksTest(saPartitions, tsPartitions, countInterval)
+    BWTBlocksTest(saPartitions, tsPartitions, countInterval)
   }
 
 
-  def testLF(strs: List[String], tuples: (String, Int, Int)*): Unit = {
+  def testLF(tuples: (String, Int, Int)*): Unit = {
+    val strs = tuples.map(_._1)
     fmTest(s"occ-${strs.mkString(",")}", 3, sequence, 2, 4)((fm) => {
-      val needles: List[Array[Int]] = strs.map(_.toArray.map(toI))
+      val needles: Seq[Array[Int]] = strs.map(_.toArray.map(toI))
 
       val needlesRdd = sc.parallelize(needles, 2)
-      val actual = fm.occ(needlesRdd).collect.map(p => (p._1.map(toC).mkString(""), p._2, p._3))
+      val actual = fm.occ(needlesRdd).collect.map(p => (p._1.map(toC).mkString(""), p._2))
 
-      actual should be(tuples.toArray)
+      actual should be(tuples.toArray.map(t => (t._1, Bounds(t._2, t._3))))
     })
   }
 
   testLF(
-    List("$", "A", "C", "G", "T"),
     ("$", 0, 1),
     ("A", 1, 3),
     ("C", 3, 5),
@@ -164,7 +164,6 @@ class SparkFMTest extends SparkFunSuite with Matchers with Serializable {
   )
 
   testLF(
-    List("A$", "AA", "AC", "AG", "AT"),
     ("A$", 1, 2),
     ("AA", 2, 2),
     ("AC", 2, 3),
@@ -173,7 +172,6 @@ class SparkFMTest extends SparkFunSuite with Matchers with Serializable {
   )
 
   testLF(
-    List("C$", "CA", "CC", "CG", "CT"),
     ("C$", 3, 3),
     ("CA", 3, 4),
     ("CC", 4, 4),
@@ -182,7 +180,6 @@ class SparkFMTest extends SparkFunSuite with Matchers with Serializable {
   )
 
   testLF(
-    List("G$", "GA", "GC", "GG", "GT"),
     ("G$", 5, 5),
     ("GA", 5, 5),
     ("GC", 5, 6),
@@ -191,7 +188,6 @@ class SparkFMTest extends SparkFunSuite with Matchers with Serializable {
   )
 
   testLF(
-    List("T$", "TA", "TC", "TG", "TT"),
     ("T$", 7, 7),
     ("TA", 7, 7),
     ("TC", 7, 7),
@@ -200,7 +196,6 @@ class SparkFMTest extends SparkFunSuite with Matchers with Serializable {
   )
 
   testLF(
-    List("ACG", "CGT", "GTT", "TTG", "TGC", "GCA", "CA$"),
     ("ACG", 2, 3),
     ("CGT", 4, 5),
     ("GTT", 6, 7),
@@ -211,7 +206,6 @@ class SparkFMTest extends SparkFunSuite with Matchers with Serializable {
   )
 
   testLF(
-    List("ACGT", "CGTT", "GTTG", "TTGC", "TGCA", "GCA$"),
     ("ACGT", 2, 3),
     ("CGTT", 4, 5),
     ("GTTG", 6, 7),
@@ -221,7 +215,6 @@ class SparkFMTest extends SparkFunSuite with Matchers with Serializable {
   )
 
   testLF(
-    List("ACGTT", "CGTTG", "GTTGC", "TTGCA", "TGCA$"),
     ("ACGTT", 2, 3),
     ("CGTTG", 4, 5),
     ("GTTGC", 6, 7),
@@ -230,7 +223,6 @@ class SparkFMTest extends SparkFunSuite with Matchers with Serializable {
   )
 
   testLF(
-    List("ACGTTG", "CGTTGC", "GTTGCA", "TTGCA$"),
     ("ACGTTG", 2, 3),
     ("CGTTGC", 4, 5),
     ("GTTGCA", 6, 7),
@@ -238,21 +230,44 @@ class SparkFMTest extends SparkFunSuite with Matchers with Serializable {
   )
 
   testLF(
-    List("ACGTTGC", "CGTTGCA", "GTTGCA$"),
     ("ACGTTGC", 2, 3),
     ("CGTTGCA", 4, 5),
     ("GTTGCA$", 6, 7)
   )
 
   testLF(
-    List("ACGTTGCA", "CGTTGCA$"),
     ("ACGTTGCA", 2, 3),
     ("CGTTGCA$", 4, 5)
   )
 
   testLF(
-    List("ACGTTGCA$"),
     ("ACGTTGCA$", 2, 3)
+  )
+
+  def testOccAll(tuples: (String, List[((Int, Int), (Int, Int))])*): Unit = {
+    val strs = tuples.map(_._1)
+    fmTest(s"occAll-${strs.mkString(",")}", 3, sequence, 2, 4)((fm) => {
+      val needles: Seq[Array[Int]] = strs.map(_.toArray.map(toI))
+
+      val needlesRdd = sc.parallelize(needles, 2)
+      val actual = for {
+        (ts, map) <- fm.occAll(needlesRdd).collect
+        str = ts.map(toC).mkString("")
+      } yield {
+        str -> (for {
+          (r, rm) <- map.toList
+          (c, Bounds(lb, hb)) <- rm.toList
+        } yield {
+          (r, c) -> (lb.v.toInt, hb.v.toInt)
+        }).sortBy(_._1)
+      }
+
+      actual should be(tuples.toArray.map(t => (t._1, t._2.sortBy(_._1))))
+    })
+  }
+
+  testOccAll(
+    "TGT" -> List((0,1) -> (7,9), (0,2) -> (7,8), (0,3) -> (8,8), (1,2) -> (5,7), (1,3) -> (6,7), (2,3) -> (7,9))
   )
 
 }
