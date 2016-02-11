@@ -1,9 +1,10 @@
-package org.hammerlab.pageant.suffixes
+package org.hammerlab.pageant.fmi
 
 import org.apache.spark.rdd.RDD
-import scala.collection.mutable.ArrayBuffer
+import org.hammerlab.pageant.fmi.SparkFM._
+import org.hammerlab.pageant.suffixes.PDC3
 
-import org.hammerlab.pageant.suffixes.SparkFM._
+import scala.collection.mutable.ArrayBuffer
 
 case class PartialSum(a: Array[Long], n: Long)
 object PartialSum {
@@ -31,9 +32,28 @@ case class BWTBlock(startIdx: Long, endIdx: Long, startCounts: Array[Long], data
   }
 }
 
-case class Needle(idx: Idx, end: TPos, ts: AT, bound: Bound) {
+trait Needle {
+  def idx: Idx
+  def start: TPos
+  def end: TPos
+  def bound: Bound
+  def isEmpty: Boolean
+  def nonEmpty: Boolean = !isEmpty
+  def keyByPos: ((Idx, TPos, TPos), Bound) = (idx, start, end) -> bound
+}
+
+case class TNeedle(idx: Idx, end: TPos, remainingTs: AT, bound: Bound) extends Needle {
+  def start = remainingTs.length
+  def isEmpty: Boolean = remainingTs.isEmpty
   override def toString: String = {
-    s"Needle($idx($end), ${ts.map(toC).mkString("")}, $bound)"
+    s"Needle($idx($end), ${remainingTs.map(toC).mkString("")}, $bound)"
+  }
+}
+
+case class PosNeedle(idx: Idx, start: TPos, end: TPos, bound: Bound) extends Needle {
+  def isEmpty: Boolean = start == 0
+  override def toString: String = {
+    s"Needle($idx[$start,$end): $bound)"
   }
 }
 
@@ -69,12 +89,12 @@ object Bounds {
   }
 }
 
-case class SparkFM(saZipped: RDD[(V, Idx)],
-                   tZipped: RDD[(Idx, T)],
-                   count: Long,
-                   N: Int,
-                   countInterval: Int = 100) extends Serializable {
-  @transient val sc = saZipped.sparkContext
+abstract class SparkFM[NT <: Needle](saZipped: RDD[(V, Idx)],
+                                     tZipped: RDD[(Idx, T)],
+                                     count: Long,
+                                     N: Int,
+                                     blockSize: Int = 100) extends Serializable {
+  @transient protected val sc = saZipped.sparkContext
 
   @transient val tShifted: RDD[(Idx, T)] =
     tZipped
@@ -127,8 +147,8 @@ case class SparkFM(saZipped: RDD[(V, Idx)],
   })
 
   var totalSums = Array.fill(N)(0L)
-  for { i <- 1 until N } {
-    totalSums(i) = totalSums(i-1) + curSummedCounts(i-1)
+  for {i <- 1 until N} {
+    totalSums(i) = totalSums(i - 1) + curSummedCounts(i - 1)
   }
   val totalSumsBC = sc.broadcast(totalSums)
 
@@ -156,13 +176,13 @@ case class SparkFM(saZipped: RDD[(V, Idx)],
       } {
         if (blockIdx == -1L) {
           idx = i
-          blockIdx = idx / countInterval
+          blockIdx = idx / blockSize
           startIdx = idx
           counts = startCounts.clone()
-        } else if (idx % countInterval == 0) {
+        } else if (idx % blockSize == 0) {
           val block = BWTBlock(startIdx, idx, startCounts.clone(), data.toArray)
           blocks.append((blockIdx, block))
-          blockIdx = idx / countInterval
+          blockIdx = idx / blockSize
           startIdx = idx
           data.clear()
           startCounts = counts.clone()
@@ -181,52 +201,20 @@ case class SparkFM(saZipped: RDD[(V, Idx)],
       val blocks = iter.toArray.sortBy(_.endIdx)
       val first = blocks.head
       val last = blocks.last
-      for { block <- blocks } { data ++= block.data }
+      for {block <- blocks} {
+        data ++= block.data
+      }
       BWTBlock(first.startIdx, last.endIdx, first.startCounts, data.toArray)
     }).setName("BWTBlocks")
 
   bwtBlocks.cache()
 
+  def occAll(tss: RDD[AT]): RDD[(AT, BoundsMap)]
+  def occ(tss: RDD[AT]): RDD[(AT, Bounds)]
 
-  def occAll(tss: RDD[AT]): RDD[(AT, BoundsMap)] = {
-    val tssi = tss.zipWithIndex().map(p => (p._2, p._1)).setName("tssi")
-    val tssPrefixes: RDD[(Idx, TPos, AT)] =
-      tssi.flatMap { case (tIdx, ts) =>
-        var cur = ts
-        var i = ts.length
-        var prefixes: ArrayBuffer[(Idx, TPos, AT)] = ArrayBuffer()
-        ts.foreach(t => {
-          prefixes.append((tIdx, i, cur))
-          cur = cur.dropRight(1)
-          i -= 1
-        })
-        prefixes
-      }
-
-    val cur: RDD[(BlockIdx, Needle)] =
-      tssPrefixes.mapPartitions(
-        iter => {
-          for {
-            (tIdx, end, ts) <- iter
-            bound: Bound <- List(LoBound(0L), HiBound(count))   // Starting bounds
-            blockIdx = bound.blockIdx(countInterval)
-          } yield
-            (
-              blockIdx,
-              Needle(tIdx, end, ts, bound)
-            )
-        }
-      )
-
-    val occs =
-      occRec(
-        cur,
-        sc.emptyRDD[((Idx, TPos, TPos), Bound)],
-        emitIntermediateRanges = true
-      )
-
-    val finished =
-      occs
+  def occsToBoundsMap(occs: RDD[Needle]): RDD[(Idx, BoundsMap)] = {
+    occs
+      .map(_.keyByPos)
       .groupByKey()
       .mapValues(Bounds.merge)
       .map({
@@ -239,52 +227,34 @@ case class SparkFM(saZipped: RDD[(V, Idx)],
       })
       .groupByKey()
       .mapValues(_.toMap)
-
-    (for {
-      (idx, (tsIter, boundsIter)) <- tssi.cogroup(finished)
-    } yield {
-
-      assert(tsIter.size == 1, s"Found ${tsIter.size} ts with idx $idx")
-      val ts = tsIter.head
-
-      assert(boundsIter.size == 1, s"Found ${boundsIter.size} bounds with idx $idx")
-      val bounds = boundsIter.head
-
-      idx -> (ts -> bounds)
-    }).sortByKey().map(_._2)
   }
 
-  def occ(tss: RDD[AT]): RDD[(AT, Bounds)] = {
-    val tssi = tss.zipWithIndex().map(p => (p._2, p._1)).setName("tssi")
-    tssi.cache()
+  def occsToBounds(occs: RDD[Needle]): RDD[(Idx, Bounds)] = {
+    occs
+      .map(n => (n.idx, n.bound))
+      .groupByKey()
+      .mapValues(Bounds.merge)
+  }
 
-    val cur: RDD[(BlockIdx, Needle)] =
-      tssi.mapPartitions(
-        iter => {
-          for {
-            (tIdx, ts) <- iter
-            bound <- List(LoBound(0L), HiBound(count))   // Starting bounds
-            blockIdx = bound.blockIdx(countInterval)
-          } yield
-            (
-              blockIdx,
-              Needle(tIdx, ts.length, ts, bound)
-            )
-        }
-      )
+  def findFinished(next: RDD[(BlockIdx, NT)],
+                   emitIntermediateRanges: Boolean): (RDD[Needle], RDD[(BlockIdx, NT)], Long) = {
+    next.checkpoint()
+    val newFinished: RDD[Needle] =
+      if (emitIntermediateRanges)
+        next.map(_._2)
+      else
+        next
+        .map(_._2: Needle)
+        .filter(_.isEmpty)
+    newFinished.cache()
 
-    val finished: RDD[(Idx, Bounds)] =
-      occRec(
-        cur,
-        sc.emptyRDD[((Idx, TPos, TPos), Bound)],
-        emitIntermediateRanges = false
-      )
-        .map {
-          case ((idx, _, _), bound) => (idx, bound)
-        }
-        .groupByKey()
-        .mapValues(Bounds.merge)
+    val notFinished = next.filter(_._2.nonEmpty).setName("leftover")
+    notFinished.cache()
+    val numLeft = notFinished.count()
+    (newFinished, notFinished, numLeft)
+  }
 
+  def joinBounds[T](finished: RDD[(Idx, T)], tssi: RDD[(Idx, AT)]): RDD[(AT, T)] = {
     (for {
       (idx, (tsIter, boundsIter)) <- tssi.cogroup(finished)
     } yield {
@@ -294,52 +264,6 @@ case class SparkFM(saZipped: RDD[(V, Idx)],
 
       idx -> (ts -> boundsIter.head)
     }).sortByKey().map(_._2)
-  }
-
-  def occRec(cur: RDD[(BlockIdx, Needle)],
-             finished: RDD[((Idx, TPos, TPos), Bound)],
-             emitIntermediateRanges: Boolean = true): RDD[((Idx, TPos, TPos), Bound)] = {
-    val next: RDD[(BlockIdx, Needle)] =
-      cur.cogroup(bwtBlocks).flatMap {
-        case (blockIdx, (tuples, blocks)) =>
-          assert(blocks.size == 1, s"Got ${blocks.size} blocks for block idx $blockIdx")
-          val block = blocks.head
-          val totalSumsV = totalSumsBC.value
-          for {
-            Needle(idx, end, ts, bound) <- tuples
-            lastT = ts.last
-            newTs = ts.dropRight(1)
-            c = totalSumsV(lastT)
-            o = block.occ(lastT, bound)
-            newBound = bound.move(c + o)
-          } yield {
-            (
-              newBound.blockIdx(countInterval),
-              Needle(idx, end, newTs, newBound)
-            )
-          }
-      }
-
-    next.checkpoint()
-
-    val newFinished =
-      for {
-        (blockIdx, Needle(idx, end, ts, bound)) <- next
-        if emitIntermediateRanges || ts.isEmpty
-      } yield {
-        ((idx, ts.length, end), bound)
-      }
-    newFinished.cache()
-    val numNew = newFinished.count()
-
-    val notFinished = next.filter(_._2.ts.nonEmpty).setName("leftover")
-    notFinished.cache()
-    val numLeft = notFinished.count()
-    if (numLeft > 0) {
-      occRec(notFinished, finished ++ newFinished, emitIntermediateRanges)
-    } else {
-      finished ++ newFinished
-    }
   }
 }
 
@@ -351,13 +275,13 @@ object SparkFM {
   type TPos = Int
   type BlockIdx = Long
   type BoundsMap = Map[TPos, Map[TPos, Bounds]]
-//  type Bound = Long
   type PartitionIdx = Int
+
 
   def apply[U](us: RDD[U],
                N: Int,
-               countInterval: Int = 100,
-               toT: (U) => T): SparkFM = {
+               blockSize: Int = 100,
+               toT: (U) => T): SparkFM[TNeedle] = {
     @transient val sc = us.context
     us.cache()
     val count = us.count
@@ -367,9 +291,9 @@ object SparkFM {
     @transient val sa = PDC3(t.map(_.toLong), count)
     @transient val saZipped: RDD[(V, Idx)] = sa.zipWithIndex()
 
-    SparkFM(saZipped, tZipped, count, N, countInterval)
+    SparkFMAllTs(saZipped, tZipped, count, N, blockSize)
   }
 
-  val toI = "$ACGT".zipWithIndex.toMap
+  val toI = "$ACGTN".zipWithIndex.toMap
   val toC = toI.map(p => (p._2, p._1))
 }

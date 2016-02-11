@@ -1,21 +1,30 @@
-package org.hammerlab.pageant.suffixes
+package org.hammerlab.pageant.fmi
 
+import org.apache.spark.rdd.RDD
 import org.bdgenomics.utils.misc.SparkFunSuite
+import org.hammerlab.pageant.fmi.SparkFM.{V, Idx, T}
+import org.hammerlab.pageant.suffixes.KarkainnenSuffixArray
 import org.scalatest.Matchers
 
 import scala.collection.mutable.ArrayBuffer
 
-class SparkFMTest extends SparkFunSuite with Matchers with Serializable {
+abstract class SparkFMTest[NT <: Needle] extends SparkFunSuite with Matchers with Serializable {
 
   val toI = "$ACGT".zipWithIndex.toMap
   val toC = toI.map(p => (p._2, p._1))
+
+  def makeSparkFM(saZipped: RDD[(V, Idx)],
+                  tZipped: RDD[(Idx, T)],
+                  count: Long,
+                  N: Int,
+                  blockSize: Int = 100): SparkFM[NT]
 
   def fmTest(name: String,
              sa: Array[Int],
              saPartitions: Int,
              ts: String,
              tsPartitions: Int,
-             countInterval: Int)(body: SparkFM => Unit): Unit = {
+             blockSize: Int)(body: SparkFM[NT] => Unit): Unit = {
     sparkTest(name) {
       sa.length should be(ts.length)
 
@@ -25,7 +34,7 @@ class SparkFMTest extends SparkFunSuite with Matchers with Serializable {
       sc.setCheckpointDir("tmp")
 
       body(
-        SparkFM(saZipped, tZipped, count = sa.length, N = 5, countInterval = countInterval)
+        makeSparkFM(saZipped, tZipped, count = sa.length, N = 5, blockSize = blockSize)
       )
     }
   }
@@ -34,9 +43,9 @@ class SparkFMTest extends SparkFunSuite with Matchers with Serializable {
              saPartitions: Int,
              ts: String,
              tsPartitions: Int,
-             countInterval: Int)(body: SparkFM => Unit): Unit = {
+             blockSize: Int)(body: SparkFM[NT] => Unit): Unit = {
     val sa = KarkainnenSuffixArray.make(ts.map(toI).toArray, 5)
-    fmTest(name, sa, saPartitions, ts, tsPartitions, countInterval)(body)
+    fmTest(name, sa, saPartitions, ts, tsPartitions, blockSize)(body)
   }
 
 
@@ -60,15 +69,15 @@ class SparkFMTest extends SparkFunSuite with Matchers with Serializable {
 
   def BWTBlocksTest(saPartitions: Int,
                     tsPartitions: Int,
-                    countInterval: Int): Unit = {
+                    blockSize: Int): Unit = {
 
     fmTest(
-      s"bwtblocks-$saPartitions-$tsPartitions-$countInterval",
+      s"bwtblocks-$saPartitions-$tsPartitions-$blockSize",
       sa,
       saPartitions,
       sequence,
       tsPartitions,
-      countInterval
+      blockSize
     )((fm) => {
 
       fm.tShifted.getNumPartitions should be(tsPartitions)
@@ -124,9 +133,9 @@ class SparkFMTest extends SparkFunSuite with Matchers with Serializable {
 
       val blocks =
         (for {
-          start <- bwt.indices by countInterval
+          start <- bwt.indices by blockSize
         } yield {
-          val end = math.min(start + countInterval, bwt.length)
+          val end = math.min(start + blockSize, bwt.length)
           BWTBlock(start, end, counts(start).map(_.toLong), bwt.slice(start, end))
         }).toArray.zipWithIndex.map(p => (p._2, p._1))
 
@@ -137,9 +146,9 @@ class SparkFMTest extends SparkFunSuite with Matchers with Serializable {
   for {
     saPartitions <- List(1, 3, 6)
     tsPartitions <- List(1, 3, 6)
-    countInterval <- 1 to 6
+    blockSize <- 1 to 6
   } {
-    BWTBlocksTest(saPartitions, tsPartitions, countInterval)
+    BWTBlocksTest(saPartitions, tsPartitions, blockSize)
   }
 
 
