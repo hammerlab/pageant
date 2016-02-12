@@ -1,11 +1,12 @@
 package org.hammerlab.pageant.suffixes
 
 import org.bdgenomics.utils.misc.SparkFunSuite
+import org.hammerlab.pageant.utils.SparkSuite
 import org.scalatest.{FunSuite, Matchers}
 
-class PDC3Test extends SuffixArrayTestBase with SparkFunSuite {
+class PDC3Test extends SuffixArrayTestBase with SparkSuite {
 
-  override def testFn(name: String)(testFun: => Unit): Unit = sparkTest(name)(testFun)
+  override def testFn(name: String)(testFun: => Unit): Unit = test(name)(testFun)
 
   import PDC3.{ItoT, TtoI}
 

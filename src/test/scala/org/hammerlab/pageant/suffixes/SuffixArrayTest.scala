@@ -1,6 +1,6 @@
 package org.hammerlab.pageant.suffixes
 
-import org.scalatest.{FunSuite, Matchers}
+import org.scalatest.{Ignore, FunSuite, Matchers}
 
 trait SuffixArrayTestBase extends FunSuite with Matchers {
   def arr(a: Array[Int], n: Int): Array[Int]
@@ -98,6 +98,7 @@ trait SuffixArrayLocalTestBase extends SuffixArrayTestBase {
   override def testFn(name: String)(testFun: => Unit): Unit = test(name)(testFun)
 }
 
+@Ignore
 class WIPSuffixArrayTest extends SuffixArrayLocalTestBase {
   override def arr(a: Array[Int], n: Int): Array[Int] = WIPSuffixArray.make(a, n)
   override def name = "SuffixArrayTest"

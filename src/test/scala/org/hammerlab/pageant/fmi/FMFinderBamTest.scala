@@ -1,34 +1,17 @@
 package org.hammerlab.pageant.fmi
 
-import org.apache.spark.{SparkConf, SparkContext}
+import org.apache.spark.SparkContext
 import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.DirectFileRDDSerializer._
-import org.bdgenomics.utils.misc.SparkFunSuite
-import org.hammerlab.pageant.suffixes.PDC3
-import org.scalatest.{BeforeAndAfter, FunSuite, Matchers}
 import Utils._
 import org.hammerlab.pageant.utils.Utils.{rev, resourcePath}
 
 import org.bdgenomics.adam.rdd.ADAMContext._
 
-class SparkFMBamTest extends FunSuite with Matchers with BeforeAndAfter {
+abstract class FMFinderBamTest extends FMSuite with FMFinderTest {
 
-  var sc: SparkContext = _
-  var fm: SparkFMBroadcastTs = _
-
-  val properties = Map(
-    "spark.serializer" -> "org.apache.spark.serializer.KryoSerializer",
-    "spark.kryo.registrator" -> "org.hammerlab.pageant.kryo.PageantKryoRegistrar",
-    "spark.master" -> "local[%d]".format(Runtime.getRuntime.availableProcessors()),
-    "spark.app.name" -> "SparkFMBamTest"
-  )
-
-  before {
-    val conf: SparkConf = new SparkConf()
-    properties.foreach(kv => conf.set(kv._1, kv._2))
-    sc = new SparkContext(conf)
-
-    val sa = sc.directFile[Long]("normal.bam.sa")
+  def initFM(sc: SparkContext): SparkFM = {
+    val sa = sc.directFile[Long](resourcePath("normal.bam.sa"))
     val count = 1383018
     sa.count should be(count)
 
@@ -49,18 +32,8 @@ class SparkFMBamTest extends FunSuite with Matchers with BeforeAndAfter {
 
     ts.getNumPartitions should be(4)
 
-    fm = new SparkFMBroadcastTs(sa.zipWithIndex(), ts.zipWithIndex().map(rev), count, N = 6)
+    SparkFM(sa.zipWithIndex(), ts.zipWithIndex().map(rev), count, N = 6)
   }
-
-
-
-//  test("normal.bam") {
-//    fm.occ(sc.parallelize("$ACGTN".map(c => Array(toI(c))))).collect.map(_._2.toTuple) should be(
-//      Array(
-//        (0, 13559), (13559, 416285), (416285, 712409), (712409, 972719), (972719, 1381818), (1381818, 1383018)
-//      )
-//    )
-//  }
 
   def testLF(name: String, tuples: (String, Int, Int)*): Unit = {
     test(name) {
@@ -68,7 +41,7 @@ class SparkFMBamTest extends FunSuite with Matchers with BeforeAndAfter {
       val needles: Seq[Array[Int]] = strs.map(_.toArray.map(toI))
 
       val needlesRdd = sc.parallelize(needles, 2)
-      val actual = fm.occ(needlesRdd).collect.map(p => (p._1.map(toC).mkString(""), p._2.toTuple))
+      val actual = fmf.occ(needlesRdd).collect.map(p => (p._1.map(toC).mkString(""), p._2.toTuple))
 
       actual should be(tuples.toArray.map(t => (t._1, (t._2, t._3))))
     }
@@ -345,3 +318,6 @@ class SparkFMBamTest extends FunSuite with Matchers with BeforeAndAfter {
   )
 
 }
+
+class BroadcastFinderBamTest extends FMFinderBamTest with BroadcastFinderTest
+class AllTFinderBamTest extends FMFinderBamTest with AllTFinderTest

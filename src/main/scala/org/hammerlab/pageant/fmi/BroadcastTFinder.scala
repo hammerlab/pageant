@@ -2,21 +2,16 @@ package org.hammerlab.pageant.fmi
 
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
+import org.hammerlab.pageant.fmi.BroadcastTFinder.TMap
 import org.hammerlab.pageant.fmi.SparkFM._
-import org.hammerlab.pageant.fmi.SparkFMBroadcastTs.TMap
-import org.hammerlab.pageant.suffixes.PDC3
-import org.hammerlab.pageant.utils.Utils.rev
+import org.hammerlab.pageant.utils.Utils._
 
 /**
-  * SparkFM implementation that performs LF-mappings using a broadcasted Map of all target sequences.
+  * FMFinder implementation that performs LF-mappings using a broadcasted Map of all target sequences.
   *
   * If the target sequences are (in aggregate) larger than makes sense to broadcast, this can run in to problems.
   */
-case class SparkFMBroadcastTs(saZipped: RDD[(V, Idx)],
-                              tZipped: RDD[(Idx, T)],
-                              count: Long,
-                              N: Int,
-                              blockSize: Int = 100) extends SparkFM[PosNeedle](saZipped, tZipped, count, N, blockSize) {
+case class BroadcastTFinder(fm: SparkFM) extends FMFinder[PosNeedle](fm) with Serializable {
 
   def occAll(tssRdd: RDD[AT]): RDD[(AT, BoundsMap)] = {
     val (tssi, tsBC) = tssToBroadcast(tssRdd)
@@ -31,7 +26,7 @@ case class SparkFMBroadcastTs(saZipped: RDD[(V, Idx)],
         (
           blockIdx,
           PosNeedle(tIdx, end+1, end+1, bound)
-        )
+          )
 
     val occs = occRec(
       cur,
@@ -55,7 +50,7 @@ case class SparkFMBroadcastTs(saZipped: RDD[(V, Idx)],
         (
           blockIdx,
           PosNeedle(tIdx, ts.length, ts.length, bound)
-        )
+          )
 
     val occs = occRec(
       cur,
@@ -88,7 +83,7 @@ case class SparkFMBroadcastTs(saZipped: RDD[(V, Idx)],
             (
               newBound.blockIdx(blockSize),
               PosNeedle(idx, start - 1, end, newBound)
-            )
+              )
           }
       }
 
@@ -115,21 +110,6 @@ case class SparkFMBroadcastTs(saZipped: RDD[(V, Idx)],
   }
 }
 
-object SparkFMBroadcastTs {
+object BroadcastTFinder {
   type TMap = Map[Idx, Map[TPos, T]]
-  def apply[U](us: RDD[U],
-               N: Int,
-               toT: (U) => T,
-               blockSize: Int = 100): SparkFMBroadcastTs = {
-    @transient val sc = us.context
-    us.cache()
-    val count = us.count
-    @transient val t: RDD[T] = us.map(toT)
-    t.cache()
-    @transient val tZipped: RDD[(Idx, T)] = t.zipWithIndex().map(rev)
-    @transient val sa = PDC3(t.map(_.toLong), count)
-    @transient val saZipped: RDD[(V, Idx)] = sa.zipWithIndex()
-
-    SparkFMBroadcastTs(saZipped, tZipped, count, N, blockSize)
-  }
 }
