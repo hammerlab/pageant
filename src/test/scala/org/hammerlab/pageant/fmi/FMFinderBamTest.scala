@@ -4,6 +4,7 @@ import org.apache.spark.SparkContext
 import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.DirectFileRDDSerializer._
 import Utils._
+import org.hammerlab.pageant.fmi.SparkFM._
 import org.hammerlab.pageant.utils.Utils.{rev, resourcePath}
 
 import org.bdgenomics.adam.rdd.ADAMContext._
@@ -317,6 +318,85 @@ abstract class FMFinderBamTest extends FMSuite with FMFinderTest {
     ("NNN", 1382016, 1383018)
   )
 
+  def testCountBidi(strTuples: ((String, String, String), List[Int])*): Unit = {
+    val tuples = for {
+      ((left, middle, right), counts) <- strTuples.toList
+      str = List(left, middle, right).mkString("")
+      start = left.length
+      end = start + middle.length
+    } yield {
+      ((str, start, end), counts)
+    }
+    val strs = tuples.map(_._1._1)
+    val expectedMap =
+      for {
+        ((str, start, end), counts) <- tuples.toMap
+      } yield {
+        counts.length should be((start + 1) * (str.length - end + 1))
+        str -> (for {
+          (idx, count) <- counts.zipWithIndex.map(rev).toMap
+          r = idx / (start + 1)
+          c = end + (idx % (start + 1))
+        } yield {
+          (r, c) -> count
+        })
+      }
+
+    test(s"countBidi-${strs.mkString(",")}") {
+      val needles: Seq[(Array[Int], TPos, TPos)] =
+        for {
+          ((str, start, end), _) <- tuples
+        } yield {
+          (str.toArray.map(toI), start, end)
+        }
+
+      val needlesRdd = sc.parallelize(needles, 2)
+
+      val actualMap = for {
+        (ts, map) <- fmf.countBidi(needlesRdd).collectAsMap()
+        str = ts.map(toC).mkString("")
+      } yield {
+        str -> (for {
+          (r, rm) <- map.m.toList
+          (c, count) <- rm.toList
+        } yield {
+          (r, c) -> count
+        }).sortBy(_._1).toMap
+      }
+
+      for {
+        (str, expected) <- expectedMap
+        counts = actualMap(str)
+      } {
+        println(s"$str: ${expected.mkString("\n")}")
+        withClue(s"$str") {
+          counts.size should be(expected.size)
+          for {
+            ((r, c), expectedCount) <- expected
+            actualCount = counts(r, c)
+          } {
+            withClue(s"($r,$c)") {
+              actualCount should be(expectedCount)
+            }
+          }
+        }
+      }
+    }
+  }
+
+  testCountBidi(
+    ("GGCCC", "TAAACAGGTG", "GTAAG") -> List(
+              /*   15  16  17  18  19  20   */
+              /*    G   G   T   A   A   G   */
+
+      /*  0: G  */  31, 31, 30, 30, 28, 26,
+      /*  1: G  */  31, 31, 30, 30, 28, 26,
+      /*  2: C  */  32, 32, 31, 31, 29, 27,
+      /*  3: C  */  32, 32, 31, 31, 29, 27,
+      /*  4: C  */  32, 32, 31, 31, 29, 27,
+      /*  5: T  */  34, 34, 33, 33, 31, 29
+    )
+  )
 }
 
 class BroadcastFinderBamTest extends FMFinderBamTest with BroadcastFinderTest

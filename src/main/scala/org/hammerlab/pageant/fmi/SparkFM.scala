@@ -34,6 +34,30 @@ case class BWTBlock(startIdx: Long, endIdx: Long, startCounts: Array[Long], data
   }
 }
 
+case class BoundsMap(m: Map[TPos, Map[TPos, Bounds]]) {
+  def filter(l: TPos, r: TPos): BoundsMap = {
+    BoundsMap(
+      for {
+        (s, em) <- m
+        if s <= l
+      } yield {
+        s -> (for {(e, b) <- em if e >= r} yield e -> b)
+      }
+    )
+  }
+}
+
+case class CountsMap(m: Map[TPos, Map[TPos, Long]])
+object CountsMap {
+  def apply(bm: BoundsMap): CountsMap = CountsMap(
+    for {
+      (s, m) <- bm.m
+    } yield {
+      s -> ( for { (e, b) <- m } yield e -> b.count )
+    }
+  )
+}
+
 trait Needle {
   def idx: Idx
   def start: TPos
@@ -79,6 +103,7 @@ case class HiBound(v: Long) extends Bound {
 case class Bounds(lo: LoBound, hi: HiBound) {
   override def toString: String = s"Bounds(${lo.v}, ${hi.v})"
   def toTuple: (Long, Long) = (lo.v, hi.v)
+  def count: Long = hi.v - lo.v
 }
 object Bounds {
   def apply(lo: Long, hi: Long): Bounds = Bounds(LoBound(lo), HiBound(hi))
@@ -220,7 +245,7 @@ object SparkFM {
   type Idx = Long
   type TPos = Int
   type BlockIdx = Long
-  type BoundsMap = Map[TPos, Map[TPos, Bounds]]
+  //type BoundsMap = Map[TPos, Map[TPos, Bounds]]
   type PartitionIdx = Int
 
   def apply[U](us: RDD[U],

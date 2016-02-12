@@ -1,11 +1,20 @@
 package org.hammerlab.pageant.fmi
 
 import org.apache.spark.rdd.RDD
-import org.hammerlab.pageant.fmi.SparkFM.{BlockIdx, Idx, AT, BoundsMap}
+import org.apache.spark.rdd.RDD._
+import org.hammerlab.pageant.fmi.SparkFM._
+
+import scala.reflect.ClassTag
 
 abstract class FMFinder[NT <: Needle](fm: SparkFM) extends Serializable {
+
   def occAll(tss: RDD[AT]): RDD[(AT, BoundsMap)]
   def occ(tss: RDD[AT]): RDD[(AT, Bounds)]
+  def occBidi(tss: RDD[(AT, TPos, TPos)]): RDD[(AT, BoundsMap)]
+
+  def countAll(tss: RDD[AT]): RDD[(AT, CountsMap)] = occAll(tss).mapValues(CountsMap.apply)
+  def count(tss: RDD[AT]): RDD[(AT, Long)] = occ(tss).mapValues(_.count)
+  def countBidi(tss: RDD[(AT, TPos, TPos)]): RDD[(AT, CountsMap)] = occBidi(tss).mapValues(CountsMap.apply)
 
   @transient protected val sc = fm.sc
   @transient protected val bwtBlocks = fm.bwtBlocks
@@ -16,26 +25,26 @@ abstract class FMFinder[NT <: Needle](fm: SparkFM) extends Serializable {
 
   def occsToBoundsMap(occs: RDD[Needle]): RDD[(Idx, BoundsMap)] = {
     occs
-    .map(_.keyByPos)
-    .groupByKey()
-    .mapValues(Bounds.merge)
-    .map({
-      case ((tIdx, start, end), bounds) => ((tIdx, start), (end, bounds))
-    })
-    .groupByKey()
-    .mapValues(_.toMap)
-    .map({
-      case ((tIdx, start), endMap) => (tIdx, (start, endMap))
-    })
-    .groupByKey()
-    .mapValues(_.toMap)
+      .map(_.keyByPos)
+      .groupByKey()
+      .mapValues(Bounds.merge)
+      .map({
+        case ((tIdx, start, end), bounds) => ((tIdx, start), (end, bounds))
+      })
+      .groupByKey()
+      .mapValues(_.toMap)
+      .map({
+        case ((tIdx, start), endMap) => (tIdx, (start, endMap))
+      })
+      .groupByKey()
+      .mapValues(m => BoundsMap(m.toMap))
   }
 
   def occsToBounds(occs: RDD[Needle]): RDD[(Idx, Bounds)] = {
     occs
-    .map(n => (n.idx, n.bound))
-    .groupByKey()
-    .mapValues(Bounds.merge)
+      .map(n => (n.idx, n.bound))
+      .groupByKey()
+      .mapValues(Bounds.merge)
   }
 
   def findFinished(next: RDD[(BlockIdx, NT)],
@@ -46,8 +55,8 @@ abstract class FMFinder[NT <: Needle](fm: SparkFM) extends Serializable {
         next.map(_._2)
       else
         next
-        .map(_._2: Needle)
-        .filter(_.isEmpty)
+          .map(_._2: Needle)
+          .filter(_.isEmpty)
     newFinished.cache()
 
     val notFinished = next.filter(_._2.nonEmpty).setName("leftover")
@@ -56,7 +65,7 @@ abstract class FMFinder[NT <: Needle](fm: SparkFM) extends Serializable {
     (newFinished, notFinished, numLeft)
   }
 
-  def joinBounds[T](finished: RDD[(Idx, T)], tssi: RDD[(Idx, AT)]): RDD[(AT, T)] = {
+  def joinBounds[T, U: ClassTag](tssi: RDD[(Idx, U)], finished: RDD[(Idx, T)]): RDD[(U, T)] = {
     (for {
       (idx, (tsIter, boundsIter)) <- tssi.cogroup(finished)
     } yield {

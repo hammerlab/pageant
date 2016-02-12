@@ -14,7 +14,7 @@ import org.hammerlab.pageant.utils.Utils._
 case class BroadcastTFinder(fm: SparkFM) extends FMFinder[PosNeedle](fm) with Serializable {
 
   def occAll(tssRdd: RDD[AT]): RDD[(AT, BoundsMap)] = {
-    val (tssi, tsBC) = tssToBroadcast(tssRdd)
+    val (tssi, tsBC) = tssToIndexAndBroadcast(tssRdd)
 
     val cur: RDD[(BlockIdx, PosNeedle)] =
       for {
@@ -26,7 +26,7 @@ case class BroadcastTFinder(fm: SparkFM) extends FMFinder[PosNeedle](fm) with Se
         (
           blockIdx,
           PosNeedle(tIdx, end+1, end+1, bound)
-          )
+        )
 
     val occs = occRec(
       cur,
@@ -35,11 +35,11 @@ case class BroadcastTFinder(fm: SparkFM) extends FMFinder[PosNeedle](fm) with Se
       emitIntermediateRanges = true
     )
 
-    joinBounds(occsToBoundsMap(occs), tssi)
+    joinBounds(tssi, occsToBoundsMap(occs))
   }
 
   def occ(tssRdd: RDD[AT]): RDD[(AT, Bounds)] = {
-    val (tssi, tsBC) = tssToBroadcast(tssRdd)
+    val (tssi, tsBC) = tssToIndexAndBroadcast(tssRdd)
 
     val cur: RDD[(BlockIdx, PosNeedle)] =
       for {
@@ -59,7 +59,37 @@ case class BroadcastTFinder(fm: SparkFM) extends FMFinder[PosNeedle](fm) with Se
       emitIntermediateRanges = false
     )
 
-    joinBounds(occsToBounds(occs), tssi)
+    joinBounds(tssi, occsToBounds(occs))
+  }
+
+  def occBidi(tssRdd: RDD[(AT, TPos, TPos)]): RDD[(AT, BoundsMap)] = {
+    val tssi = tssRdd.zipWithIndex().map(rev).setName("tssi")
+    val tsBC = tssToBroadcast(tssi.map(p => (p._1, p._2._1)))
+
+    val cur: RDD[(BlockIdx, PosNeedle)] =
+      for {
+        (tIdx, (ts, l, r)) <- tssi
+        end <- ts.indices
+        bound: Bound <- List(LoBound(0L), HiBound(count))   // Starting bounds
+        blockIdx = bound.blockIdx(blockSize)
+      } yield
+        (
+          blockIdx,
+          PosNeedle(tIdx, end+1, end+1, bound)
+        )
+
+    val occs = occRec(
+      cur,
+      sc.emptyRDD[Needle],
+      tsBC,
+      emitIntermediateRanges = true
+    )
+
+    for {
+      ((ts, l, r), boundsMap) <- joinBounds(tssi, occsToBoundsMap(occs))
+    } yield {
+      ts -> boundsMap.filter(l, r)
+    }
   }
 
   def occRec(cur: RDD[(BlockIdx, PosNeedle)],
@@ -95,18 +125,19 @@ case class BroadcastTFinder(fm: SparkFM) extends FMFinder[PosNeedle](fm) with Se
     }
   }
 
-  private def tssToBroadcast(tssRdd: RDD[AT]): (RDD[(Idx, AT)], Broadcast[TMap]) = {
+  private def tssToIndexAndBroadcast(tssRdd: RDD[AT]): (RDD[(Idx, AT)], Broadcast[TMap]) = {
     val tssi = tssRdd.zipWithIndex().map(rev).setName("tssi")
-    (
-      tssi,
-      sc.broadcast(
-        (for {
-          (tIdx, ts) <- tssi.collect
-        } yield {
-          tIdx -> ts.zipWithIndex.map(rev).toMap
-        }).toMap
-      )
-      )
+    (tssi, tssToBroadcast(tssi))
+  }
+
+  private def tssToBroadcast(tssi: RDD[(Idx, AT)]): Broadcast[TMap] = {
+    sc.broadcast(
+      (for {
+        (tIdx, ts) <- tssi.collect
+      } yield {
+        tIdx -> ts.zipWithIndex.map(rev).toMap
+      }).toMap
+    )
   }
 }
 

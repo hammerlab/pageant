@@ -31,7 +31,7 @@ case class AllTFinder(fm: SparkFM) extends FMFinder[TNeedle](fm) {
         (
           blockIdx,
           TNeedle(tIdx, end, ts, bound)
-          )
+        )
 
     val occs = occRec(
       cur,
@@ -39,7 +39,44 @@ case class AllTFinder(fm: SparkFM) extends FMFinder[TNeedle](fm) {
       emitIntermediateRanges = true
     )
 
-    joinBounds(occsToBoundsMap(occs), tssi)
+    joinBounds(tssi, occsToBoundsMap(occs))
+  }
+
+  def occBidi(tss: RDD[(AT, TPos, TPos)]): RDD[(AT, BoundsMap)] = {
+    val tssi = tss.zipWithIndex().map(rev).setName("tssi")
+    val tssPrefixes: RDD[(Idx, TPos, AT)] =
+      tssi.flatMap { case (tIdx, (ts, l, r)) =>
+        var cur = ts
+        var prefixes: ArrayBuffer[(Idx, TPos, AT)] = ArrayBuffer()
+        (ts.length to r by -1).foreach(i => {
+          prefixes.append((tIdx, i, cur))
+          cur = cur.dropRight(1)
+        })
+        prefixes
+      }
+
+    val cur: RDD[(BlockIdx, TNeedle)] =
+      for {
+        (tIdx, end, ts) <- tssPrefixes
+        bound: Bound <- List(LoBound(0L), HiBound(count))   // Starting bounds
+        blockIdx = bound.blockIdx(blockSize)
+      } yield
+        (
+          blockIdx,
+          TNeedle(tIdx, end, ts, bound)
+        )
+
+    val occs = occRec(
+      cur,
+      sc.emptyRDD[Needle],
+      emitIntermediateRanges = true
+    )
+
+    for {
+      ((ts, l, r), boundsMap) <- joinBounds(tssi, occsToBoundsMap(occs))
+    } yield {
+      ts -> boundsMap.filter(l, r)
+    }
   }
 
   def occ(tss: RDD[AT]): RDD[(AT, Bounds)] = {
@@ -55,14 +92,14 @@ case class AllTFinder(fm: SparkFM) extends FMFinder[TNeedle](fm) {
         (
           blockIdx,
           TNeedle(tIdx, ts.length, ts, bound)
-          )
+        )
 
     val occs = occRec(
       cur,
       sc.emptyRDD[Needle],
       emitIntermediateRanges = false
     )
-    joinBounds(occsToBounds(occs), tssi)
+    joinBounds(tssi, occsToBounds(occs))
   }
 
   def occRec(cur: RDD[(BlockIdx, TNeedle)],
@@ -85,7 +122,7 @@ case class AllTFinder(fm: SparkFM) extends FMFinder[TNeedle](fm) {
             (
               newBound.blockIdx(blockSize),
               TNeedle(idx, end, newTs, newBound)
-              )
+            )
           }
       }
 

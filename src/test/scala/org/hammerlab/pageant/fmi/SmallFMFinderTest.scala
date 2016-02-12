@@ -1,6 +1,7 @@
 package org.hammerlab.pageant.fmi
 
 import org.apache.spark.SparkContext
+import org.hammerlab.pageant.fmi.SparkFM.TPos
 import org.hammerlab.pageant.fmi.Utils._
 import org.hammerlab.pageant.utils.Utils._
 
@@ -124,7 +125,7 @@ sealed abstract class SmallFMFinderTest extends SmallFMSuite with FMFinderTest {
         str = ts.map(toC).mkString("")
       } yield {
         str -> (for {
-          (r, rm) <- map.toList
+          (r, rm) <- map.m.toList
           (c, Bounds(lb, hb)) <- rm.toList
         } yield {
           (r, c) ->(lb.v.toInt, hb.v.toInt)
