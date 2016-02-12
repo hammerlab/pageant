@@ -1,13 +1,16 @@
-package org.hammerlab.pageant.fmi
+package org.hammerlab.pageant.fm.finder
 
 import org.apache.spark.SparkContext
 import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.DirectFileRDDSerializer._
-import Utils._
-import org.hammerlab.pageant.fmi.SparkFM._
-import org.hammerlab.pageant.utils.Utils.{rev, resourcePath}
-
 import org.bdgenomics.adam.rdd.ADAMContext._
+import org.hammerlab.pageant.fm.index.SparkFM
+import SparkFM._
+import org.hammerlab.pageant.fm.utils.{Utils, FMSuite}
+import Utils._
+import org.hammerlab.pageant.fm.index.SparkFM
+import org.hammerlab.pageant.fm.utils.FMSuite
+import org.hammerlab.pageant.utils.Utils.{resourcePath, rev}
 
 abstract class FMFinderBamTest extends FMSuite with FMFinderTest {
 

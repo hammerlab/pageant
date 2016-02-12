@@ -1,7 +1,8 @@
-package org.hammerlab.pageant.fmi
+package org.hammerlab.pageant.fm.utils
 
 import org.apache.spark.SparkContext
-import org.hammerlab.pageant.fmi.Utils._
+import Utils._
+import org.hammerlab.pageant.fm.index.SparkFM
 import org.hammerlab.pageant.suffixes.KarkainnenSuffixArray
 import org.hammerlab.pageant.utils.Utils._
 

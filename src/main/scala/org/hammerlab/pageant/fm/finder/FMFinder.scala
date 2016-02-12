@@ -1,8 +1,10 @@
-package org.hammerlab.pageant.fmi
+package org.hammerlab.pageant.fm.finder
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.rdd.RDD._
-import org.hammerlab.pageant.fmi.SparkFM._
+import org.hammerlab.pageant.fm.index._
+import org.hammerlab.pageant.fm.utils.Utils.{BlockIdx, Idx, TPos, AT}
+import org.hammerlab.pageant.fm.utils.{BoundsMap, CountsMap, Bounds}
 
 import scala.reflect.ClassTag
 

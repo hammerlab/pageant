@@ -1,4 +1,6 @@
-package org.hammerlab.pageant.fmi
+package org.hammerlab.pageant.fm.finder
+
+import org.hammerlab.pageant.fm.utils.FMSuite
 
 trait FMFinderTest {
   self: FMSuite =>

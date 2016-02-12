@@ -1,8 +1,10 @@
-package org.hammerlab.pageant.fmi
+package org.hammerlab.pageant.fm.finder
 
 import org.apache.spark.rdd.RDD
-import org.hammerlab.pageant.fmi.SparkFM._
-import org.hammerlab.pageant.utils.Utils._
+import org.hammerlab.pageant.fm.index.SparkFM
+import org.hammerlab.pageant.fm.utils.Utils.{BlockIdx, TPos, Idx, AT}
+import org.hammerlab.pageant.fm.utils._
+import org.hammerlab.pageant.utils.Utils.rev
 
 import scala.collection.mutable.ArrayBuffer
 

@@ -1,9 +1,7 @@
-package org.hammerlab.pageant.fmi
+package org.hammerlab.pageant.fm.finder
 
-import org.apache.spark.SparkContext
-import org.hammerlab.pageant.fmi.SparkFM.TPos
-import org.hammerlab.pageant.fmi.Utils._
-import org.hammerlab.pageant.utils.Utils._
+import org.hammerlab.pageant.fm.utils.{Bounds, Utils, SmallFMSuite}
+import Utils._
 
 sealed abstract class SmallFMFinderTest extends SmallFMSuite with FMFinderTest {
 

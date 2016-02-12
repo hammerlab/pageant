@@ -1,8 +1,11 @@
-package org.hammerlab.pageant.fmi
+package org.hammerlab.pageant.fm.index
+
+import org.hammerlab.pageant.fm.utils.{Utils, SmallFMSuite}
+import Utils._
+import org.hammerlab.pageant.fm.utils.SmallFMSuite
+import org.hammerlab.pageant.utils.Utils.rev
 
 import scala.collection.mutable.ArrayBuffer
-import Utils._
-import org.hammerlab.pageant.utils.Utils.rev
 
 case class SparkFMTest(saPartitions: Int,
                        tsPartitions: Int,

@@ -1,121 +1,11 @@
-package org.hammerlab.pageant.fmi
+package org.hammerlab.pageant.fm.index
 
 import org.apache.spark.rdd.RDD
-import org.hammerlab.pageant.fmi.SparkFM._
+import org.hammerlab.pageant.fm.utils.Utils.{BlockIdx, Idx, V, AT, T}
 import org.hammerlab.pageant.suffixes.PDC3
-import Utils._
-import org.hammerlab.pageant.utils.Utils._
+import org.hammerlab.pageant.utils.Utils.rev
 
 import scala.collection.mutable.ArrayBuffer
-
-case class PartialSum(a: Array[Long], n: Long)
-object PartialSum {
-  def apply(a: Array[Long]): PartialSum = PartialSum(a, a.sum)
-}
-
-case class BWTBlock(startIdx: Long, endIdx: Long, startCounts: Array[Long], data: AT) {
-  def occ(t: T, bound: Bound): Long = {
-    startCounts(t) + data.take((bound.v - startIdx).toInt).count(_ == t)
-  }
-
-  override def toString: String = {
-    s"BWTC([$startIdx,$endIdx): ${startCounts.mkString(",")}, ${data.mkString(",")})"
-  }
-
-  override def equals(other: Any): Boolean = {
-    other match {
-      case b: BWTBlock =>
-        startIdx == b.startIdx &&
-        endIdx == b.endIdx &&
-        startCounts.sameElements(b.startCounts) &&
-        data.sameElements(b.data)
-      case _ => false
-    }
-  }
-}
-
-case class BoundsMap(m: Map[TPos, Map[TPos, Bounds]]) {
-  def filter(l: TPos, r: TPos): BoundsMap = {
-    BoundsMap(
-      for {
-        (s, em) <- m
-        if s <= l
-      } yield {
-        s -> (for {(e, b) <- em if e >= r} yield e -> b)
-      }
-    )
-  }
-}
-
-case class CountsMap(m: Map[TPos, Map[TPos, Long]])
-object CountsMap {
-  def apply(bm: BoundsMap): CountsMap = CountsMap(
-    for {
-      (s, m) <- bm.m
-    } yield {
-      s -> ( for { (e, b) <- m } yield e -> b.count )
-    }
-  )
-}
-
-trait Needle {
-  def idx: Idx
-  def start: TPos
-  def end: TPos
-  def bound: Bound
-  def isEmpty: Boolean
-  def nonEmpty: Boolean = !isEmpty
-  def keyByPos: ((Idx, TPos, TPos), Bound) = (idx, start, end) -> bound
-}
-
-case class TNeedle(idx: Idx, end: TPos, remainingTs: AT, bound: Bound) extends Needle {
-  def start = remainingTs.length
-  def isEmpty: Boolean = remainingTs.isEmpty
-  override def toString: String = {
-    s"Needle($idx($end), ${remainingTs.map(toC).mkString("")}, $bound)"
-  }
-}
-
-case class PosNeedle(idx: Idx, start: TPos, end: TPos, bound: Bound) extends Needle {
-  def isEmpty: Boolean = start == 0
-  override def toString: String = {
-    s"Needle($idx[$start,$end): $bound)"
-  }
-}
-
-trait Bound {
-  def v: Long
-  def blockIdx(blockSize: Long): Long
-  def move(n: Long): Bound
-}
-
-case class LoBound(v: Long) extends Bound {
-  def blockIdx(blockSize: Long) = v / blockSize
-  def move(n: Long) = LoBound(n)
-  override def toString: String = s"$v↓"
-}
-case class HiBound(v: Long) extends Bound {
-  def blockIdx(blockSize: Long) = (v - 1) / blockSize
-  def move(n: Long) = HiBound(n)
-  override def toString: String = s"$v↑"
-}
-
-case class Bounds(lo: LoBound, hi: HiBound) {
-  override def toString: String = s"Bounds(${lo.v}, ${hi.v})"
-  def toTuple: (Long, Long) = (lo.v, hi.v)
-  def count: Long = hi.v - lo.v
-}
-object Bounds {
-  def apply(lo: Long, hi: Long): Bounds = Bounds(LoBound(lo), HiBound(hi))
-  def merge(bounds: Iterable[Bound]): Bounds = {
-    bounds.toArray match {
-      case Array(l: LoBound, h: HiBound) => Bounds(l, h)
-      case Array(h: HiBound, l: LoBound) => Bounds(l, h)
-      case _ =>
-        throw new Exception(s"Bad bounds: ${bounds.mkString(",")}")
-    }
-  }
-}
 
 case class SparkFM(saZipped: RDD[(V, Idx)],
                    tZipped: RDD[(Idx, T)],
@@ -239,15 +129,6 @@ case class SparkFM(saZipped: RDD[(V, Idx)],
 }
 
 object SparkFM {
-  type T = Int
-  type AT = Array[T]
-  type V = Long
-  type Idx = Long
-  type TPos = Int
-  type BlockIdx = Long
-  //type BoundsMap = Map[TPos, Map[TPos, Bounds]]
-  type PartitionIdx = Int
-
   def apply[U](us: RDD[U],
                N: Int,
                toT: (U) => T,
@@ -263,5 +144,4 @@ object SparkFM {
 
     SparkFM(saZipped, tZipped, count, N, blockSize)
   }
-
 }

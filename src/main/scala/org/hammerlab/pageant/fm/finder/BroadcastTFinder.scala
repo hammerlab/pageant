@@ -1,10 +1,12 @@
-package org.hammerlab.pageant.fmi
+package org.hammerlab.pageant.fm.finder
 
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
-import org.hammerlab.pageant.fmi.BroadcastTFinder.TMap
-import org.hammerlab.pageant.fmi.SparkFM._
-import org.hammerlab.pageant.utils.Utils._
+import org.hammerlab.pageant.fm.finder.BroadcastTFinder.TMap
+import org.hammerlab.pageant.fm.index.SparkFM
+import org.hammerlab.pageant.fm.utils.{Bounds, HiBound, LoBound, Bound, BoundsMap}
+import org.hammerlab.pageant.fm.utils.Utils.{Idx, TPos, T, BlockIdx, AT}
+import org.hammerlab.pageant.utils.Utils.rev
 
 /**
   * FMFinder implementation that performs LF-mappings using a broadcasted Map of all target sequences.

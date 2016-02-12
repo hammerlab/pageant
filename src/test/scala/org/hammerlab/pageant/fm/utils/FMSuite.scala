@@ -1,6 +1,7 @@
-package org.hammerlab.pageant.fmi
+package org.hammerlab.pageant.fm.utils
 
 import org.apache.spark.SparkContext
+import org.hammerlab.pageant.fm.index.SparkFM
 import org.hammerlab.pageant.utils.SparkSuite
 
 import scala.collection.mutable.ArrayBuffer
