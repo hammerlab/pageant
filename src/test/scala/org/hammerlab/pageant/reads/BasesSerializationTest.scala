@@ -4,6 +4,7 @@ import org.bdgenomics.utils.misc.SparkFunSuite
 import org.hammerlab.pageant.serialization.{DirectFileRDDTest, KryoSerializerTest, Utils => TestUtils}
 
 import scala.util.Random
+import org.hammerlab.pageant.utils.Utils.rev
 
 trait KryoBasesRegistrarTest {
   self: SparkFunSuite =>
@@ -26,7 +27,7 @@ class BasesSerializationTest(withClasses: Boolean = false)
   extends DirectFileRDDTest(withClasses)
     with TestUtils {
 
-  val bases = "ACGT".zipWithIndex.map(p => (p._2, p._1)).toMap
+  val bases = "ACGT".zipWithIndex.map(rev).toMap
 
   Random.setSeed(1234L)
 

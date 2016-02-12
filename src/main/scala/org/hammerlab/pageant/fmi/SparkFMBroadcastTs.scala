@@ -4,6 +4,8 @@ import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
 import org.hammerlab.pageant.fmi.SparkFM._
 import org.hammerlab.pageant.fmi.SparkFMBroadcastTs.TMap
+import org.hammerlab.pageant.suffixes.PDC3
+import org.hammerlab.pageant.utils.Utils.rev
 
 /**
   * SparkFM implementation that performs LF-mappings using a broadcasted Map of all target sequences.
@@ -99,14 +101,14 @@ case class SparkFMBroadcastTs(saZipped: RDD[(V, Idx)],
   }
 
   private def tssToBroadcast(tssRdd: RDD[AT]): (RDD[(Idx, AT)], Broadcast[TMap]) = {
-    val tssi = tssRdd.zipWithIndex().map(p => (p._2, p._1)).setName("tssi")
+    val tssi = tssRdd.zipWithIndex().map(rev).setName("tssi")
     (
       tssi,
       sc.broadcast(
         (for {
           (tIdx, ts) <- tssi.collect
         } yield {
-          tIdx -> ts.zipWithIndex.map(p => (p._2, p._1)).toMap
+          tIdx -> ts.zipWithIndex.map(rev).toMap
         }).toMap
       )
       )
@@ -115,4 +117,19 @@ case class SparkFMBroadcastTs(saZipped: RDD[(V, Idx)],
 
 object SparkFMBroadcastTs {
   type TMap = Map[Idx, Map[TPos, T]]
+  def apply[U](us: RDD[U],
+               N: Int,
+               toT: (U) => T,
+               blockSize: Int = 100): SparkFMBroadcastTs = {
+    @transient val sc = us.context
+    us.cache()
+    val count = us.count
+    @transient val t: RDD[T] = us.map(toT)
+    t.cache()
+    @transient val tZipped: RDD[(Idx, T)] = t.zipWithIndex().map(rev)
+    @transient val sa = PDC3(t.map(_.toLong), count)
+    @transient val saZipped: RDD[(V, Idx)] = sa.zipWithIndex()
+
+    SparkFMBroadcastTs(saZipped, tZipped, count, N, blockSize)
+  }
 }

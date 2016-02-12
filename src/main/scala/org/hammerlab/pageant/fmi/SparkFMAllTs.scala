@@ -2,8 +2,10 @@ package org.hammerlab.pageant.fmi
 
 import org.apache.spark.rdd.RDD
 import org.hammerlab.pageant.fmi.SparkFM._
+import org.hammerlab.pageant.suffixes.PDC3
 
 import scala.collection.mutable.ArrayBuffer
+import org.hammerlab.pageant.utils.Utils.rev
 
 /**
   * SparkFM implementation that supports occAll by generating all prefixes of the query sequences and doing LF-mappings on them.
@@ -17,7 +19,7 @@ case class SparkFMAllTs(saZipped: RDD[(V, Idx)],
                         blockSize: Int = 100) extends SparkFM[TNeedle](saZipped, tZipped, count, N, blockSize) {
 
   def occAll(tss: RDD[AT]): RDD[(AT, BoundsMap)] = {
-    val tssi = tss.zipWithIndex().map(p => (p._2, p._1)).setName("tssi")
+    val tssi = tss.zipWithIndex().map(rev).setName("tssi")
     val tssPrefixes: RDD[(Idx, TPos, AT)] =
       tssi.flatMap { case (tIdx, ts) =>
         var cur = ts
@@ -52,7 +54,7 @@ case class SparkFMAllTs(saZipped: RDD[(V, Idx)],
   }
 
   def occ(tss: RDD[AT]): RDD[(AT, Bounds)] = {
-    val tssi = tss.zipWithIndex().map(p => (p._2, p._1)).setName("tssi")
+    val tssi = tss.zipWithIndex().map(rev).setName("tssi")
     tssi.cache()
 
     val cur: RDD[(BlockIdx, TNeedle)] =
@@ -109,3 +111,20 @@ case class SparkFMAllTs(saZipped: RDD[(V, Idx)],
   }
 }
 
+object SparkFMAllTs {
+  def apply[U](us: RDD[U],
+               N: Int,
+               toT: (U) => T,
+               blockSize: Int = 100): SparkFMAllTs = {
+    @transient val sc = us.context
+    us.cache()
+    val count = us.count
+    @transient val t: RDD[T] = us.map(toT)
+    t.cache()
+    @transient val tZipped: RDD[(Idx, T)] = t.zipWithIndex().map(rev)
+    @transient val sa = PDC3(t.map(_.toLong), count)
+    @transient val saZipped: RDD[(V, Idx)] = sa.zipWithIndex()
+
+    SparkFMAllTs(saZipped, tZipped, count, N, blockSize)
+  }
+}

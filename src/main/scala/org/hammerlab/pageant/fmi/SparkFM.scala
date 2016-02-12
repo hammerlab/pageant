@@ -3,6 +3,7 @@ package org.hammerlab.pageant.fmi
 import org.apache.spark.rdd.RDD
 import org.hammerlab.pageant.fmi.SparkFM._
 import org.hammerlab.pageant.suffixes.PDC3
+import Utils._
 
 import scala.collection.mutable.ArrayBuffer
 
@@ -76,6 +77,7 @@ case class HiBound(v: Long) extends Bound {
 
 case class Bounds(lo: LoBound, hi: HiBound) {
   override def toString: String = s"Bounds(${lo.v}, ${hi.v})"
+  def toTuple: (Long, Long) = (lo.v, hi.v)
 }
 object Bounds {
   def apply(lo: Long, hi: Long): Bounds = Bounds(LoBound(lo), HiBound(hi))
@@ -276,24 +278,4 @@ object SparkFM {
   type BlockIdx = Long
   type BoundsMap = Map[TPos, Map[TPos, Bounds]]
   type PartitionIdx = Int
-
-
-  def apply[U](us: RDD[U],
-               N: Int,
-               blockSize: Int = 100,
-               toT: (U) => T): SparkFM[TNeedle] = {
-    @transient val sc = us.context
-    us.cache()
-    val count = us.count
-    @transient val t: RDD[T] = us.map(toT)
-    t.cache()
-    @transient val tZipped: RDD[(Idx, T)] = t.zipWithIndex().map(p => (p._2, p._1))
-    @transient val sa = PDC3(t.map(_.toLong), count)
-    @transient val saZipped: RDD[(V, Idx)] = sa.zipWithIndex()
-
-    SparkFMAllTs(saZipped, tZipped, count, N, blockSize)
-  }
-
-  val toI = "$ACGTN".zipWithIndex.toMap
-  val toC = toI.map(p => (p._2, p._1))
 }

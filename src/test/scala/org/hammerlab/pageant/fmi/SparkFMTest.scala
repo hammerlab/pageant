@@ -7,11 +7,10 @@ import org.hammerlab.pageant.suffixes.KarkainnenSuffixArray
 import org.scalatest.Matchers
 
 import scala.collection.mutable.ArrayBuffer
+import Utils._
+import org.hammerlab.pageant.utils.Utils.rev
 
 abstract class SparkFMTest[NT <: Needle] extends SparkFunSuite with Matchers with Serializable {
-
-  val toI = "$ACGT".zipWithIndex.toMap
-  val toC = toI.map(p => (p._2, p._1))
 
   def makeSparkFM(saZipped: RDD[(V, Idx)],
                   tZipped: RDD[(Idx, T)],
@@ -29,7 +28,7 @@ abstract class SparkFMTest[NT <: Needle] extends SparkFunSuite with Matchers wit
       sa.length should be(ts.length)
 
       val saZipped = sc.parallelize(sa.map(_.toLong), saPartitions).zipWithIndex()
-      val tZipped = sc.parallelize(ts.map(toI), tsPartitions).zipWithIndex().map(p => (p._2, p._1))
+      val tZipped = sc.parallelize(ts.map(toI), tsPartitions).zipWithIndex().map(rev)
 
       sc.setCheckpointDir("tmp")
 
@@ -137,7 +136,7 @@ abstract class SparkFMTest[NT <: Needle] extends SparkFunSuite with Matchers wit
         } yield {
           val end = math.min(start + blockSize, bwt.length)
           BWTBlock(start, end, counts(start).map(_.toLong), bwt.slice(start, end))
-        }).toArray.zipWithIndex.map(p => (p._2, p._1))
+        }).toArray.zipWithIndex.map(rev)
 
       fm.bwtBlocks.collect.sortBy(_._1) should be(blocks)
     })
@@ -278,5 +277,4 @@ abstract class SparkFMTest[NT <: Needle] extends SparkFunSuite with Matchers wit
   testOccAll(
     "TGT" -> List((0,1) -> (7,9), (0,2) -> (7,8), (0,3) -> (8,8), (1,2) -> (5,7), (1,3) -> (6,7), (2,3) -> (7,9))
   )
-
 }
