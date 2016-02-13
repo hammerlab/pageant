@@ -35,7 +35,7 @@ class SparkFMTest extends SparkSuite with TmpFilesTest {
       }
 
       testFM(fm)
-      val fn = tmpFile("small")
+      val fn = tmpPath("small")
       fm.save(fn)
 
       testFM(SparkFM.load(sc, fn))

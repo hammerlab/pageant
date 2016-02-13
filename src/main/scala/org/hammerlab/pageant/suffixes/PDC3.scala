@@ -2,7 +2,6 @@ package org.hammerlab.pageant.suffixes
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sortwith.SortWithRDD._
-import org.joda.time.Duration
 import org.joda.time.format.PeriodFormatterBuilder
 
 import scala.collection.mutable.ArrayBuffer

@@ -4,35 +4,21 @@ import org.apache.spark.SparkContext
 import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.DirectFileRDDSerializer._
 import org.bdgenomics.adam.rdd.ADAMContext._
-import org.hammerlab.pageant.fm.index.SparkFM
-import SparkFM._
-import org.hammerlab.pageant.fm.utils.{Utils, FMSuite}
+import org.hammerlab.pageant.fm.utils.Utils
 import Utils._
 import org.hammerlab.pageant.fm.index.SparkFM
 import org.hammerlab.pageant.fm.utils.FMSuite
-import org.hammerlab.pageant.utils.Utils.{resourcePath, rev}
+import org.hammerlab.pageant.utils.Utils.{resourcePath, rev, loadBam}
 
 abstract class FMFinderBamTest extends FMSuite with FMFinderTest {
 
   def initFM(sc: SparkContext): SparkFM = {
+    // Written in PDC3Test
     val sa = sc.directFile[Long](resourcePath("normal.bam.sa"))
-    val count = 1383018
+    val ts = sc.directFile[Byte](resourcePath("normal.bam.ts"))
+
+    val count = 102000
     sa.count should be(count)
-
-    sc.setCheckpointDir("tmp")
-
-    val reads: RDD[String] =
-      sc.loadAlignments(resourcePath("normal.bam")).map(_.getSequence + '$').repartition(4)
-
-    reads.getNumPartitions should be(4)
-
-    val us: RDD[Char] =
-      for {
-        read <- reads
-        b <- read
-      } yield b
-
-    val ts: RDD[Int] = us.map(toI)
 
     ts.getNumPartitions should be(4)
 
@@ -42,7 +28,7 @@ abstract class FMFinderBamTest extends FMSuite with FMFinderTest {
   def testLF(name: String, tuples: (String, Int, Int)*): Unit = {
     test(name) {
       val strs = tuples.map(_._1)
-      val needles: Seq[Array[Int]] = strs.map(_.toArray.map(toI))
+      val needles: Seq[Array[T]] = strs.map(_.toArray.map(toI))
 
       val needlesRdd = sc.parallelize(needles, 2)
       val actual = fmf.occ(needlesRdd).collect.map(p => (p._1.map(toC).mkString(""), p._2.toTuple))
@@ -346,7 +332,7 @@ abstract class FMFinderBamTest extends FMSuite with FMFinderTest {
       }
 
     test(s"countBidi-${strs.mkString(",")}") {
-      val needles: Seq[(Array[Int], TPos, TPos)] =
+      val needles: Seq[(Array[T], TPos, TPos)] =
         for {
           ((str, start, end), _) <- tuples
         } yield {

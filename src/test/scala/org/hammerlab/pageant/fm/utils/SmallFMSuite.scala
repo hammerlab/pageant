@@ -13,7 +13,7 @@ trait SmallFMSuite extends FMSuite {
   def blockSize: Int
 
   var sa: Array[Int] = _
-  var bwt: Array[Int] = _
+  var bwt: Array[T] = _
 
   override def initFM(sc: SparkContext): SparkFM = {
     val (sa2, bwt2, fm2) = SmallFMSuite.initFM(sc, saPartitions, ts, tsPartitions, blockSize)
@@ -29,8 +29,8 @@ object SmallFMSuite {
              ts: String,
              tsPartitions: Int,
              blockSize: Int,
-             N: Int = 6): (Array[Int], Array[Int], SparkFM) = {
-    val sa = KarkainnenSuffixArray.make(ts.map(toI).toArray, 6)
+             N: Int = 6): (Array[Int], Array[T], SparkFM) = {
+    val sa = KarkainnenSuffixArray.make(ts.map(toI(_).toInt).toArray, 6)
 
     val bwtu =
       sa

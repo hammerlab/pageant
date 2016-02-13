@@ -13,7 +13,7 @@ sealed abstract class SmallFMFinderTest extends SmallFMSuite with FMFinderTest {
   def testLF(tuples: (String, Int, Int)*): Unit = {
     val strs = tuples.map(_._1)
     test(s"LF-${strs.mkString(",")}") {
-      val needles: Seq[Array[Int]] = strs.map(_.toArray.map(toI))
+      val needles: Seq[Array[T]] = strs.map(_.toArray.map(toI))
 
       val needlesRdd = sc.parallelize(needles, 2)
       val actual = fmf.occ(needlesRdd).collect.map(p => (p._1.map(toC).mkString(""), p._2))
@@ -115,7 +115,7 @@ sealed abstract class SmallFMFinderTest extends SmallFMSuite with FMFinderTest {
   def testOccAll(tuples: (String, List[((Int, Int), (Int, Int))])*): Unit = {
     val strs = tuples.map(_._1)
     test(s"occAll-${strs.mkString(",")}") {
-      val needles: Seq[Array[Int]] = strs.map(_.toArray.map(toI))
+      val needles: Seq[Array[T]] = strs.map(_.toArray.map(toI))
 
       val needlesRdd = sc.parallelize(needles, 2)
       val actual = for {

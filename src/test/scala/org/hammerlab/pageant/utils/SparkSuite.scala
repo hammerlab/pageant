@@ -1,11 +1,11 @@
 package org.hammerlab.pageant.utils
 
 import org.apache.spark.{SparkConf, SparkContext}
-import org.scalatest.{BeforeAndAfter, Matchers, FunSuite}
+import org.scalatest.{Matchers, FunSuite}
 
 import scala.collection.mutable.ArrayBuffer
 
-trait SparkSuite extends FunSuite with Matchers with BeforeAndAfterTest {
+trait SparkSuite extends FunSuite with Matchers with TmpFilesTest {
 
   var inits: ArrayBuffer[SparkContext => Unit] = ArrayBuffer()
 
@@ -17,11 +17,13 @@ trait SparkSuite extends FunSuite with Matchers with BeforeAndAfterTest {
     "spark.app.name" -> this.getClass.getName
   )
 
-  befores.append(() => {
+  tmpdirBefores.append((dir) => {
     val conf: SparkConf = new SparkConf()
     properties.foreach(kv => conf.set(kv._1, kv._2))
     sc = new SparkContext(conf)
-    sc.setCheckpointDir("tmp")
+    val checkpointsDir = dir
+    sc.setCheckpointDir(checkpointsDir.toString)
+    println(s"checkpointing to $checkpointsDir")
     inits.foreach(_(sc))
   })
 

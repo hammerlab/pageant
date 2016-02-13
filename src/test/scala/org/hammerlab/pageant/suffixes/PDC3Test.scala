@@ -1,7 +1,8 @@
 package org.hammerlab.pageant.suffixes
 
-import org.bdgenomics.utils.misc.SparkFunSuite
+import org.apache.spark.serializer.DirectFileRDDSerializer._
 import org.hammerlab.pageant.utils.SparkSuite
+import org.hammerlab.pageant.utils.Utils.loadBam
 import org.scalatest.{FunSuite, Matchers}
 
 class PDC3Test extends SuffixArrayTestBase with SparkSuite {
@@ -14,10 +15,20 @@ class PDC3Test extends SuffixArrayTestBase with SparkSuite {
     PDC3.apply(sc.parallelize(a.map(ItoT(_) + 1))).map(TtoI).collect
   }
   override def name = "PDC3Test"
+
+  test("normal") {
+    val ts = loadBam(sc, "normal.bam").repartition(4)
+
+    val sa = PDC3.apply(ts.map(_.toLong))
+    sa.count should be(102000)
+
+    //ts.saveAsDirectFile("src/test/resources/normal.bam.ts")
+    //sa.saveAsDirectFile("src/test/resources/normal.bam.sa")
+  }
 }
 
 class CmpFnTest extends FunSuite with Matchers {
-  import PDC3.{cmpFn, Joined, zero}
+  import PDC3.{Joined, cmpFn, zero}
 
   test("basic 1-1 cmp") {
     cmpFn(
