@@ -6,6 +6,8 @@ object Utils {
   val toI: Map[Char, Byte] = "$ACGTN".zipWithIndex.toMap.map(p => (p._1, p._2.toByte))
   val toC = toI.map(rev)
 
+  def rc(s: String): String = s.map(c => "$TGCAN"(toI(c))).reverse
+
   type T = Byte
   type AT = Array[T]
   type V = Long

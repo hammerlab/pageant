@@ -3,7 +3,7 @@ package org.hammerlab.pageant.utils
 import org.bdgenomics.adam.rdd.ADAMContext._
 import org.apache.spark.SparkContext
 import org.apache.spark.rdd.RDD
-import org.hammerlab.pageant.fm.utils.Utils.toI
+import org.hammerlab.pageant.fm.utils.Utils.{toI, rc}
 
 object Utils {
   def byteToHex(b: Byte) = {
@@ -16,16 +16,13 @@ object Utils {
 
   def resourcePath(fn: String): String = ClassLoader.getSystemClassLoader.getResource(fn).getFile
 
-  def loadBam(sc: SparkContext, name: String): RDD[Byte] = {
-    val ts: RDD[Byte] =
-      for {
-        read <- sc.loadAlignments(resourcePath(name))
-        seq = read.getSequence + '$'
-        bp <- seq
-      } yield {
-        toI(bp)
-      }
-
-    ts
+  def loadBam(sc: SparkContext, name: String, includeRC: Boolean = false): RDD[Byte] = {
+    for {
+      read <- sc.loadAlignments(resourcePath(name))
+      seq = s"${read.getSequence}$" + (if (includeRC) s"${rc(read.getSequence)}$" else "")
+      bp <- seq
+    } yield {
+      toI(bp)
+    }
   }
 }
