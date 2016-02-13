@@ -371,7 +371,6 @@ abstract class FMFinderBamTest extends FMSuite with FMFinderTest {
         (str, expected) <- expectedMap
         counts = actualMap(str)
       } {
-        println(s"$str: ${expected.mkString("\n")}")
         withClue(s"$str") {
           counts.size should be(expected.size)
           for {

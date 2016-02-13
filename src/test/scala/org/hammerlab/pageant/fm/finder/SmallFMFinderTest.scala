@@ -8,7 +8,7 @@ sealed abstract class SmallFMFinderTest extends SmallFMSuite with FMFinderTest {
   val saPartitions = 3
   val ts = "ACGTTGCA$"
   val tsPartitions = 2
-  val blockSize = 4
+  val blockSize = 3
 
   def testLF(tuples: (String, Int, Int)*): Unit = {
     val strs = tuples.map(_._1)

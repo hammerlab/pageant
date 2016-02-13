@@ -5,27 +5,27 @@ import org.scalatest.{BeforeAndAfter, Matchers, FunSuite}
 
 import scala.collection.mutable.ArrayBuffer
 
-trait SparkSuite extends FunSuite with Matchers with BeforeAndAfter {
+trait SparkSuite extends FunSuite with Matchers with BeforeAndAfterTest {
 
   var inits: ArrayBuffer[SparkContext => Unit] = ArrayBuffer()
 
   var sc: SparkContext = _
-  val properties = Map(
+  var properties = Map(
     "spark.serializer" -> "org.apache.spark.serializer.KryoSerializer",
     "spark.kryo.registrator" -> "org.hammerlab.pageant.kryo.PageantKryoRegistrar",
     "spark.master" -> "local[%d]".format(Runtime.getRuntime.availableProcessors()),
     "spark.app.name" -> this.getClass.getName
   )
 
-  before {
+  befores.append(() => {
     val conf: SparkConf = new SparkConf()
     properties.foreach(kv => conf.set(kv._1, kv._2))
     sc = new SparkContext(conf)
     sc.setCheckpointDir("tmp")
     inits.foreach(_(sc))
-  }
+  })
 
-  after {
+  afters.append(() => {
     sc.stop()
-  }
+  })
 }

@@ -169,7 +169,6 @@ case class JointHistogram(jh: JointHist) {
 
       for {
         ((contig, depths), m) <- merged
-        foo = println(s"merged: $m")
         xx = m(s"sqsum-$i1-$i2")
         yy = m(s"sqsum-$i2-$i1")
         xy = m(s"dot-$i1-$i2")

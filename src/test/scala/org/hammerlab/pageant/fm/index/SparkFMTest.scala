@@ -1,90 +1,53 @@
 package org.hammerlab.pageant.fm.index
 
-import org.hammerlab.pageant.fm.utils.{Utils, SmallFMSuite}
-import Utils._
+import java.io.File
+
 import org.hammerlab.pageant.fm.utils.SmallFMSuite
+import org.hammerlab.pageant.utils.{TmpFilesTest, SparkSuite}
 import org.hammerlab.pageant.utils.Utils.rev
 
 import scala.collection.mutable.ArrayBuffer
 
-case class SparkFMTest(saPartitions: Int,
-                       tsPartitions: Int,
-                       blockSize: Int) extends SmallFMSuite {
+class SparkFMTest extends SparkSuite with TmpFilesTest {
 
-  val ts = "ACGTTGCA$"
+  def testCase(saPartitions: Int, tsPartitions: Int, blockSize: Int): Unit = {
+    test(s"spark-fm-$saPartitions-$tsPartitions-$blockSize") {
+      val (_, bwt, fm) = SmallFMSuite.initFM(sc, saPartitions, "ACGTTGCA$", tsPartitions, blockSize, N = 6)
 
-  test(s"bwt-blocks-$saPartitions-$tsPartitions-$blockSize") {
-    fm.tShifted.getNumPartitions should be(tsPartitions)
-    val tShifted = fm.tShifted.collect
-    tShifted should be(
-      Array(
-        (1, 1),
-        (2, 2),
-        (3, 3),
-        (4, 4),
-        (5, 4),
-        (6, 3),
-        (7, 2),
-        (8, 1),
-        (0, 0)
-      )
-    )
+      val curCounts = Array.fill(6)(0)
+      val counts = ArrayBuffer[Array[Int]]()
+      for {i <- bwt} {
+        counts.append(curCounts.clone())
+        curCounts(i) += 1
+      }
 
-    val maxPartitions = math.max(saPartitions, tsPartitions)
+      val blocks =
+        (for {
+          start <- bwt.indices by blockSize
+        } yield {
+          val end = math.min(start + blockSize, bwt.length)
+          BWTBlock(start, end, counts(start).map(_.toLong), bwt.slice(start, end))
+        }).toArray.zipWithIndex.map(rev)
 
-    fm.indexedBwtt.getNumPartitions should be(maxPartitions)
-    val ibwt = fm.indexedBwtt.collect
-    ibwt should be(
-      Array(
-        (0, 1),
-        (1, 2),
-        (2, 0),
-        (3, 3),
-        (4, 1),
-        (5, 4),
-        (6, 2),
-        (7, 4),
-        (8, 3)
-      )
-    )
+      def testFM(fm: SparkFM) {
+        fm.totalSums should be(Array(0, 1, 3, 5, 7, 9).map(_.toLong))
+        fm.bwtBlocks.collect.sortBy(_._1) should be(blocks)
+      }
 
-    fm.bwtt.getNumPartitions should be(maxPartitions)
-    val bwtt = fm.bwtt.collect
-    bwtt should be(bwt)
+      testFM(fm)
+      val fn = tmpFile("small")
+      fm.save(fn)
 
-    bwt.map(toC).mkString("") should be("AC$GATCTG")
-
-    fm.partitionCounts.getNumPartitions should be(maxPartitions)
-
-    fm.totalSums should be(Array(0L, 1L, 3L, 5L, 7L))
-
-    val curCounts = Array.fill(5)(0)
-    val counts = ArrayBuffer[Array[Int]]()
-    for {i <- bwt} {
-      counts.append(curCounts.clone())
-      curCounts(i) += 1
+      testFM(SparkFM.load(sc, fn))
     }
-
-    val blocks =
-      (for {
-        start <- bwt.indices by blockSize
-      } yield {
-        val end = math.min(start + blockSize, bwt.length)
-        BWTBlock(start, end, counts(start).map(_.toLong), bwt.slice(start, end))
-      }).toArray.zipWithIndex.map(rev)
-
-    fm.bwtBlocks.collect.sortBy(_._1) should be(blocks)
   }
 
-}
-
-object SparkFMTest {
   for {
     saPartitions <- List(1, 3, 6)
     tsPartitions <- List(1, 3, 6)
     blockSize <- 1 to 6
   } {
-    SparkFMTest(saPartitions, tsPartitions, blockSize)
+    testCase(saPartitions, tsPartitions, blockSize)
   }
 }
 
