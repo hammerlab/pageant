@@ -2,21 +2,22 @@ package org.hammerlab.pageant.reads
 
 import org.bdgenomics.utils.misc.SparkFunSuite
 import org.hammerlab.pageant.serialization.{DirectFileRDDTest, KryoSerializerTest, Utils => TestUtils}
+import org.hammerlab.pageant.utils.SparkSuite
 
 import scala.util.Random
 import org.hammerlab.pageant.utils.Utils.rev
 
 trait KryoBasesRegistrarTest {
-  self: SparkFunSuite =>
-  override val properties = Map(
+  self: SparkSuite =>
+  props ++= Map(
     "spark.serializer" -> "org.apache.spark.serializer.KryoSerializer",
     "spark.kryo.registrator" -> "org.hammerlab.pageant.kryo.PageantKryoRegistrar"
   )
 }
 
 trait KryoBasesRegistrarNoReferencesTest {
-  self: SparkFunSuite =>
-  override val properties = Map(
+  self: SparkSuite =>
+  props ++= Map(
     "spark.serializer" -> "org.apache.spark.serializer.KryoSerializer",
     "spark.kryo.registrator" -> "org.hammerlab.pageant.kryo.PageantKryoRegistrar",
     "spark.kryo.referenceTracking" -> "false"
@@ -40,9 +41,9 @@ class BasesSerializationTest(withClasses: Boolean = false)
   }
 
   def testBases(n: Int, k: Int, size: Int): Unit = {
-    sparkTest(s"bases ${n}x${k}") {
+    test(s"bases ${n}x$k") {
       verifyFileSizesAndSerde(
-        s"bases-${n}x${k}",
+        s"bases-${n}x$k",
         makeBases(4*n, k),
         size
       )

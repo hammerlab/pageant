@@ -2,6 +2,7 @@ package org.hammerlab.pageant.fm.index
 
 import java.io.File
 
+import org.hammerlab.pageant.fm.blocks.RunLengthBWTBlock
 import org.hammerlab.pageant.fm.utils.SmallFMSuite
 import org.hammerlab.pageant.utils.{TmpFilesTest, SparkSuite}
 import org.hammerlab.pageant.utils.Utils.rev
@@ -10,9 +11,21 @@ import scala.collection.mutable.ArrayBuffer
 
 class SparkFMTest extends SparkSuite with TmpFilesTest {
 
+  val sequence = "ACGTTGCA$"
+  val (sa, bwt) = SmallFMSuite.initBWT(sequence)
+
   def testCase(saPartitions: Int, tsPartitions: Int, blockSize: Int): Unit = {
     test(s"spark-fm-$saPartitions-$tsPartitions-$blockSize") {
-      val (_, bwt, fm) = SmallFMSuite.initFM(sc, saPartitions, "ACGTTGCA$", tsPartitions, blockSize, N = 6)
+      val fm = SmallFMSuite.initFM(
+        sc,
+        saPartitions,
+        sequence,
+        tsPartitions,
+        sa,
+        bwt,
+        blockSize,
+        N = 6
+      )
 
       val curCounts = Array.fill(6)(0)
       val counts = ArrayBuffer[Array[Int]]()
@@ -26,7 +39,11 @@ class SparkFMTest extends SparkSuite with TmpFilesTest {
           start <- bwt.indices by blockSize
         } yield {
           val end = math.min(start + blockSize, bwt.length)
-          BWTBlock(start, end, counts(start).map(_.toLong), bwt.slice(start, end))
+          RunLengthBWTBlock.fromTs(
+            start,
+            counts(start).map(_.toLong),
+            bwt.slice(start, end)
+          )
         }).toArray.zipWithIndex.map(rev)
 
       def testFM(fm: SparkFM) {

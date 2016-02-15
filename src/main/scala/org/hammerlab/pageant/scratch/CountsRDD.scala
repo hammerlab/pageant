@@ -4,7 +4,7 @@ import com.esotericsoftware.kryo.{Serializer, Kryo}
 import com.esotericsoftware.kryo.io.{Output, Input}
 import org.apache.spark.serializer.DirectFileRDDSerializer._
 import org.hammerlab.pageant.reads.Bases
-import org.hammerlab.pageant.utils.VarLong
+import org.hammerlab.pageant.utils.VarNum
 
 import TuplesRDD._
 
@@ -16,13 +16,13 @@ case class Counts(bases: Bases, num: Long) {
 class CountsSerializer extends Serializer[Counts] {
   override def write(kryo: Kryo, output: Output, o: Counts): Unit = {
     kryo.writeObject(output, o.bases)
-    VarLong.write(output, o.num)
+    VarNum.write(output, o.num)
   }
 
   override def read(kryo: Kryo, input: Input, clz: Class[Counts]): Counts = {
     Counts(
       kryo.readObject(input, classOf[Bases]),
-      VarLong.read(input)
+      VarNum.read(input)
     )
   }
 }

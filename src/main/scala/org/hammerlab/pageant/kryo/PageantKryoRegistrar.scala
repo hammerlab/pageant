@@ -5,6 +5,7 @@ import org.apache.spark.serializer.KryoRegistrator
 import org.bdgenomics.adam.kryo.AdamWorkAroundKryoRegistrar
 import org.bdgenomics.adam.models.ReferenceRegion
 import org.bdgenomics.adam.serialization.ADAMKryoRegistrator
+import org.hammerlab.pageant.fm.blocks.{RunLengthBWTBlockSerializer, RunLengthBWTBlock, FullBWTBlock, BWTBlock, BWTRunSerializer, BWTRun}
 import org.hammerlab.pageant.reads.{Bases, BasesSerializer}
 import org.hammerlab.pageant.scratch.{BasesTuple, BasesTupleSerializer, Counts, CountsSerializer}
 import org.hammerlab.pageant.suffixes.PDC3
@@ -16,6 +17,10 @@ class PageantKryoRegistrar extends KryoRegistrator {
     kryo.register(classOf[Bases], new BasesSerializer)
     kryo.register(classOf[Counts], new CountsSerializer)
     kryo.register(classOf[BasesTuple], new BasesTupleSerializer)
+    kryo.register(classOf[BWTRun], new BWTRunSerializer)
+    kryo.register(classOf[FullBWTBlock])
+    kryo.register(classOf[RunLengthBWTBlock], new RunLengthBWTBlockSerializer)
+    kryo.register(classOf[Array[BWTRun]])
 
     new ADAMKryoRegistrator().registerClasses(kryo)
     new AdamWorkAroundKryoRegistrar().registerClasses(kryo)

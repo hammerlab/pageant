@@ -1,5 +1,7 @@
 package org.apache.spark.serializer
 
+import java.util.zip.{GZIPOutputStream, GZIPInputStream}
+
 import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.spark.deploy.SparkHadoopUtil
 import org.apache.spark.rdd.RDD
@@ -11,7 +13,8 @@ class DirectFileSerializableRDDPartition(val index: Int) extends Partition
 
 class DirectFileSerializableRDD[T: ClassTag](@transient val sc: SparkContext,
                                              filename: String,
-                                             readClass: Boolean = false)
+                                             readClass: Boolean = false,
+                                             gzip: Boolean = false)
   extends RDD[T](sc, Nil) {
 
   @transient private val hadoopConf = sc.hadoopConfiguration
@@ -26,8 +29,10 @@ class DirectFileSerializableRDD[T: ClassTag](@transient val sc: SparkContext,
                      .sortBy(_.toString)
     // Fail fast if input files are invalid
     inputFiles.zipWithIndex.foreach { case (partFile, i) =>
-      if (!partFile.toString.endsWith(DirectFileSerializableRDD.partitionFileName(i))) {
-        throw new SparkException(s"Invalid checkpoint file: $filename")
+      if (!partFile.toString.endsWith(DirectFileSerializableRDD.partitionFileName(i, gzip))) {
+        throw new SparkException(
+          s"Invalid checkpoint file $i: $partFile ${DirectFileSerializableRDD.partitionFileName(i, gzip)}"
+        )
       }
     }
     Array.tabulate(inputFiles.length)(i => new DirectFileSerializableRDDPartition(i))
@@ -35,13 +40,14 @@ class DirectFileSerializableRDD[T: ClassTag](@transient val sc: SparkContext,
   }
 
   override def compute(split: Partition, context: TaskContext): Iterator[T] = {
-    val file = new Path(filename, DirectFileSerializableRDD.partitionFileName(split.index))
+    val file = new Path(filename, DirectFileSerializableRDD.partitionFileName(split.index, gzip))
 
     val env = SparkEnv.get
     val hadoopConf = SparkHadoopUtil.get.newConfiguration(SparkEnv.get.conf)
     val fs = file.getFileSystem(hadoopConf)
     val bufferSize = env.conf.getInt("spark.buffer.size", 65536)
-    val fileInputStream = fs.open(file, bufferSize)
+    val hadoopInputStream = fs.open(file, bufferSize)
+    val fileInputStream = if (gzip) new GZIPInputStream(hadoopInputStream) else hadoopInputStream
     val serializer = env.serializer.newInstance()
 
     serializer match {
@@ -64,20 +70,21 @@ object DirectFileSerializableRDD {
   /**
     * Return the file name for the given partition.
     */
-  private def partitionFileName(partitionIndex: Int): String = {
-    "part-%05d".format(partitionIndex)
+  def partitionFileName(partitionIndex: Int, gzip: Boolean = false): String = {
+    s"part-%05d${if (gzip) ".gz" else ""}".format(partitionIndex)
   }
 }
 
 class DirectFileRDDSerializer[T: ClassTag](@transient val rdd: RDD[T]) extends Serializable {
   def directFile = saveAsDirectFile _
-  def saveAsDirectFile(path: String, writeClass: Boolean = false): RDD[T] = {
+  def saveAsDirectFile(path: String, writeClass: Boolean = false, gzip: Boolean = false): RDD[T] = {
     def writePartition(ctx: TaskContext, iter: Iterator[T]): Unit = {
       val idx = ctx.partitionId()
       val serializer = SparkEnv.get.serializer.newInstance()
 
       val fs = FileSystem.get(SparkHadoopUtil.get.newConfiguration(SparkEnv.get.conf))
-      val os = fs.create(new Path(path, "part-%05d".format(idx)))
+      val hos = fs.create(new Path(path, DirectFileSerializableRDD.partitionFileName(idx, gzip)))
+      val os = if (gzip) new GZIPOutputStream(hos) else hos
 
       val ss = serializer match {
         case ksi: KryoSerializerInstance => new KryoObjectSerializationStream(ksi, os, writeClass)
@@ -97,8 +104,8 @@ object DirectFileRDDSerializer {
 }
 
 class DirectFileRDDDeserializer(val sc: SparkContext) {
-  def directFile[T: ClassTag](path: String, readClass: Boolean = false): RDD[T] = {
-    new DirectFileSerializableRDD[T](sc, path, readClass)
+  def directFile[T: ClassTag](path: String, readClass: Boolean = false, gzip: Boolean = false): RDD[T] = {
+    new DirectFileSerializableRDD[T](sc, path, readClass, gzip)
   }
 }
 

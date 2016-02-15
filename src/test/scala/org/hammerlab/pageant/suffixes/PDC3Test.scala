@@ -1,11 +1,11 @@
 package org.hammerlab.pageant.suffixes
 
 import org.apache.spark.serializer.DirectFileRDDSerializer._
-import org.hammerlab.pageant.utils.SparkSuite
+import org.hammerlab.pageant.utils.{NoKryoReferenceTracking, SparkSuite}
 import org.hammerlab.pageant.utils.Utils.loadBam
 import org.scalatest.{FunSuite, Matchers}
 
-class PDC3Test extends SuffixArrayTestBase with SparkSuite {
+class PDC3Test extends SuffixArrayTestBase with SparkSuite with NoKryoReferenceTracking {
 
   override def testFn(name: String)(testFun: => Unit): Unit = test(name)(testFun)
 
@@ -22,8 +22,8 @@ class PDC3Test extends SuffixArrayTestBase with SparkSuite {
     val sa = PDC3.apply(ts.map(_.toLong))
     sa.count should be(102000)
 
-    //ts.saveAsDirectFile("src/test/resources/normal.bam.ts")
-    //sa.saveAsDirectFile("src/test/resources/normal.bam.sa")
+    ts.saveAsDirectFile("src/test/resources/normal.bam.ts", gzip = true)
+    sa.saveAsDirectFile("src/test/resources/normal.bam.sa", gzip = true)
   }
 }
 

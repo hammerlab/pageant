@@ -24,12 +24,7 @@ trait SmallFMSuite extends FMSuite {
 }
 
 object SmallFMSuite {
-  def initFM(sc: SparkContext,
-             saPartitions: Int,
-             ts: String,
-             tsPartitions: Int,
-             blockSize: Int,
-             N: Int = 6): (Array[Int], Array[T], SparkFM) = {
+  def initBWT(ts: String): (Array[Int], AT) = {
     val sa = KarkainnenSuffixArray.make(ts.map(toI(_).toInt).toArray, 6)
 
     val bwtu =
@@ -43,10 +38,31 @@ object SmallFMSuite {
       .map(_._2)
 
     val bwt = bwtu.map(toI)
+    (sa, bwt)
+  }
+
+  def initFM(sc: SparkContext,
+             saPartitions: Int,
+             ts: String,
+             tsPartitions: Int,
+             blockSize: Int,
+             N: Int = 6): (Array[Int], Array[T], SparkFM) = {
+    val (sa, bwt) = initBWT(ts)
+    (sa, bwt, initFM(sc, saPartitions, ts, tsPartitions, sa, bwt, blockSize, N))
+  }
+
+  def initFM(sc: SparkContext,
+             saPartitions: Int,
+             ts: String,
+             tsPartitions: Int,
+             sa: Array[Int],
+             bwt: AT,
+             blockSize: Int,
+             N: Int): SparkFM = {
 
     val saZipped = sc.parallelize(sa.map(_.toLong), saPartitions).zipWithIndex()
     val tZipped = sc.parallelize(ts.map(toI), tsPartitions).zipWithIndex().map(rev)
 
-    (sa, bwt, SparkFM(saZipped, tZipped, ts.length, N = N, blockSize = blockSize))
+    SparkFM(saZipped, tZipped, ts.length, N = N, blockSize = blockSize)
   }
 }

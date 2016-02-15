@@ -2,12 +2,13 @@ package org.hammerlab.pageant.fm.index
 
 import java.io.{ObjectInputStream, ObjectOutputStream}
 
-import org.apache.hadoop.fs.{Path, FileSystem}
+import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.spark.SparkContext
 import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.DirectFileRDDSerializer._
+import org.hammerlab.pageant.fm.blocks.{FullBWTBlock, RunLengthBWTBlock, BWTBlock}
 import org.hammerlab.pageant.fm.index.SparkFM.Counts
-import org.hammerlab.pageant.fm.utils.Utils.{BlockIdx, Idx, V, AT, T}
+import org.hammerlab.pageant.fm.utils.Utils.{BlockIdx, Idx, T, V}
 import org.hammerlab.pageant.suffixes.PDC3
 import org.hammerlab.pageant.utils.Utils.rev
 
@@ -16,18 +17,20 @@ import scala.collection.mutable.ArrayBuffer
 case class SparkFM(bwtBlocks: RDD[(BlockIdx, BWTBlock)],
                    totalSums: Counts,
                    count: Long,
-                   blockSize: Int) extends Serializable {
+                   blockSize: Int,
+                   runLengthEncoded: Boolean) extends Serializable {
 
   @transient val sc = bwtBlocks.sparkContext
 
   val totalSumsBC = sc.broadcast(totalSums)
 
-  def save(fn: String): SparkFM = {
-    val dir = if (fn.endsWith(".fm")) fn else fn + ".fmi"
+  def save(fn: String, gzip: Boolean = false): SparkFM = {
+    val lastDot = fn.lastIndexOf('.')
+    val dir = if (lastDot < 0 || fn.substring(lastDot, lastDot + 3) != ".fm") fn + ".fmi" else fn
     val blocksPath = new Path(dir, "blocks")
     val conf = sc.hadoopConfiguration
     val fs = FileSystem.get(conf)
-    bwtBlocks.saveAsDirectFile(blocksPath.toString)
+    bwtBlocks.saveAsDirectFile(blocksPath.toString, gzip = gzip)
 
     val configPath = new Path(dir, "counts")
     val os = fs.create(configPath)
@@ -35,6 +38,7 @@ case class SparkFM(bwtBlocks: RDD[(BlockIdx, BWTBlock)],
     oos.writeObject(totalSums)
     oos.writeLong(count)
     oos.writeInt(blockSize)
+    oos.writeBoolean(runLengthEncoded)
     oos.close()
     this
   }
@@ -44,12 +48,10 @@ object SparkFM {
 
   type Counts = Array[Long]
 
-  def load(sc: SparkContext, fn: String): SparkFM = {
+  def load(sc: SparkContext, fn: String, gzip: Boolean = false): SparkFM = {
     val dir = if (fn.endsWith(".fm")) fn else fn + ".fmi"
-    val blocksPath = new Path(dir, "blocks")
     val conf = sc.hadoopConfiguration
     val fs = FileSystem.get(conf)
-    val bwtBlocks = sc.directFile[(BlockIdx, BWTBlock)](blocksPath.toString)
 
     val configPath = new Path(dir, "counts")
     val is = fs.open(configPath)
@@ -57,8 +59,16 @@ object SparkFM {
     val totalSums = ios.readObject().asInstanceOf[Counts]
     val count = ios.readLong()
     val blockSize = ios.readInt()
+    val runLengthEncoded = ios.readBoolean()
 
-    SparkFM(bwtBlocks, totalSums, count, blockSize)
+    val blocksPath = new Path(dir, "blocks")
+    val bwtBlocks =
+      if (runLengthEncoded)
+        sc.directFile[(BlockIdx, RunLengthBWTBlock)](blocksPath.toString, gzip = gzip).mapValues(b => b: BWTBlock)
+      else
+        sc.directFile[(BlockIdx, FullBWTBlock)](blocksPath.toString, gzip = gzip).mapValues(b => b: BWTBlock)
+
+    SparkFM(bwtBlocks, totalSums, count, blockSize, runLengthEncoded)
   }
 
   def apply[U](us: RDD[U],
@@ -77,36 +87,68 @@ object SparkFM {
     SparkFM(saZipped, tZipped, count, N, blockSize)
   }
 
-  def apply(saZipped: RDD[(V, Idx)],
-            tZipped: RDD[(Idx, T)],
-            count: Long,
-            N: Int,
-            blockSize: Int = 100): SparkFM = {
-    @transient val sc = saZipped.sparkContext
-
-    @transient val tShifted: RDD[(Idx, T)] =
-      tZipped
-      .map(p =>
-        (
-          if (p._1 + 1 == count)
-            0L
-          else
-            p._1 + 1,
-          p._2
-        )
+  def makeBwtBlocks(indexedBwtt: RDD[(Idx, T)],
+                    startCountsRDD: RDD[Counts],
+                    blockSize: Int,
+                    runLengthEncode: Boolean = true): RDD[(BlockIdx, BWTBlock)] = {
+    indexedBwtt.zipPartitions(startCountsRDD)((bwtIter, startCountIter) => {
+      var startCounts = startCountIter.next()
+      assert(
+        startCountIter.isEmpty,
+        s"Got more than one summed-count in partition starting from $startCounts"
       )
 
-    @transient val indexedBwtt: RDD[(Idx, T)] =
-      saZipped.join(tShifted).map(p => {
-        val (sufPos, (idx, t)) = p
-        (idx, t)
-      })
-      .sortByKey().setName("indexedBwtt")
+      var data: ArrayBuffer[T] = ArrayBuffer()
+      var rets: ArrayBuffer[Array[Int]] = ArrayBuffer()
+      var blocks: ArrayBuffer[(BlockIdx, BWTBlock)] = ArrayBuffer()
+      var blockIdx = -1L
+      var startIdx = -1L
+      var idx = -1L
+      var counts: Counts = null
 
-    indexedBwtt.cache()
+      for {
+        (idx, t) <- bwtIter
+      } {
+        if (blockIdx == -1L) {
+          blockIdx = idx / blockSize
+          startIdx = idx
+          counts = startCounts.clone()
+        } else if (idx % blockSize == 0) {
+          val block = FullBWTBlock(startIdx, startCounts, data.toArray)
+          blocks.append((blockIdx, block))
+          blockIdx = idx / blockSize
+          startIdx = idx
+          data.clear()
+          startCounts = counts.clone()
+        }
+        counts(t) += 1
+        data.append(t)
+      }
 
-    @transient val bwtt: RDD[T] = indexedBwtt.map(_._2).setName("bwtt")
+      if (data.nonEmpty) {
+        blocks.append((blockIdx, FullBWTBlock(startIdx, startCounts, data.toArray)))
+      }
+      blocks.toIterator
+    }).groupByKey.mapValues(iter => {
+      val data: ArrayBuffer[T] = ArrayBuffer()
+      val blocks = iter.toArray.sortBy(_.startIdx)
+      val first = blocks.head
+      val last = blocks.last
+      for {block <- blocks} {
+        data ++= block.data
+      }
+      (
+        if (runLengthEncode)
+          RunLengthBWTBlock.fromTs(first.startIdx, first.startCounts, data)
+        else
+          FullBWTBlock(first.startIdx, first.startCounts, data)
+      ): BWTBlock
+    }).setName("BWTBlocks")
+  }
 
+  def getStartCountsRDD(sc: SparkContext,
+                        bwtt: RDD[T],
+                        N: Int): (RDD[Counts], Counts) = {
     @transient val partitionCounts: RDD[Array[Int]] =
       bwtt.mapPartitions(
         iter => {
@@ -133,67 +175,61 @@ object SparkFM {
     })
 
     val startCounts: Array[Counts] = startCountsBuf.toArray
-    val startCountsRDD = sc.parallelize(startCounts, startCounts.length)
-
-    val bwtBlocks: RDD[(BlockIdx, BWTBlock)] =
-      indexedBwtt.zipPartitions(startCountsRDD)((bwtIter, startCountIter) => {
-        var startCounts = startCountIter.next()
-        assert(
-          startCountIter.isEmpty,
-          s"Got more than one summed-count in partition starting from $startCounts"
-        )
-
-        var data: ArrayBuffer[T] = ArrayBuffer()
-        var rets: ArrayBuffer[Array[Int]] = ArrayBuffer()
-        var blocks: ArrayBuffer[(BlockIdx, BWTBlock)] = ArrayBuffer()
-        var blockIdx = -1L
-        var startIdx = -1L
-        var idx = -1L
-        var counts: Counts = null
-
-        for {
-          (i, t) <- bwtIter
-        } {
-          if (blockIdx == -1L) {
-            idx = i
-            blockIdx = idx / blockSize
-            startIdx = idx
-            counts = startCounts.clone()
-          } else if (idx % blockSize == 0) {
-            val block = BWTBlock(startIdx, idx, startCounts.clone(), data.toArray)
-            blocks.append((blockIdx, block))
-            blockIdx = idx / blockSize
-            startIdx = idx
-            data.clear()
-            startCounts = counts.clone()
-          }
-          counts(t) += 1
-          data.append(t)
-          idx += 1
-        }
-
-        if (data.nonEmpty) {
-          blocks.append((blockIdx, BWTBlock(startIdx, idx, startCounts.clone(), data.toArray)))
-        }
-        blocks.toIterator
-      }).groupByKey.mapValues(iter => {
-        val data: ArrayBuffer[T] = ArrayBuffer()
-        val blocks = iter.toArray.sortBy(_.endIdx)
-        val first = blocks.head
-        val last = blocks.last
-        for {block <- blocks} {
-          data ++= block.data
-        }
-        BWTBlock(first.startIdx, last.endIdx, first.startCounts, data.toArray)
-      }).setName("BWTBlocks")
-
-    bwtBlocks.cache()
-
-    var totalSums = Array.fill(N)(0L)
+    var totalSums: Counts = Array.fill(N)(0L)
     for {i <- 1 until N} {
       totalSums(i) = totalSums(i - 1) + curStartCounts(i - 1)
     }
 
-    SparkFM(bwtBlocks, totalSums, count, blockSize)
+    (
+      sc.parallelize(startCounts, startCounts.length),
+      totalSums
+    )
+  }
+
+  def apply(saZipped: RDD[(V, Idx)],
+            tZipped: RDD[(Idx, T)],
+            count: Long,
+            N: Int,
+            blockSize: Int = 100,
+            runLengthEncode: Boolean = true): SparkFM = {
+    @transient val sc = saZipped.sparkContext
+
+    @transient val tShifted: RDD[(Idx, T)] =
+      tZipped
+      .map(p =>
+        (
+          if (p._1 + 1 == count)
+            0L
+          else
+            p._1 + 1,
+          p._2
+        )
+      )
+
+    @transient val indexedBwtt: RDD[(Idx, T)] =
+      saZipped
+        .join(tShifted)
+        .map(p => {
+          val (sufPos, (idx, t)) = p
+          (idx, t)
+        })
+        .sortByKey().setName("indexedBwtt")
+
+    indexedBwtt.cache()
+
+    @transient val bwtt: RDD[T] = indexedBwtt.map(_._2).setName("bwtt")
+
+    val (startCountsRDD, totalSums) = getStartCountsRDD(sc, bwtt, N)
+    val bwtBlocks: RDD[(BlockIdx, BWTBlock)] =
+      makeBwtBlocks(
+        indexedBwtt,
+        startCountsRDD,
+        blockSize,
+        runLengthEncode
+      )
+
+    bwtBlocks.cache()
+
+    SparkFM(bwtBlocks, totalSums, count, blockSize, runLengthEncode)
   }
 }

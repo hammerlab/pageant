@@ -7,6 +7,7 @@ import org.apache.commons.io.FilenameUtils
 import org.apache.commons.io.filefilter.PrefixFileFilter
 import org.apache.spark.rdd.RDD
 import org.bdgenomics.utils.misc.SparkFunSuite
+import org.hammerlab.pageant.utils.SparkSuite
 import org.scalatest.Matchers
 
 import SequenceFileSerializableRDD._
@@ -14,7 +15,7 @@ import org.apache.spark.serializer.DirectFileRDDSerializer._
 
 import scala.reflect.ClassTag
 
-trait Utils extends SparkFunSuite with Matchers {
+trait Utils extends SparkSuite with Matchers {
 
   def serializeRDD[T: ClassTag](rdd: RDD[T], path: String)
   def deserializeRDD[T: ClassTag](path: String): RDD[T]
@@ -60,17 +61,20 @@ class DirectFileRDDTest(withClasses: Boolean = false) extends Utils {
   def deserializeRDD[T: ClassTag](path: String): RDD[T] = sc.directFile[T](path, withClasses)
 }
 
-trait KryoSerializerTest {
-  self: SparkFunSuite =>
-  override val properties = Map(
-    "spark.serializer" -> "org.apache.spark.serializer.KryoSerializer"
-  )
+trait JavaSerializerTest {
+  self: SparkSuite =>
+  props +:= "spark.serializer" -> "org.apache.spark.serializer.JavaSerializer"
 }
 
-trait KryoFooRegistrarTest {
-  self: SparkFunSuite =>
-  override val properties = Map(
-    "spark.serializer" -> "org.apache.spark.serializer.KryoSerializer",
+trait KryoSerializerTest {
+  self: SparkSuite =>
+  props +:= "spark.serializer" -> "org.apache.spark.serializer.KryoSerializer"
+}
+
+trait KryoFooRegistrarTest extends KryoSerializerTest {
+  self: SparkSuite =>
+  props ++= Map(
+    "spark.kryo.referenceTracking" -> "true",
     "spark.kryo.registrator" -> "org.hammerlab.pageant.serialization.FooKryoRegistrator"
   )
 }

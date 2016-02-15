@@ -9,6 +9,8 @@ trait SparkSuite extends FunSuite with Matchers with TmpFilesTest {
 
   var inits: ArrayBuffer[SparkContext => Unit] = ArrayBuffer()
 
+  var props: ArrayBuffer[(String, String)] = ArrayBuffer()
+
   var sc: SparkContext = _
   var properties = Map(
     "spark.serializer" -> "org.apache.spark.serializer.KryoSerializer",
@@ -20,10 +22,11 @@ trait SparkSuite extends FunSuite with Matchers with TmpFilesTest {
   tmpdirBefores.append((dir) => {
     val conf: SparkConf = new SparkConf()
     properties.foreach(kv => conf.set(kv._1, kv._2))
+    props.foreach(kv => conf.set(kv._1, kv._2))
+
     sc = new SparkContext(conf)
     val checkpointsDir = dir
     sc.setCheckpointDir(checkpointsDir.toString)
-    println(s"checkpointing to $checkpointsDir")
     inits.foreach(_(sc))
   })
 

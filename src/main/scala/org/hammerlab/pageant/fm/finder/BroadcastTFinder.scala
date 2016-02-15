@@ -52,7 +52,7 @@ case class BroadcastTFinder(fm: SparkFM) extends FMFinder[PosNeedle](fm) with Se
         (
           blockIdx,
           PosNeedle(tIdx, ts.length, ts.length, bound)
-          )
+        )
 
     val occs = occRec(
       cur,
@@ -115,7 +115,7 @@ case class BroadcastTFinder(fm: SparkFM) extends FMFinder[PosNeedle](fm) with Se
             (
               newBound.blockIdx(blockSize),
               PosNeedle(idx, start - 1, end, newBound)
-              )
+            )
           }
       }
 

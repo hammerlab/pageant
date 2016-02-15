@@ -3,7 +3,7 @@ package org.hammerlab.pageant.serialization
 trait SerdeRDDTest extends Utils {
 
   def testSmallInts(ps: Int*): Unit = {
-    sparkTest("rdd small ints") {
+    test("rdd small ints") {
       verifyFileSizeListAndSerde(
         "small-ints",
         1 to 400,
@@ -13,7 +13,7 @@ trait SerdeRDDTest extends Utils {
   }
 
   def testMediumInts(ps: Int*): Unit = {
-    sparkTest("rdd medium ints") {
+    test("rdd medium ints") {
       verifyFileSizeListAndSerde(
         "medium-ints",
         (1 to 400).map(_ + 500),
@@ -23,7 +23,7 @@ trait SerdeRDDTest extends Utils {
   }
 
   def testLongs(ps: Int*): Unit = {
-    sparkTest("rdd longs") {
+    test("rdd longs") {
       verifyFileSizeListAndSerde(
         "longs",
         (1 to 400).map(_ + 12345678L),
@@ -33,7 +33,7 @@ trait SerdeRDDTest extends Utils {
   }
 
   def testSomeFoos(n: Int, ps: Int*): Unit = {
-    sparkTest(s"some foos $n") {
+    test(s"some foos $n") {
       verifyFileSizeListAndSerde(
         "foos",
         Foos((if (ps.size == 1) 4 else ps.size) * n, 20),
@@ -43,7 +43,7 @@ trait SerdeRDDTest extends Utils {
   }
 }
 
-class JavaSequenceFileRDDTest extends SequenceFileRDDTest with SerdeRDDTest {
+class JavaSequenceFileRDDTest extends SequenceFileRDDTest with SerdeRDDTest with JavaSerializerTest {
   testSmallInts(9475)
   testMediumInts(9475)
   testLongs(9575)
@@ -73,7 +73,7 @@ class KryoSequenceFileFooRDDTest extends SequenceFileRDDTest with SerdeRDDTest w
   testSomeFoos(100, 3752, 3815, 3815, 3815)
 }
 
-class JavaDirectFileRDDTest extends DirectFileRDDTest with SerdeRDDTest {
+class JavaDirectFileRDDTest extends DirectFileRDDTest with SerdeRDDTest with JavaSerializerTest {
   testSmallInts(1072)
   testMediumInts(1072)
   testLongs(1469)
