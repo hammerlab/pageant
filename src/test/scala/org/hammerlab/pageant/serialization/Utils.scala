@@ -5,19 +5,21 @@ import java.nio.file.Files
 
 import org.apache.commons.io.FilenameUtils
 import org.apache.commons.io.filefilter.PrefixFileFilter
+import org.apache.hadoop.fs.Path
 import org.apache.spark.rdd.RDD
-import org.bdgenomics.utils.misc.SparkFunSuite
-import org.hammerlab.pageant.utils.SparkSuite
-import org.scalatest.Matchers
-
-import SequenceFileSerializableRDD._
 import org.apache.spark.serializer.DirectFileRDDSerializer._
+import org.hammerlab.pageant.serialization.SequenceFileSerializableRDD._
+import org.hammerlab.pageant.utils.{KryoSerialization => KryoSerdeTest, SparkSuite}
+import org.scalatest.Matchers
 
 import scala.reflect.ClassTag
 
 trait Utils extends SparkSuite with Matchers {
 
-  def serializeRDD[T: ClassTag](rdd: RDD[T], path: String)
+  def serializeRDD[T: ClassTag](rdd: RDD[T], file: File): RDD[T] = serializeRDD(rdd, file.toString)
+  def deserializeRDD[T: ClassTag](file: File): RDD[T] = deserializeRDD(file.toString)
+
+  def serializeRDD[T: ClassTag](rdd: RDD[T], path: String): RDD[T]
   def deserializeRDD[T: ClassTag](path: String): RDD[T]
 
   def verifyFileSizesAndSerde[T](name: String,
@@ -35,43 +37,34 @@ trait Utils extends SparkSuite with Matchers {
       else
         origFileSizes
 
-    val fileSizeMap = fileSizes.zipWithIndex.map(p => "part-000%02d".format(p._2) -> p._1).toMap
+    val fileSizeMap = fileSizes.zipWithIndex.map(p => "part-%05d".format(p._2) -> p._1).toMap
 
-    val tmpFile = Files.createTempDirectory("").toAbsolutePath.toString + "/" + name
+    val tmp = new File(tmpDir(name) + "/" + name)
+
     val rdd = sc.parallelize(l, fileSizes.size)
 
-    serializeRDD[T](rdd, tmpFile)
+    serializeRDD[T](rdd, tmp)
 
     val filter: FilenameFilter = new PrefixFileFilter("part-")
-    new File(tmpFile).listFiles(filter).map(f => {
+    tmp.listFiles(filter).map(f => {
       FilenameUtils.getBaseName(f.getAbsolutePath) -> f.length
     }).toMap should be(fileSizeMap)
 
-    deserializeRDD[T](tmpFile).collect() should be(l.toArray)
+    deserializeRDD[T](tmp).collect() should be(l.toArray)
   }
 }
 
 class SequenceFileRDDTest extends Utils {
-  def serializeRDD[T: ClassTag](rdd: RDD[T], path: String) = rdd.serializeToSequenceFile(path)
+  def serializeRDD[T: ClassTag](rdd: RDD[T], path: String): RDD[T] = rdd.serializeToSequenceFile(path)
   def deserializeRDD[T: ClassTag](path: String): RDD[T] = sc.fromSequenceFile[T](path)
 }
 
 class DirectFileRDDTest(withClasses: Boolean = false) extends Utils {
-  def serializeRDD[T: ClassTag](rdd: RDD[T], path: String) = rdd.saveAsDirectFile(path, withClasses)
+  def serializeRDD[T: ClassTag](rdd: RDD[T], path: String): RDD[T] = rdd.saveAsDirectFile(path, withClasses)
   def deserializeRDD[T: ClassTag](path: String): RDD[T] = sc.directFile[T](path, withClasses)
 }
 
-trait JavaSerializerTest {
-  self: SparkSuite =>
-  props +:= "spark.serializer" -> "org.apache.spark.serializer.JavaSerializer"
-}
-
-trait KryoSerializerTest {
-  self: SparkSuite =>
-  props +:= "spark.serializer" -> "org.apache.spark.serializer.KryoSerializer"
-}
-
-trait KryoFooRegistrarTest extends KryoSerializerTest {
+trait FooRegistrarTest extends KryoSerdeTest {
   self: SparkSuite =>
   props ++= Map(
     "spark.kryo.referenceTracking" -> "true",

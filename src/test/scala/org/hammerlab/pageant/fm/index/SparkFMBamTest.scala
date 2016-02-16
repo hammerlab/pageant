@@ -6,25 +6,17 @@ import org.hammerlab.pageant.fm.blocks.RunLengthBWTBlock
 import org.hammerlab.pageant.fm.utils.FMSuite
 import org.hammerlab.pageant.utils.Utils.resourcePath
 
-class SparkFMBamTest extends FMSuite {
-  def initFM(sc: SparkContext) = {
-    // Written by PDC3Test
-    val sa = sc.directFile[Long](resourcePath("normal.bam.sa"), gzip = true)
-    val ts = sc.directFile[Byte](resourcePath("normal.bam.ts"), gzip = true)
-
-    val count = 102000
-    sa.count should be(count)
-
-    ts.getNumPartitions should be(4)
-
-    val fm = SparkFM(sa.zipWithIndex(), ts.zipWithIndex().map(_.swap), count, N = 6)
-    fm.save("src/test/resources/normal.bam.fm", gzip = true)
-
-    fm
-  }
-
+abstract class SparkFMBamTest extends FMSuite {
   test("count") {
     fm.count should be(102000)
+  }
+
+  test("partitions") {
+    fm.bwtBlocks.getNumPartitions should be(12)
+  }
+
+  test("block idxs") {
+    fm.bwtBlocks.sortByKey().keys.collect should be(0 until 1020 toArray)
   }
 
   test("blocks") {
@@ -40,68 +32,118 @@ class SparkFMBamTest extends FMSuite {
 
     pieceLengthHist should be(
       List(
-         1 -> 17552,
-         2 -> 4247,
-         3 -> 1571,
-         4 -> 698,
-         5 -> 469,
-         6 -> 330,
-         7 -> 347,
-         8 -> 316,
-         9 -> 287,
-        10 -> 270,
-        11 -> 258,
-        12 -> 255,
-        13 -> 251,
-        14 -> 247,
-        15 -> 225,
-        16 -> 216,
-        17 -> 202,
-        18 -> 170,
-        19 -> 145,
-        20 -> 148,
-        21 -> 118,
-        22 -> 106,
-        23 -> 102,
-        24 -> 59,
-        25 -> 67,
-        26 -> 52,
-        27 -> 43,
-        28 -> 41,
-        29 -> 24,
-        30 -> 31,
-        31 -> 19,
-        32 -> 22,
-        33 -> 21,
-        34 -> 17,
-        35 -> 19,
-        36 -> 15,
-        37 -> 10,
-        38 -> 11,
-        39 -> 5,
-        40 -> 5,
-        41 -> 5,
-        42 -> 1,
-        43 -> 1,
-        44 -> 3,
-        45 -> 2,
-        46 -> 2,
-        47 -> 6,
-        48 -> 2,
-        49 -> 4,
-        52 -> 1,
-        53 -> 1,
-        55 -> 1,
-        57 -> 1,
-        59 -> 1,
-        62 -> 1,
+        1 -> 7527,
+        2 -> 1958,
+        3 -> 781,
+        4 -> 365,
+        5 -> 231,
+        6 -> 157,
+        7 -> 140,
+        8 -> 101,
+        9 -> 105,
+        10 -> 94,
+        11 -> 108,
+        12 -> 111,
+        13 -> 106,
+        14 -> 91,
+        15 -> 106,
+        16 -> 93,
+        17 -> 100,
+        18 -> 77,
+        19 -> 89,
+        20 -> 102,
+        21 -> 79,
+        22 -> 84,
+        23 -> 65,
+        24 -> 74,
+        25 -> 79,
+        26 -> 85,
+        27 -> 66,
+        28 -> 67,
+        29 -> 78,
+        30 -> 73,
+        31 -> 87,
+        32 -> 91,
+        33 -> 72,
+        34 -> 68,
+        35 -> 51,
+        36 -> 59,
+        37 -> 59,
+        38 -> 66,
+        39 -> 63,
+        40 -> 64,
+        41 -> 48,
+        42 -> 43,
+        43 -> 45,
+        44 -> 35,
+        45 -> 33,
+        46 -> 27,
+        47 -> 20,
+        48 -> 19,
+        49 -> 19,
+        50 -> 12,
+        51 -> 17,
+        52 -> 14,
+        53 -> 17,
+        54 -> 19,
+        55 -> 11,
+        56 -> 12,
+        57 -> 9,
+        58 -> 10,
+        59 -> 6,
+        60 -> 7,
+        61 -> 4,
+        62 -> 5,
+        63 -> 3,
+        64 -> 1,
         65 -> 2,
-        93 -> 1
+        66 -> 2,
+        68 -> 1,
+        70 -> 1,
+        71 -> 5,
+        72 -> 2,
+        73 -> 2,
+        75 -> 1,
+        76 -> 1,
+        77 -> 4,
+        78 -> 1,
+        79 -> 1,
+        80 -> 1,
+        83 -> 1,
+        87 -> 1,
+        89 -> 1,
+        98 -> 1
       )
     )
   }
 
   test("totals") {
     fm.totalSums should be(Array(0, 1000, 32291, 56475, 80113, 101897))
+  }
+}
+
+class GenerateFMBamTest extends SparkFMBamTest {
+  def initFM(sc: SparkContext) = {
+    val count = 102000
+
+    // Written by PDC3Test
+    val ts = sc.directFile[Byte](resourcePath("normal.bam.ts"), gzip = true)
+    ts.getNumPartitions should be(4)
+    ts.count should be(count)
+
+    val sa = sc.directFile[Long](resourcePath("normal.bam.sa"), gzip = true)
+    sa.getNumPartitions should be(12)
+    sa.count should be(count)
+
+    val fm = SparkFM(sa.zipWithIndex(), ts.zipWithIndex().map(_.swap), count, N = 6)
+    fm.save("src/test/resources/normal.bam.fm", gzip = true)
+
+    fm
+  }
+}
+
+class LoadFMBamTest extends SparkFMBamTest {
+  def initFM(sc: SparkContext) = {
+    SparkFM.load(sc, "src/test/resources/normal.bam.fm", gzip = true)
   }
 }

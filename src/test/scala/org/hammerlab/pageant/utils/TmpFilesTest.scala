@@ -1,6 +1,6 @@
 package org.hammerlab.pageant.utils
 
-import java.io.File
+import java.io.{IOException, File}
 import java.nio.file.Files
 
 import org.apache.commons.io.FileUtils
@@ -10,30 +10,31 @@ import scala.collection.mutable.ArrayBuffer
 
 trait TmpFilesTest extends BeforeAndAfterTest {
   self: Suite =>
-  var dir: File = _
 
   var tmpdirBefores = ArrayBuffer[File => Unit]()
 
-  befores.append(() => {
-    dir = new File(Files.createTempDirectory("test").toString)
-    tmpdirBefores.foreach(_(dir))
-  })
+  val dirsToDelete: ArrayBuffer[File] = ArrayBuffer()
+  val filesToDelete: ArrayBuffer[File] = ArrayBuffer()
 
-  def tmpPath(name: String = ""): String = {
+  def tmpPath(name: String = "tmp"): String = {
     tmpFile(name).toString
   }
 
-  def tmpFile(name: String = ""): File = {
-    File.createTempFile(name, ".tmp", dir)
+  def tmpFile(name: String = "tmp"): File = {
+    val f = File.createTempFile(name, ".tmp")
+    //filesToDelete.append(f)
+    f.deleteOnExit()
+    f
   }
 
-  def tmpDir(name: String = ""): String = {
-    val file = tmpFile(name)
-    file.mkdir()
-    file.toString
+  def tmpDirPath(name: String = "tmp"): String = tmpDir(name).toString
+  def tmpDir(name: String = "tmp"): File = {
+    val file = new File(Files.createTempDirectory("test").toString)
+    dirsToDelete.append(file)
+    file
   }
 
   afters.append(() => {
-    FileUtils.deleteDirectory(dir)
+    dirsToDelete.foreach(FileUtils.deleteDirectory)
   })
 }

@@ -2,11 +2,11 @@ package org.hammerlab.pageant.fm.utils
 
 import org.apache.spark.SparkContext
 import org.hammerlab.pageant.fm.index.SparkFM
-import org.hammerlab.pageant.utils.SparkSuite
+import org.hammerlab.pageant.utils.PageantSuite
 
 import scala.collection.mutable.ArrayBuffer
 
-abstract class FMSuite extends SparkSuite {
+trait FMSuite extends PageantSuite {
 
   var fmInits: ArrayBuffer[(SparkContext, SparkFM) => Unit] = ArrayBuffer()
 

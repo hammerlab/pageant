@@ -3,7 +3,7 @@ package org.hammerlab.pageant.utils
 import org.apache.spark.{SparkConf, SparkContext}
 import org.scalatest.{Matchers, FunSuite}
 
-import scala.collection.mutable.ArrayBuffer
+import scala.collection.mutable.{ArrayBuffer, Map => MMap}
 
 trait SparkSuite extends FunSuite with Matchers with TmpFilesTest {
 
@@ -12,14 +12,13 @@ trait SparkSuite extends FunSuite with Matchers with TmpFilesTest {
   var props: ArrayBuffer[(String, String)] = ArrayBuffer()
 
   var sc: SparkContext = _
-  var properties = Map(
-    "spark.serializer" -> "org.apache.spark.serializer.KryoSerializer",
-    "spark.kryo.registrator" -> "org.hammerlab.pageant.kryo.PageantKryoRegistrar",
+  var properties = MMap(
     "spark.master" -> "local[%d]".format(Runtime.getRuntime.availableProcessors()),
     "spark.app.name" -> this.getClass.getName
   )
 
-  tmpdirBefores.append((dir) => {
+  befores.append(() => {
+    val dir = tmpDir()
     val conf: SparkConf = new SparkConf()
     properties.foreach(kv => conf.set(kv._1, kv._2))
     props.foreach(kv => conf.set(kv._1, kv._2))

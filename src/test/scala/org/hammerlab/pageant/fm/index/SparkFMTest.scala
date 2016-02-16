@@ -4,12 +4,12 @@ import java.io.File
 
 import org.hammerlab.pageant.fm.blocks.RunLengthBWTBlock
 import org.hammerlab.pageant.fm.utils.SmallFMSuite
-import org.hammerlab.pageant.utils.{TmpFilesTest, SparkSuite}
+import org.hammerlab.pageant.utils.{TmpFilesTest, PageantSuite}
 
 
 import scala.collection.mutable.ArrayBuffer
 
-class SparkFMTest extends SparkSuite with TmpFilesTest {
+class SparkFMTest extends PageantSuite with TmpFilesTest {
 
   val sequence = "ACGTTGCA$"
   val (sa, bwt) = SmallFMSuite.initBWT(sequence)

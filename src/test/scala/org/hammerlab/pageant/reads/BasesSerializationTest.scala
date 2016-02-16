@@ -1,28 +1,9 @@
 package org.hammerlab.pageant.reads
 
-import org.bdgenomics.utils.misc.SparkFunSuite
-import org.hammerlab.pageant.serialization.{DirectFileRDDTest, KryoSerializerTest, Utils => TestUtils}
-import org.hammerlab.pageant.utils.SparkSuite
+import org.hammerlab.pageant.serialization.{DirectFileRDDTest, Utils => TestUtils}
+import org.hammerlab.pageant.utils.{KryoSerdePageantRegistrar, KryoSerdePageantRegistrarNoReferences, KryoSerialization}
 
 import scala.util.Random
-
-
-trait KryoBasesRegistrarTest {
-  self: SparkSuite =>
-  props ++= Map(
-    "spark.serializer" -> "org.apache.spark.serializer.KryoSerializer",
-    "spark.kryo.registrator" -> "org.hammerlab.pageant.kryo.PageantKryoRegistrar"
-  )
-}
-
-trait KryoBasesRegistrarNoReferencesTest {
-  self: SparkSuite =>
-  props ++= Map(
-    "spark.serializer" -> "org.apache.spark.serializer.KryoSerializer",
-    "spark.kryo.registrator" -> "org.hammerlab.pageant.kryo.PageantKryoRegistrar",
-    "spark.kryo.referenceTracking" -> "false"
-  )
-}
 
 class BasesSerializationTest(withClasses: Boolean = false)
   extends DirectFileRDDTest(withClasses)
@@ -49,28 +30,27 @@ class BasesSerializationTest(withClasses: Boolean = false)
       )
     }
   }
-
 }
 
-class BasesSerdeTest extends BasesSerializationTest with KryoSerializerTest  {
+class BasesSerdeTest extends BasesSerializationTest with KryoSerialization {
   testBases(1, 8, 6)
   testBases(10, 10, 70)
   testBases(10, 16, 80)
 }
 
-class BasesSerdeWithRegistrarAndClassesTest extends BasesSerializationTest(true) with KryoBasesRegistrarTest {
+class BasesSerdeWithRegistrarAndClassesTest extends BasesSerializationTest(true) with KryoSerdePageantRegistrar {
   testBases(1, 8, 5)
   testBases(10, 10, 60)
   testBases(10, 16, 70)
 }
 
-class BasesSerdeWithRegistrarTest extends BasesSerializationTest with KryoBasesRegistrarTest  {
+class BasesSerdeWithRegistrarTest extends BasesSerializationTest with KryoSerdePageantRegistrar  {
   testBases(1, 8, 4)
   testBases(10, 10, 50)
   testBases(10, 16, 60)
 }
 
-class BasesSerdeWithRegistrarNoReferencesTest extends BasesSerializationTest with KryoBasesRegistrarNoReferencesTest {
+class BasesSerdeWithRegistrarNoReferencesTest extends BasesSerializationTest with KryoSerdePageantRegistrarNoReferences {
   testBases(1, 8, 3)
   testBases(10, 10, 40)
   testBases(10, 16, 50)

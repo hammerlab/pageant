@@ -1,5 +1,7 @@
 package org.hammerlab.pageant.serialization
 
+import org.hammerlab.pageant.utils.{KryoSerialization, JavaSerialization}
+
 trait SerdeRDDTest extends Utils {
 
   def testSmallInts(ps: Int*): Unit = {
@@ -43,7 +45,7 @@ trait SerdeRDDTest extends Utils {
   }
 }
 
-class JavaSequenceFileRDDTest extends SequenceFileRDDTest with SerdeRDDTest with JavaSerializerTest {
+class JavaSequenceFileRDDTest extends SequenceFileRDDTest with SerdeRDDTest with JavaSerialization {
   testSmallInts(9475)
   testMediumInts(9475)
   testLongs(9575)
@@ -53,7 +55,7 @@ class JavaSequenceFileRDDTest extends SequenceFileRDDTest with SerdeRDDTest with
   testSomeFoos(100, 13015)
 }
 
-class KryoSequenceFileRDDTest extends SequenceFileRDDTest with SerdeRDDTest with KryoSerializerTest {
+class KryoSequenceFileRDDTest extends SequenceFileRDDTest with SerdeRDDTest with KryoSerialization {
   testSmallInts(1532, 1595, 1595, 1595)
   testMediumInts(1595)
   testLongs(1795)
@@ -63,7 +65,7 @@ class KryoSequenceFileRDDTest extends SequenceFileRDDTest with SerdeRDDTest with
   testSomeFoos(100, 7792, 7855, 7855, 7855)
 }
 
-class KryoSequenceFileFooRDDTest extends SequenceFileRDDTest with SerdeRDDTest with KryoFooRegistrarTest {
+class KryoSequenceFileFooRDDTest extends SequenceFileRDDTest with SerdeRDDTest with FooRegistrarTest {
   testSmallInts(1532, 1595, 1595, 1595)
   testMediumInts(1595)
   testLongs(1795)
@@ -73,7 +75,7 @@ class KryoSequenceFileFooRDDTest extends SequenceFileRDDTest with SerdeRDDTest w
   testSomeFoos(100, 3752, 3815, 3815, 3815)
 }
 
-class JavaDirectFileRDDTest extends DirectFileRDDTest with SerdeRDDTest with JavaSerializerTest {
+class JavaDirectFileRDDTest extends DirectFileRDDTest with SerdeRDDTest with JavaSerialization {
   testSmallInts(1072)
   testMediumInts(1072)
   testLongs(1469)
@@ -83,7 +85,7 @@ class JavaDirectFileRDDTest extends DirectFileRDDTest with SerdeRDDTest with Jav
   testSomeFoos(100, 3384)
 }
 
-class KryoDirectFileRDDTest extends DirectFileRDDTest with SerdeRDDTest with KryoSerializerTest {
+class KryoDirectFileRDDTest extends DirectFileRDDTest with SerdeRDDTest with KryoSerialization {
   testSmallInts(137, 200, 200, 200)
   testMediumInts(200)
   testLongs(400)
@@ -93,7 +95,7 @@ class KryoDirectFileRDDTest extends DirectFileRDDTest with SerdeRDDTest with Kry
   testSomeFoos(100, 2337, 2400, 2400, 2400)
 }
 
-class KryoDirectFileWithClassesRDDTest extends DirectFileRDDTest(true) with SerdeRDDTest with KryoSerializerTest {
+class KryoDirectFileWithClassesRDDTest extends DirectFileRDDTest(true) with SerdeRDDTest with KryoSerialization {
   testSmallInts(237, 300, 300, 300)
   testMediumInts(300)
   testLongs(500)
@@ -103,7 +105,7 @@ class KryoDirectFileWithClassesRDDTest extends DirectFileRDDTest(true) with Serd
   testSomeFoos(100, 6437, 6500, 6500, 6500)
 }
 
-class KryoDirectFileWithClassesAndFooRDDTest extends DirectFileRDDTest(true) with SerdeRDDTest with KryoFooRegistrarTest {
+class KryoDirectFileWithClassesAndFooRDDTest extends DirectFileRDDTest(true) with SerdeRDDTest with FooRegistrarTest {
   testSmallInts(237, 300, 300, 300)
   testMediumInts(300)
   testLongs(500)

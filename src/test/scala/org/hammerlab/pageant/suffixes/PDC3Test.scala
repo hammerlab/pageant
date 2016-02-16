@@ -1,12 +1,14 @@
 package org.hammerlab.pageant.suffixes
 
 import org.apache.spark.serializer.DirectFileRDDSerializer._
-import org.hammerlab.pageant.utils.{NoKryoReferenceTracking, SparkSuite}
+import org.hammerlab.pageant.utils.{KryoNoReferenceTracking, PageantSuite}
 import org.hammerlab.pageant.utils.Utils.loadBam
 import org.scalatest.{FunSuite, Matchers}
 
+import scala.collection.mutable.ArrayBuffer
 
-class PDC3Test extends SuffixArrayTestBase with SparkSuite with NoKryoReferenceTracking {
+
+class PDC3Test extends SuffixArrayTestBase with PageantSuite with KryoNoReferenceTracking {
 
   override def testFn(name: String)(testFun: => Unit): Unit = test(name)(testFun)
 
@@ -26,13 +28,32 @@ class PDC3Test extends SuffixArrayTestBase with SparkSuite with NoKryoReferenceT
     ots.take(10) should be(Array(1, 4, 4, 4, 4, 4, 1, 1, 3, 1))
     ts.take(10) should be(Array(1, 4, 4, 4, 4, 4, 1, 1, 3, 1))
 
+    ts.count should be(102000)
+
     val sa = PDC3.apply(ts.map(_.toLong))
     sa.count should be(102000)
 
     sa.take(1000) should be(1 to 1000 map(_ * 102 - 1) toArray)
 
+    sa.getNumPartitions should be(12)
+
     ts.saveAsDirectFile("src/test/resources/normal.bam.ts", gzip = true)
-    sa.saveAsDirectFile("src/test/resources/normal.bam.sa", gzip = true)
+//    val ts2 = sc.directFile[Byte]("src/test/resources/normal.bam.ts", gzip = true)
+//    ts2.getNumPartitions should be(4)
+//    ts2.count should be(102000)
+//
+//    ts.saveAsDirectFile("src/test/resources/normal.bam.ts", gzip = false)
+//    val ts3 = sc.directFile[Byte]("src/test/resources/normal.bam.ts", gzip = false)
+//    ts3.getNumPartitions should be(4)
+//    ts3.count should be(102000)
+
+    sa.saveAsDirectFile("src/test/resources/normal.bam.sa", gzip = false)
+//    val sa2 = sc.directFile[Long]("src/test/resources/normal.bam.sa", gzip = false)
+//    sa2.count should be(102000)
+//
+//    sa.saveAsDirectFile("src/test/resources/normal.bam.sa", gzip = true)
+//    val sa3 = sc.directFile[Long]("src/test/resources/normal.bam.sa", gzip = true)
+//    sa3.count should be(102000)
   }
 }
 

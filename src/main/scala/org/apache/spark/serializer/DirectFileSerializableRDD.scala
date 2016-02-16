@@ -25,7 +25,7 @@ class DirectFileSerializableRDD[T: ClassTag](@transient val sc: SparkContext,
     // listStatus can throw exception if path does not exist.
     val inputFiles = fs.listStatus(path)
                      .map(_.getPath)
-                     .filter(_.getName.startsWith("part-"))
+                     .filter(path => path.getName.startsWith("part-") && (gzip == path.getName.endsWith(".gz")))
                      .sortBy(_.toString)
     // Fail fast if input files are invalid
     inputFiles.zipWithIndex.foreach { case (partFile, i) =>

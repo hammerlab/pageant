@@ -7,7 +7,6 @@ import org.hammerlab.pageant.fm.index.SparkFM
 import org.hammerlab.pageant.fm.utils.{Bounds, HiBound, LoBound, Bound, BoundsMap}
 import org.hammerlab.pageant.fm.utils.Utils.{Idx, TPos, T, BlockIdx, AT}
 
-
 /**
   * FMFinder implementation that performs LF-mappings using a broadcasted Map of all target sequences.
   *
@@ -77,7 +76,7 @@ case class BroadcastTFinder(fm: SparkFM) extends FMFinder[PosNeedle](fm) with Se
       } yield
         (
           blockIdx,
-          PosNeedle(tIdx, end+1, end+1, bound)
+          PosNeedle(tIdx, end, end, bound)
         )
 
     val occs = occRec(

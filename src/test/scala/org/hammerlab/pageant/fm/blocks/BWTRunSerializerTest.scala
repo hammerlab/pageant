@@ -5,12 +5,12 @@ import org.hammerlab.pageant.fm.index.SparkFM.Counts
 import org.hammerlab.pageant.fm.utils.Utils.toI
 import org.hammerlab.pageant.serialization.KryoSerialization._
 import org.hammerlab.pageant.utils.Utils.pt
-import org.hammerlab.pageant.utils.{KryoRegistrationRequired, NoKryoReferenceTracking, KryoSuite, SparkSuite}
+import org.hammerlab.pageant.utils.{KryoRegistrationRequired, KryoNoReferenceTracking, KryoSuite, PageantSuite}
 
 class BWTRunSerializerTest
-  extends SparkSuite
+  extends PageantSuite
     with KryoSuite
-    with NoKryoReferenceTracking
+    with KryoNoReferenceTracking
     with KryoRegistrationRequired {
 
   test("simple") {
@@ -56,16 +56,12 @@ class BWTRunSerializerTest
 
       val fullBlock = FullBWTBlock(start, counts, ts.toArray)
       val fullBytes = kryoBytes(fullBlock)
-//      println(s"data bytes:\n${pt(kryoBytes(ts.toArray))}")
-//      println(s"full bytes:\n${pt(fullBytes)}")
       fullBytes.length should be(fullBlockSize)
 
       println("")
 
       val rlBlock = RunLengthBWTBlock(start, counts, rl)
       val rlBytes = kryoBytes(rlBlock)
-//      println(s"data bytes:\n${pt(kryoBytes(rl.toArray))}")
-//      println(s"rl bytes:\n${pt(rlBytes)}")
       rlBytes.length should be(rlBlockSize)
     }
   }
