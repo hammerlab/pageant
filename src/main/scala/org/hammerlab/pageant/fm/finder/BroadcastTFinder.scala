@@ -6,7 +6,7 @@ import org.hammerlab.pageant.fm.finder.BroadcastTFinder.TMap
 import org.hammerlab.pageant.fm.index.SparkFM
 import org.hammerlab.pageant.fm.utils.{Bounds, HiBound, LoBound, Bound, BoundsMap}
 import org.hammerlab.pageant.fm.utils.Utils.{Idx, TPos, T, BlockIdx, AT}
-import org.hammerlab.pageant.utils.Utils.rev
+
 
 /**
   * FMFinder implementation that performs LF-mappings using a broadcasted Map of all target sequences.
@@ -65,13 +65,13 @@ case class BroadcastTFinder(fm: SparkFM) extends FMFinder[PosNeedle](fm) with Se
   }
 
   def occBidi(tssRdd: RDD[(AT, TPos, TPos)]): RDD[(AT, BoundsMap)] = {
-    val tssi = tssRdd.zipWithIndex().map(rev).setName("tssi")
+    val tssi = tssRdd.zipWithIndex().map(_.swap).setName("tssi")
     val tsBC = tssToBroadcast(tssi.map(p => (p._1, p._2._1)))
 
     val cur: RDD[(BlockIdx, PosNeedle)] =
       for {
         (tIdx, (ts, l, r)) <- tssi
-        end <- ts.indices
+        end <- r to ts.length
         bound: Bound <- List(LoBound(0L), HiBound(count))   // Starting bounds
         blockIdx = bound.blockIdx(blockSize)
       } yield
@@ -128,7 +128,7 @@ case class BroadcastTFinder(fm: SparkFM) extends FMFinder[PosNeedle](fm) with Se
   }
 
   private def tssToIndexAndBroadcast(tssRdd: RDD[AT]): (RDD[(Idx, AT)], Broadcast[TMap]) = {
-    val tssi = tssRdd.zipWithIndex().map(rev).setName("tssi")
+    val tssi = tssRdd.zipWithIndex().map(_.swap).setName("tssi")
     (tssi, tssToBroadcast(tssi))
   }
 
@@ -137,7 +137,7 @@ case class BroadcastTFinder(fm: SparkFM) extends FMFinder[PosNeedle](fm) with Se
       (for {
         (tIdx, ts) <- tssi.collect
       } yield {
-        tIdx -> ts.zipWithIndex.map(rev).toMap
+        tIdx -> ts.zipWithIndex.map(_.swap).toMap
       }).toMap
     )
   }

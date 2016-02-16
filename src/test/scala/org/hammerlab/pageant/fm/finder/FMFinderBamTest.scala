@@ -2,72 +2,42 @@ package org.hammerlab.pageant.fm.finder
 
 import org.apache.spark.SparkContext
 import org.apache.spark.rdd.RDD
-import org.apache.spark.serializer.DirectFileRDDSerializer._
 import org.hammerlab.pageant.fm.index.SparkFM
 import org.hammerlab.pageant.fm.utils.Utils._
 import org.hammerlab.pageant.fm.utils.{Bounds, FMSuite}
-import org.hammerlab.pageant.utils.Utils.{resourcePath, rev}
+import org.hammerlab.pageant.utils.Utils.resourcePath
 
 abstract class FMFinderBamTest extends FMSuite with FMFinderTest {
 
   def initFM(sc: SparkContext): SparkFM = {
-    // Written in PDC3Test
-    val sa = sc.directFile[Long](resourcePath("normal.bam.sa"), gzip = true)
-    val ts = sc.directFile[Byte](resourcePath("normal.bam.ts"), gzip = true)
-
-    val count = 102000
-    sa.count should be(count)
-
-    ts.getNumPartitions should be(4)
-
-    val fm = SparkFM(sa.zipWithIndex(), ts.zipWithIndex().map(rev), count, N = 6)
-    fm.save("normal.bam.fm", gzip = true)
-
-    val fm2 = SparkFM(sa.zipWithIndex(), ts.zipWithIndex().map(rev), count, N = 6, runLengthEncode = false)
-    fm2.save("normal.bam.fm2", gzip = true)
-
-    fm
-  }
-
-  test("totals") {
-    fm.totalSums should be(Array(0, 1000, 32291, 56475, 80113, 101897))
+    SparkFM.load(sc, resourcePath("normal.bam.fm"), gzip = true)
   }
 
   def formatActual(result: RDD[(AT, Bounds)]) = {
     result.collect.map(p => (p._1.map(toC).mkString(""), p._2.toTuple))
   }
 
-  def testLF(name: String, tuples: (String, Int)*): Unit = {
+  def testAllLF(name: String, tuples: (String, Int)*) =
+    testLF(
+      name,
+      (for {
+        ((s1, n1), (s2, n2)) <- (("", 0) :: tuples.toList).sliding(2).map(a => (a(0), a(1))).toArray
+      } yield {
+        (s2, (n1, n2))
+      }): _*
+    )
+
+  def testLF(name: String, expected: (String, (Int, Int))*): Unit = {
+    val strs = expected.map(_._1)
+    val needles: Seq[Array[T]] = strs.map(_.toArray.map(toI))
+
     test(name) {
-      val strs = tuples.map(_._1)
-      val needles: Seq[Array[T]] = strs.map(_.toArray.map(toI))
-
       val needlesRdd = sc.parallelize(needles, 2)
-
-      def testFM(fm: SparkFM): Unit = {
-        val actual = formatActual(fmf.occ(needlesRdd))
-
-        val expected =
-          for {
-            ((s1, n1), (s2, n2)) <- (("", 0) :: tuples.toList).sliding(2).map(a => (a(0), a(1))).toArray
-          } yield {
-            (s2, (n1, n2))
-          }
-
-        actual should be(expected)
-      }
-
-      testFM(fm)
-
-      val tmp = tmpPath("fmi")
-      fm.save(tmp)
-      val fm2 = SparkFM.load(sc, tmp)
-
-      testFM(fm2)
+      formatActual(fmf.occ(needlesRdd)) should be(expected)
     }
   }
 
-  testLF(
+  testAllLF(
     "normal-1",
     ("$", 1000),
     ("A", 32291),
@@ -77,7 +47,7 @@ abstract class FMFinderBamTest extends FMSuite with FMFinderTest {
     ("N", 102000)
   )
 
-  testLF(
+  testAllLF(
     "normal-2",
     ("$$", 0),
     ("$A", 307),
@@ -117,7 +87,7 @@ abstract class FMFinderBamTest extends FMSuite with FMFinderTest {
     ("NN", 102000)
   )
 
-  testLF(
+  testAllLF(
     "normal-3",
     ("$$$", 0),
     ("$$A", 0),
@@ -337,6 +307,20 @@ abstract class FMFinderBamTest extends FMSuite with FMFinderTest {
     ("NNN", 102000)
   )
 
+  testLF(
+    "tens",
+    "GGCCCTAAACA" -> (0, 0),
+    "GCCCTAAACAG" -> (0, 0),
+    "CCCTAAACAGG" -> (0, 0),
+    "CCTAAACAGGT" -> (0, 0),
+    "CTAAACAGGTG" -> (0, 0),
+    "TAAACAGGTGG" -> (0, 0),
+    "AAACAGGTGGT" -> (0, 0),
+    "AACAGGTGGTA" -> (0, 0),
+    "ACAGGTGGTAA" -> (0, 0),
+    "CAGGTGGTAAG" -> (0, 0)
+  )
+
   def testCountBidi(strTuples: ((String, String, String), List[Int])*): Unit = {
     val tuples = for {
       ((left, middle, right), counts) <- strTuples.toList
@@ -353,7 +337,7 @@ abstract class FMFinderBamTest extends FMSuite with FMFinderTest {
       } yield {
         counts.length should be((start + 1) * (str.length - end + 1))
         str -> (for {
-          (idx, count) <- counts.zipWithIndex.map(rev).toMap
+          (idx, count) <- counts.zipWithIndex.map(_.swap).toMap
           r = idx / (start + 1)
           c = end + (idx % (start + 1))
         } yield {
@@ -385,19 +369,20 @@ abstract class FMFinderBamTest extends FMSuite with FMFinderTest {
 
       for {
         (str, expected) <- expectedMap
-        counts = actualMap(str)
+        counts = actualMap(str).toList.sortBy(_._1)
       } {
-        withClue(s"$str") {
-          counts.size should be(expected.size)
-          for {
-            ((r, c), expectedCount) <- expected
-            actualCount = counts(r, c)
-          } {
-            withClue(s"($r,$c)") {
-              actualCount should be(expectedCount)
-            }
-          }
-        }
+        counts should be(expected.toList.sortBy(_._1))
+//        withClue(s"$str") {
+//          counts.size should be(expected.size)
+//          for {
+//            ((r, c), expectedCount) <- expected
+//            actualCount = counts(r, c)
+//          } {
+//            withClue(s"($r,$c)") {
+//              actualCount should be(expectedCount)
+//            }
+//          }
+//        }
       }
     }
   }

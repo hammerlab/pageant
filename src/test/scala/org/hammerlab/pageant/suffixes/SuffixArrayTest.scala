@@ -4,50 +4,51 @@ import org.scalatest.{Ignore, FunSuite, Matchers}
 
 trait SuffixArrayTestBase extends FunSuite with Matchers {
   def arr(a: Array[Int], n: Int): Array[Int]
-  def name: String
 
   def testFn(name: String)(testFun: => Unit): Unit
 
-  testFn(s"$name SA 1") {
-    arr(Array(0, 1, 2, 0, 1, 1), 4) should be(Array(3, 0, 5, 4, 1, 2))
+  testFn(s"SA 1") {
+    arr(Array(0, 1, 2, 0, 1, 1), 4) should be(Array(0, 3, 5, 4, 1, 2))
   }
 
-  testFn(s"$name SA 2") {
+  testFn(s"SA 2") {
     // Inserting elements at the end of the above array.
-    arr(Array(0, 1, 2, 0, 1, 1, 0), 4) should be(Array(6, 3, 0, 5, 4, 1, 2))
-    arr(Array(0, 1, 2, 0, 1, 1, 1), 4) should be(Array(3, 0, 6, 5, 4, 1, 2))
-    arr(Array(0, 1, 2, 0, 1, 1, 2), 4) should be(Array(3, 0, 4, 5, 1, 6, 2))
-    arr(Array(0, 1, 2, 0, 1, 1, 3), 4) should be(Array(3, 0, 4, 1, 5, 2, 6))
+    arr(Array(0, 1, 2, 0, 1, 1, 0), 4) should be(Array(0, 3, 6, 5, 4, 1, 2))
+    arr(Array(0, 1, 2, 0, 1, 1, 1), 4) should be(Array(0, 3, 6, 5, 4, 1, 2))
+    arr(Array(0, 1, 2, 0, 1, 1, 2), 4) should be(Array(0, 3, 4, 1, 5, 2, 6))
+    arr(Array(0, 1, 2, 0, 1, 1, 3), 4) should be(Array(0, 3, 4, 1, 5, 2, 6))
   }
 
-  testFn(s"$name SA 3") {
+  testFn(s"SA 3") {
     // Inserting elements at index 3 in the last array above.
-    arr(Array(0, 1, 2, 0, 0, 1, 1, 3), 4) should be(Array(3, 4, 0, 5, 1, 6, 2, 7))
-    arr(Array(0, 1, 2, 1, 0, 1, 1, 3), 4) should be(Array(4, 0, 3, 5, 1, 6, 2, 7))
-    arr(Array(0, 1, 2, 2, 0, 1, 1, 3), 4) should be(Array(4, 0, 5, 1, 6, 3, 2, 7))
-    arr(Array(0, 1, 2, 3, 0, 1, 1, 3), 4) should be(Array(4, 0, 5, 1, 6, 2, 7, 3))
+    arr(Array(0, 1, 2, 0, 0, 1, 1, 3), 4) should be(Array(0, 3, 4, 5, 1, 6, 2, 7))
+    arr(Array(0, 1, 2, 1, 0, 1, 1, 3), 4) should be(Array(0, 4, 3, 5, 1, 6, 2, 7))
+    arr(Array(0, 1, 2, 2, 0, 1, 1, 3), 4) should be(Array(0, 4, 5, 1, 6, 3, 2, 7))
+    arr(Array(0, 1, 2, 3, 0, 1, 1, 3), 4) should be(Array(0, 4, 5, 1, 6, 2, 7, 3))
   }
 
-  testFn(s"$name SA 4") {
+  testFn(s"SA 4") {
     // Inserting elements at index 5 in the first array in the second block above.
-    arr(Array(0, 1, 2, 0, 1, 0, 1, 0), 4) should be(Array(7, 5, 3, 0, 6, 4, 1, 2))
-    arr(Array(0, 1, 2, 0, 1, 1, 1, 0), 4) should be(Array(7, 3, 0, 6, 5, 4, 1, 2))
-    arr(Array(0, 1, 2, 0, 1, 2, 1, 0), 4) should be(Array(7, 0, 3, 6, 1, 4, 2, 5))
-    arr(Array(0, 1, 2, 0, 1, 3, 1, 0), 4) should be(Array(7, 0, 3, 6, 1, 4, 2, 5))
+    arr(Array(0, 1, 2, 0, 1, 0, 1, 0), 4) should be(Array(0, 3, 5, 7, 4, 6, 1, 2))
+    arr(Array(0, 1, 2, 0, 1, 1, 1, 0), 4) should be(Array(0, 3, 7, 6, 5, 4, 1, 2))
+    arr(Array(0, 1, 2, 0, 1, 2, 1, 0), 4) should be(Array(0, 3, 7, 6, 1, 4, 2, 5))
+    arr(Array(0, 1, 2, 0, 1, 3, 1, 0), 4) should be(Array(0, 3, 7, 6, 1, 4, 2, 5))
   }
 
-  testFn(s"$name SA 5: zeroes") {
+  testFn(s"SA 5: zeroes") {
     for { i <- 0 to 16 } {
-      arr(Array.fill(i+1)(0), 4) should be((i to 0 by -1).toArray)
+      withClue(s"$i zeroes:") {
+        arr(Array.fill(i+1)(0), 4) should be((0 to i).toArray)
+      }
     }
   }
 
-  testFn(s"$name SA 6") {
+  testFn(s"SA 6") {
     arr(Array(5,1,3,0,4,5,2), 7) should be(Array(3, 1, 6, 2, 4, 0, 5))
     arr(Array(2,2,2,2,0,2,2,2,1), 9) should be(Array(4, 8, 3, 7, 2, 6, 1, 5, 0))
   }
 
-  testFn(s"$name random 100") {
+  testFn(s"random 100") {
     val a = Array(
       2, 7, 8, 7, 5, 5, 2, 3, 8, 1,  // 0
       2, 9, 2, 2, 6, 2, 9, 9, 6, 7,  // 1
@@ -87,7 +88,7 @@ trait SuffixArrayTestBase extends FunSuite with Matchers {
     }).toArray
   }
 
-  testFn(s"$name random 1000") {
+  testFn(s"random 1000") {
     val a = intsFromFile("random1000.in")
     val expected = intsFromFile("random1000.expected")
     arr(a, 10) should be(expected)
@@ -101,10 +102,8 @@ trait SuffixArrayLocalTestBase extends SuffixArrayTestBase {
 @Ignore
 class WIPSuffixArrayTest extends SuffixArrayLocalTestBase {
   override def arr(a: Array[Int], n: Int): Array[Int] = WIPSuffixArray.make(a, n)
-  override def name = "SuffixArrayTest"
 }
 
 class KarkkainenTest extends SuffixArrayLocalTestBase {
   override def arr(a: Array[Int], n: Int): Array[Int] = KarkainnenSuffixArray.make(a, n)
-  override def name = "KarkkainenTest"
 }

@@ -5,7 +5,7 @@ import org.hammerlab.pageant.serialization.{DirectFileRDDTest, KryoSerializerTes
 import org.hammerlab.pageant.utils.SparkSuite
 
 import scala.util.Random
-import org.hammerlab.pageant.utils.Utils.rev
+
 
 trait KryoBasesRegistrarTest {
   self: SparkSuite =>
@@ -28,7 +28,7 @@ class BasesSerializationTest(withClasses: Boolean = false)
   extends DirectFileRDDTest(withClasses)
     with TestUtils {
 
-  val bases = "ACGT".zipWithIndex.map(rev).toMap
+  val bases = "ACGT".zipWithIndex.map(_.swap).toMap
 
   Random.setSeed(1234L)
 

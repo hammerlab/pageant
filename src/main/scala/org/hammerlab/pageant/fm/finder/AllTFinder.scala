@@ -4,13 +4,13 @@ import org.apache.spark.rdd.RDD
 import org.hammerlab.pageant.fm.index.SparkFM
 import org.hammerlab.pageant.fm.utils.Utils.{BlockIdx, TPos, Idx, AT}
 import org.hammerlab.pageant.fm.utils._
-import org.hammerlab.pageant.utils.Utils.rev
+
 
 import scala.collection.mutable.ArrayBuffer
 
 case class AllTFinder(fm: SparkFM) extends FMFinder[TNeedle](fm) {
   def occAll(tss: RDD[AT]): RDD[(AT, BoundsMap)] = {
-    val tssi = tss.zipWithIndex().map(rev).setName("tssi")
+    val tssi = tss.zipWithIndex().map(_.swap).setName("tssi")
     val tssPrefixes: RDD[(Idx, TPos, AT)] =
       tssi.flatMap { case (tIdx, ts) =>
         var cur = ts
@@ -45,7 +45,7 @@ case class AllTFinder(fm: SparkFM) extends FMFinder[TNeedle](fm) {
   }
 
   def occBidi(tss: RDD[(AT, TPos, TPos)]): RDD[(AT, BoundsMap)] = {
-    val tssi = tss.zipWithIndex().map(rev).setName("tssi")
+    val tssi = tss.zipWithIndex().map(_.swap).setName("tssi")
     val tssPrefixes: RDD[(Idx, TPos, AT)] =
       tssi.flatMap { case (tIdx, (ts, l, r)) =>
         var cur = ts
@@ -82,7 +82,7 @@ case class AllTFinder(fm: SparkFM) extends FMFinder[TNeedle](fm) {
   }
 
   def occ(tss: RDD[AT]): RDD[(AT, Bounds)] = {
-    val tssi = tss.zipWithIndex().map(rev).setName("tssi")
+    val tssi = tss.zipWithIndex().map(_.swap).setName("tssi")
     tssi.cache()
 
     val cur: RDD[(BlockIdx, TNeedle)] =

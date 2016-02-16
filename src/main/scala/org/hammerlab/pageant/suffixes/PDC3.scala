@@ -63,6 +63,12 @@ object PDC3 {
     }
   }
 
+  def equivalentTuples(t1: T3, t2: T3): Boolean = {
+    t1 == t2 &&
+      t1._1 != zero && t1._2 != zero && t1._3 != zero &&
+      t2._1 != zero && t2._2 != zero && t2._3 != zero
+  }
+
   def name(s: RDD[T3I], N: String): (Boolean, RDD[(T, Name)], RDD[(Name, T3, T)]) = {
 
     //print(s"s: ${s.collect.mkString(",")}")
@@ -76,7 +82,7 @@ object PDC3 {
           val curName =
             prevTuple match {
               case Some((prevName, prevLastTuple, prevLastIdx)) =>
-                if (prevLastTuple == curTuple)
+                if (equivalentTuples(prevLastTuple, curTuple))
                   prevName
                 else
                   prevName + 1
@@ -111,7 +117,7 @@ object PDC3 {
       val (partitionIdx, curCount, partitionCount, curFirstTuple, curLastTuple) = cur
 
       val curStartCount =
-        if (prevLastTupleOpt.exists(_ != curFirstTuple))
+        if (prevLastTupleOpt.exists(!equivalentTuples(_, curFirstTuple)))
           prevEndCount + 1
         else
           prevEndCount
@@ -119,7 +125,7 @@ object PDC3 {
       prevEndCount = curStartCount + curCount
       if (!foundDupes &&
         ((curCount + 1 != partitionCount) ||
-          prevLastTupleOpt.exists(_ == curFirstTuple))) {
+          prevLastTupleOpt.exists(equivalentTuples(_, curFirstTuple)))) {
         foundDupes = true
       }
       prevLastTupleOpt = Some(curLastTuple)
@@ -204,35 +210,62 @@ object PDC3 {
   val orderingL2 = implicitly[Ordering[(T, T)]]
   val orderingL3 = implicitly[Ordering[(T, T, T)]]
 
+  def cmp2(t1: (T, T, T), t2: (T, T, T)): Int = {
+    (
+      if (t1._1 == t2._1)
+        if (t1._1 == zero)
+          t1._3 - t2._3
+        else
+          t1._2 - t2._2
+      else
+        t1._1 - t2._1
+    ).toInt
+  }
+
+  def cmp3(t1: T3I, t2: T3I): Int = cmp3((t1._1._1, t1._1._2, t1._1._3, t1._2), (t2._1._1, t2._1._2, t2._1._3, t2._2))
+  def cmp3(t1: (T, T, T, T), t2: (T, T, T, T)): Int = {
+    (
+      if (t1._1 == t2._1)
+        if (t1._1 == zero)
+          t1._4 - t2._4
+        else if (t1._2 == t2._2)
+          if (t1._2 == zero)
+            t1._4 - t2._4
+          else
+            t1._3 - t2._3
+        else
+          t1._2 - t2._2
+      else
+        t1._1 - t2._1
+    ).toInt
+  }
+
   def cmpFn(o1: (Name, Joined), o2: (Name, Joined)): Int = {
     val (i1, j1) = o1
     val (i2, j2) = o2
     (i1 % 3, i2 % 3) match {
       case (0, 0) =>
-        orderingL2.compare(
-          (j1.t0O.get, j1.n0O.getOrElse(zero)),
-          (j2.t0O.get, j2.n0O.getOrElse(zero))
+        cmp2(
+          (j1.t0O.get, j1.n0O.getOrElse(zero), i1),
+          (j2.t0O.get, j2.n0O.getOrElse(zero), i2)
         )
       case (0, 1) =>
-        orderingL2.compare(
-          (j1.t0O.get, j1.n0O.getOrElse(zero)),
-          (j2.t0O.get, j2.n1O.getOrElse(zero))
+        cmp2(
+          (j1.t0O.get, j1.n0O.getOrElse(zero), i1),
+          (j2.t0O.get, j2.n1O.getOrElse(zero), i2)
         )
       case (1, 0) =>
-        orderingL2.compare(
-          (j1.t0O.get, j1.n1O.getOrElse(zero)),
-          (j2.t0O.get, j2.n0O.getOrElse(zero))
+        cmp2(
+          (j1.t0O.get, j1.n1O.getOrElse(zero), i1),
+          (j2.t0O.get, j2.n0O.getOrElse(zero), i2)
         )
       case (0, 2) | (2, 0) =>
-        orderingL3.compare(
-          (j1.t0O.get, j1.t1O.getOrElse(zero), j1.n1O.getOrElse(zero)),
-          (j2.t0O.get, j2.t1O.getOrElse(zero), j2.n1O.getOrElse(zero))
+        cmp3(
+          (j1.t0O.get, j1.t1O.getOrElse(zero), j1.n1O.getOrElse(zero), i1),
+          (j2.t0O.get, j2.t1O.getOrElse(zero), j2.n1O.getOrElse(zero), i2)
         )
       case _ =>
-        orderingL.compare(
-          j1.n0O.get,
-          j2.n0O.get
-        )
+        (j1.n0O.get - j2.n0O.get).toInt
     }
   }
 
@@ -308,7 +341,8 @@ object PDC3 {
       } yield {
         (j, (e, i))
       }).setName(s"$N-flatmapped")
-        .groupByKey().setName(s"$N-tuples-grouped")
+        .groupByKey()
+        .setName(s"$N-tuples-grouped")
         .mapValues(
           ts => {
             ts.toList.sortBy(_._2).map(_._1) match {
@@ -316,8 +350,10 @@ object PDC3 {
               case e1 :: e2 :: Nil => (e1, e2, zero)
               case es => (es(0), es(1), es(2))
             }
-          }).setName(s"$N-list->tupled;zero-padded")
-        .map(_.swap).setName(s"$N-tuples")
+          })
+        .setName(s"$N-list->tupled;zero-padded")
+        .map(_.swap)
+        .setName(s"$N-tuples")
 
     val S: RDD[T3I] =
       (
@@ -327,9 +363,9 @@ object PDC3 {
           (tuples ++ t.context.parallelize(((zero, zero, zero), n+1) :: Nil)).setName(s"$N-zero3-appended")
         else
           tuples
-      ).map(_ -> null).setName(s"$N-null-paired")
-       .sortByKey().setName(s"$N-post-sort")
-       .keys.setName(s"$N-S")
+      ).setName(s"$N-null-paired")
+       //.sortByKey()   .setName(s"$N-post-sort")
+       .sortWith(cmp3).setName(s"$N-S")
 
     pm("S", S)
 

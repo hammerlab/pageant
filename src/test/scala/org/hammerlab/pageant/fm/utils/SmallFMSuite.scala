@@ -61,7 +61,7 @@ object SmallFMSuite {
              N: Int): SparkFM = {
 
     val saZipped = sc.parallelize(sa.map(_.toLong), saPartitions).zipWithIndex()
-    val tZipped = sc.parallelize(ts.map(toI), tsPartitions).zipWithIndex().map(rev)
+    val tZipped = sc.parallelize(ts.map(toI), tsPartitions).zipWithIndex().map(_.swap)
 
     SparkFM(saZipped, tZipped, ts.length, N = N, blockSize = blockSize)
   }

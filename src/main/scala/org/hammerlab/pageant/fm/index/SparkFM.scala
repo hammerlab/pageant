@@ -10,7 +10,7 @@ import org.hammerlab.pageant.fm.blocks.{FullBWTBlock, RunLengthBWTBlock, BWTBloc
 import org.hammerlab.pageant.fm.index.SparkFM.Counts
 import org.hammerlab.pageant.fm.utils.Utils.{BlockIdx, Idx, T, V}
 import org.hammerlab.pageant.suffixes.PDC3
-import org.hammerlab.pageant.utils.Utils.rev
+
 
 import scala.collection.mutable.ArrayBuffer
 
@@ -80,7 +80,7 @@ object SparkFM {
     val count = us.count
     @transient val t: RDD[T] = us.map(toT)
     t.cache()
-    @transient val tZipped: RDD[(Idx, T)] = t.zipWithIndex().map(rev)
+    @transient val tZipped: RDD[(Idx, T)] = t.zipWithIndex().map(_.swap)
     @transient val sa = PDC3(t.map(_.toLong), count)
     @transient val saZipped: RDD[(V, Idx)] = sa.zipWithIndex()
 

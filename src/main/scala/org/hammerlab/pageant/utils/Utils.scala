@@ -33,8 +33,6 @@ object Utils {
       )
       .mkString("\n")
 
-  def rev[T, U](t: (T, U)): (U, T) = (t._2, t._1)
-
   def resourcePath(fn: String): String = ClassLoader.getSystemClassLoader.getResource(fn).getFile
 
   def loadBam(sc: SparkContext, name: String, includeRC: Boolean = false): RDD[Byte] = {

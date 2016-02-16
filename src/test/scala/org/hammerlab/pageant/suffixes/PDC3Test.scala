@@ -5,6 +5,7 @@ import org.hammerlab.pageant.utils.{NoKryoReferenceTracking, SparkSuite}
 import org.hammerlab.pageant.utils.Utils.loadBam
 import org.scalatest.{FunSuite, Matchers}
 
+
 class PDC3Test extends SuffixArrayTestBase with SparkSuite with NoKryoReferenceTracking {
 
   override def testFn(name: String)(testFun: => Unit): Unit = test(name)(testFun)
@@ -12,15 +13,23 @@ class PDC3Test extends SuffixArrayTestBase with SparkSuite with NoKryoReferenceT
   import PDC3.{ItoT, TtoI}
 
   override def arr(a: Array[Int], n: Int): Array[Int] = {
-    PDC3.apply(sc.parallelize(a.map(ItoT(_) + 1))).map(TtoI).collect
+    PDC3.apply(sc.parallelize(a.map(ItoT))).map(TtoI).collect
   }
-  override def name = "PDC3Test"
 
-  test("normal") {
-    val ts = loadBam(sc, "normal.bam").repartition(4)
+  test("bam") {
+    val ots = loadBam(sc, "normal.bam")
+    val ts = ots.zipWithIndex().map(_.swap).sortByKey(numPartitions = 4).map(_._2)
+
+    ots.getNumPartitions should be(1)
+    ts.getNumPartitions should be(4)
+
+    ots.take(10) should be(Array(1, 4, 4, 4, 4, 4, 1, 1, 3, 1))
+    ts.take(10) should be(Array(1, 4, 4, 4, 4, 4, 1, 1, 3, 1))
 
     val sa = PDC3.apply(ts.map(_.toLong))
     sa.count should be(102000)
+
+    sa.take(1000) should be(1 to 1000 map(_ * 102 - 1) toArray)
 
     ts.saveAsDirectFile("src/test/resources/normal.bam.ts", gzip = true)
     sa.saveAsDirectFile("src/test/resources/normal.bam.sa", gzip = true)

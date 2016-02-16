@@ -5,7 +5,7 @@ import java.io.File
 import org.hammerlab.pageant.fm.blocks.RunLengthBWTBlock
 import org.hammerlab.pageant.fm.utils.SmallFMSuite
 import org.hammerlab.pageant.utils.{TmpFilesTest, SparkSuite}
-import org.hammerlab.pageant.utils.Utils.rev
+
 
 import scala.collection.mutable.ArrayBuffer
 
@@ -44,7 +44,7 @@ class SparkFMTest extends SparkSuite with TmpFilesTest {
             counts(start).map(_.toLong),
             bwt.slice(start, end)
           )
-        }).toArray.zipWithIndex.map(rev)
+        }).toArray.zipWithIndex.map(_.swap)
 
       def testFM(fm: SparkFM) {
         fm.totalSums should be(Array(0, 1, 3, 5, 7, 9).map(_.toLong))
