@@ -2,7 +2,7 @@ package org.apache.spark.sortwith
 
 import java.util.Comparator
 
-import org.apache.spark.rdd.{ShuffledRDD, RDD}
+import org.apache.spark.rdd.{RDD, ShuffledRDD}
 
 import scala.reflect.ClassTag
 
@@ -29,7 +29,19 @@ class SortWithRDD[T: ClassTag](@transient rdd: RDD[T]) extends Serializable {
         cmpFn(t1, t2) > 0
 
     new ShuffledRDD[T, T, T](rdd.map(_ -> nil), partitioner).mapPartitions(iter => {
-      iter.map(_._1).toArray.sortWith(boolCmpFn).toIterator
+      val arr = iter.map(_._1).toArray
+      try {
+        arr.sortWith(boolCmpFn).toIterator
+      } catch {
+        case e: IllegalArgumentException =>
+          throw new IllegalArgumentException(
+            s"Inconsistent sort:\n\t${arr.map({
+              case ((t1, t2, t3), i) => s"($t1,$t2,$t3) -> $i"
+              case o => o.toString
+            }).mkString("\n\t")}",
+            e
+          )
+      }
     })
   }
 }

@@ -8,7 +8,7 @@ import org.bdgenomics.adam.serialization.ADAMKryoRegistrator
 import org.hammerlab.pageant.fm.blocks.{RunLengthBWTBlockSerializer, RunLengthBWTBlock, FullBWTBlock, BWTBlock, BWTRunSerializer, BWTRun}
 import org.hammerlab.pageant.reads.{Bases, BasesSerializer}
 import org.hammerlab.pageant.scratch.{BasesTuple, BasesTupleSerializer, Counts, CountsSerializer}
-import org.hammerlab.pageant.suffixes.PDC3
+import org.hammerlab.pageant.suffixes.{Joined, PDC3}
 
 import scala.collection.mutable.ArrayBuffer
 
@@ -31,7 +31,7 @@ class PageantKryoRegistrar extends KryoRegistrator {
     // https://mail-archives.apache.org/mod_mbox/spark-user/201504.mbox/%3CCAC95X6JgXQ3neXF6otj6a+F_MwJ9jbj9P-Ssw3Oqkf518_eT1w@mail.gmail.com%3E
     kryo.register(classOf[scala.reflect.ClassTag$$anon$1])
     kryo.register(classOf[java.lang.Class[_]])
-    kryo.register(classOf[PDC3.Joined])
+    kryo.register(classOf[Joined])
     kryo.register(classOf[scala.collection.mutable.WrappedArray.ofRef[_]])
 
     kryo.register(classOf[ReferenceRegion])

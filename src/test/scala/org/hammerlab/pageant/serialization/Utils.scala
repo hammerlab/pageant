@@ -1,11 +1,9 @@
 package org.hammerlab.pageant.serialization
 
 import java.io.{File, FilenameFilter}
-import java.nio.file.Files
 
 import org.apache.commons.io.FilenameUtils
 import org.apache.commons.io.filefilter.PrefixFileFilter
-import org.apache.hadoop.fs.Path
 import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.DirectFileRDDSerializer._
 import org.hammerlab.pageant.serialization.SequenceFileSerializableRDD._

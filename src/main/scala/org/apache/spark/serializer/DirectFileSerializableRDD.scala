@@ -14,7 +14,7 @@ class DirectFileSerializableRDDPartition(val index: Int) extends Partition
 class DirectFileSerializableRDD[T: ClassTag](@transient val sc: SparkContext,
                                              filename: String,
                                              readClass: Boolean = false,
-                                             gzip: Boolean = false)
+                                             gzip: Boolean = true)
   extends RDD[T](sc, Nil) {
 
   @transient private val hadoopConf = sc.hadoopConfiguration
@@ -70,14 +70,18 @@ object DirectFileSerializableRDD {
   /**
     * Return the file name for the given partition.
     */
-  def partitionFileName(partitionIndex: Int, gzip: Boolean = false): String = {
+  def partitionFileName(partitionIndex: Int, gzip: Boolean = true): String = {
     s"part-%05d${if (gzip) ".gz" else ""}".format(partitionIndex)
   }
 }
 
 class DirectFileRDDSerializer[T: ClassTag](@transient val rdd: RDD[T]) extends Serializable {
   def directFile = saveAsDirectFile _
-  def saveAsDirectFile(path: String, writeClass: Boolean = false, gzip: Boolean = false): RDD[T] = {
+  def saveAsDirectFile(path: String,
+                       writeClass: Boolean = false,
+                       gzip: Boolean = true,
+                       returnOriginal: Boolean = false): RDD[T] = {
+    println(s"saving ${rdd.name} with ${rdd.getNumPartitions} partitions")
     def writePartition(ctx: TaskContext, iter: Iterator[T]): Unit = {
       val idx = ctx.partitionId()
       val serializer = SparkEnv.get.serializer.newInstance()
@@ -94,7 +98,24 @@ class DirectFileRDDSerializer[T: ClassTag](@transient val rdd: RDD[T]) extends S
       ss.close()
     }
     rdd.context.runJob(rdd, writePartition _)
-    rdd
+    if (returnOriginal)
+      rdd
+    else
+      new DirectFileSerializableRDD[T](rdd.context, path, readClass = writeClass, gzip = gzip)
+  }
+
+  def direct[U: ClassTag](path: String,
+                          fn: RDD[T] => RDD[U],
+                          writeClass: Boolean = false,
+                          gzip: Boolean = true,
+                          returnOriginal: Boolean = false): RDD[U] = {
+    val fs = FileSystem.get(rdd.context.hadoopConfiguration)
+    import DirectFileRDDSerializer._
+    if (fs.exists(new Path(path))) {
+      rdd.context.directFile[U](path, writeClass, gzip)
+    } else {
+      fn(rdd).saveAsDirectFile(path, writeClass, gzip, returnOriginal)
+    }
   }
 }
 
@@ -104,7 +125,7 @@ object DirectFileRDDSerializer {
 }
 
 class DirectFileRDDDeserializer(val sc: SparkContext) {
-  def directFile[T: ClassTag](path: String, readClass: Boolean = false, gzip: Boolean = false): RDD[T] = {
+  def directFile[T: ClassTag](path: String, readClass: Boolean = false, gzip: Boolean = true): RDD[T] = {
     new DirectFileSerializableRDD[T](sc, path, readClass, gzip)
   }
 }

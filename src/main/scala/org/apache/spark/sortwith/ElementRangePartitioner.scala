@@ -186,7 +186,19 @@ private[spark] object ElementRangePartitioner {
   def determineBounds[T: ClassTag](candidates: ArrayBuffer[(T, Float)],
                                    partitions: Int,
                                    cmpFn: (T, T) => Int): Array[T] = {
-    val ordered = candidates.sortWith((p1, p2) => cmpFn(p1._1, p2._1) < 0)
+    val ordered =
+      try {
+        candidates.sortWith((p1, p2) => cmpFn(p1._1, p2._1) < 0)
+      } catch {
+        case e: IllegalArgumentException =>
+          throw new IllegalArgumentException(
+            s"Inconsistent sort:\n\t${candidates.map(_._1).map({
+              case ((t1, t2, t3), idx) => s"($t1,$t2,$t3) -> $idx"
+              case o => o.toString
+            }).mkString("\n\t")}",
+            e
+          )
+      }
     val numCandidates = ordered.size
     val sumWeights = ordered.map(_._2.toDouble).sum
     val step = sumWeights / partitions

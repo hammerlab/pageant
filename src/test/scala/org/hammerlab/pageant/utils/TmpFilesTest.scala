@@ -1,6 +1,6 @@
 package org.hammerlab.pageant.utils
 
-import java.io.{IOException, File}
+import java.io.File
 import java.nio.file.Files
 
 import org.apache.commons.io.FileUtils

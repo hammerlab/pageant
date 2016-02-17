@@ -1,12 +1,9 @@
 package org.hammerlab.pageant.suffixes
 
 import org.apache.spark.serializer.DirectFileRDDSerializer._
+import org.hammerlab.pageant.utils.Utils.{loadBam, resourcePath}
 import org.hammerlab.pageant.utils.{KryoNoReferenceTracking, PageantSuite}
-import org.hammerlab.pageant.utils.Utils.loadBam
 import org.scalatest.{FunSuite, Matchers}
-
-import scala.collection.mutable.ArrayBuffer
-
 
 class PDC3Test extends SuffixArrayTestBase with PageantSuite with KryoNoReferenceTracking {
 
@@ -19,7 +16,7 @@ class PDC3Test extends SuffixArrayTestBase with PageantSuite with KryoNoReferenc
   }
 
   test("bam") {
-    val ots = loadBam(sc, "normal.bam")
+    val ots = loadBam(sc, resourcePath("normal.bam"))
     val ts = ots.zipWithIndex().map(_.swap).sortByKey(numPartitions = 4).map(_._2)
 
     ots.getNumPartitions should be(1)
@@ -35,7 +32,7 @@ class PDC3Test extends SuffixArrayTestBase with PageantSuite with KryoNoReferenc
 
     sa.take(1000) should be(1 to 1000 map(_ * 102 - 1) toArray)
 
-    sa.getNumPartitions should be(12)
+    sa.getNumPartitions should be(4)
 
     ts.saveAsDirectFile("src/test/resources/normal.bam.ts", gzip = true)
     sa.saveAsDirectFile("src/test/resources/normal.bam.sa", gzip = true)
@@ -43,7 +40,7 @@ class PDC3Test extends SuffixArrayTestBase with PageantSuite with KryoNoReferenc
 }
 
 class CmpFnTest extends FunSuite with Matchers {
-  import PDC3.{Joined, cmpFn, zero}
+  import PDC3.{cmpFn, zero}
 
   test("basic 1-1 cmp") {
     cmpFn(

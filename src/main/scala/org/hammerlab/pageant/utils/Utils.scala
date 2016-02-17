@@ -4,6 +4,8 @@ import org.bdgenomics.adam.rdd.ADAMContext._
 import org.apache.spark.SparkContext
 import org.apache.spark.rdd.RDD
 import org.hammerlab.pageant.fm.utils.Utils.{toI, rc}
+import org.hammerlab.pageant.rdd.OrderedRepartitionRDD._
+import org.hammerlab.pageant.rdd.IfRDD._
 
 object Utils {
   def byteToHex(b: Byte) = {
@@ -35,9 +37,13 @@ object Utils {
 
   def resourcePath(fn: String): String = ClassLoader.getSystemClassLoader.getResource(fn).getFile
 
-  def loadBam(sc: SparkContext, name: String, includeRC: Boolean = false): RDD[Byte] = {
+  def loadBam(sc: SparkContext,
+              name: String,
+              includeRC: Boolean = false,
+              numPartitions: Int = 0): RDD[Byte] = {
+    val reads = sc.loadAlignments(name).iff(numPartitions > 0, _.orderedRepartition(numPartitions))
     for {
-      read <- sc.loadAlignments(resourcePath(name))
+      read <- reads
       seq = s"${read.getSequence}$$" + (if (includeRC) s"${rc(read.getSequence)}$$" else "")
       bp <- seq
     } yield {
