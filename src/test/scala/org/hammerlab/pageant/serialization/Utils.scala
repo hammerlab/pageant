@@ -58,8 +58,8 @@ class SequenceFileRDDTest extends Utils {
 }
 
 class DirectFileRDDTest(withClasses: Boolean = false) extends Utils {
-  def serializeRDD[T: ClassTag](rdd: RDD[T], path: String): RDD[T] = rdd.saveAsDirectFile(path, withClasses)
-  def deserializeRDD[T: ClassTag](path: String): RDD[T] = sc.directFile[T](path, withClasses)
+  def serializeRDD[T: ClassTag](rdd: RDD[T], path: String): RDD[T] = rdd.saveAsDirectFile(path, withClasses, gzip = false)
+  def deserializeRDD[T: ClassTag](path: String): RDD[T] = sc.directFile[T](path, withClasses, gzip = false)
 }
 
 trait FooRegistrarTest extends KryoSerdeTest {

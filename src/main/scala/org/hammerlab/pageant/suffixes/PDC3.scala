@@ -1,5 +1,7 @@
 package org.hammerlab.pageant.suffixes
 
+import java.io.{ObjectOutputStream, ObjectInputStream}
+
 import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.DirectFileRDDSerializer._
@@ -136,10 +138,10 @@ object PDC3 {
     }
   }
 
-  def pm[U:ClassTag](name: String, r: RDD[U]): Unit = {
+  def pm[U:ClassTag](name: String, r: () => RDD[U]): Unit = {
     if (debug) {
       val partitioned =
-        r
+        r()
         .mapPartitionsWithIndex((idx, iter) => iter.map((idx, _)))
         .groupByKey
         .collect
@@ -258,9 +260,29 @@ object PDC3 {
     val sc = tOpt.orElse(tiOpt).get.context
     val fs = FileSystem.get(sc.hadoopConfiguration)
 
+    def backupAny[U: ClassTag](name: String, fn: () => U): U = {
+      backupPathOpt match {
+        case Some(bp) if !backupBlacklist(name) && (backupWhitelist.isEmpty || backupWhitelist(name)) =>
+          val pathStr = s"$bp/$n-$name"
+          val path = new Path(pathStr)
+          if (fs.exists(path)) {
+            val ois = new ObjectInputStream(fs.open(path))
+            val u = ois.readObject().asInstanceOf[U]
+            ois.close()
+            u
+          } else {
+            val u = fn()
+            val oos = new ObjectOutputStream(fs.create(path))
+            oos.writeObject(u)
+            oos.close()
+            u
+          }
+        case _ => fn()
+      }
+    }
+
     def backup[U: ClassTag](name: String, fn: () => RDD[U], classes: Boolean = false, gzip: Boolean = true): RDD[U] = {
       import scala.reflect.classTag
-      println(s"backup: $name ${classTag[U].getClass.getName}")
       (backupPathOpt match {
         case Some(bp) if !backupBlacklist(name) || (backupBlacklist.isEmpty && backupWhitelist(name)) =>
           val path = s"$bp/$n-$name"
@@ -268,12 +290,12 @@ object PDC3 {
           if (fs.exists(new Path(path)) && fs.exists(donePath)) {
             sc.directFile[U](path, classes, gzip)
           } else {
-            val rdd = fn().saveAsDirectFile(path, classes, gzip)
+            val rdd = fn().setName(s"$n-$name").saveAsDirectFile(path, classes, gzip)
             fs.create(donePath).writeLong(1L)
             rdd
           }
         case _ => fn()
-      }).setName("$n-$name")
+      }).setName(s"$n-$name")
     }
 
     var phaseStart = System.currentTimeMillis()
@@ -299,11 +321,11 @@ object PDC3 {
     }
 
     //print(s"n: $n ($n0, $n1, $n2), n02: $n02")
-    pm("SA", t)
+    pm("SA", () => t)
 
     val ti = backup("ti", () => tiOpt.getOrElse(t.zipWithIndex().mapValues(LtoT)))
 
-    pm("ti", ti)
+    pm("ti", () => ti)
 
     val tuples: RDD[T3I] =
       backup("tuples", () =>
@@ -339,7 +361,7 @@ object PDC3 {
 
     val S: RDD[T3I] = backup("S", () => padded.sortWith(cmp3))
 
-    pm("S", S)
+    pm("S", () => S)
 
     def name(s: RDD[T3I], N: String): (Boolean, RDD[(T, Name)]) = {
 
@@ -369,68 +391,74 @@ object PDC3 {
 
       var foundDupes = false
 
-      val named = backup("named", () => {
+      val named =
+        backup[(T, Long)](
+          "named",
+          () => {
 
-        val lastTuplesRDD: RDD[NameTuple] =
-          backup("name-bound-info", () =>
-            namedTupleRDD.mapPartitionsWithIndex((partitionIdx, iter) => {
-              val elems = iter.toArray
-              elems.headOption.map(_._2).map(firstTuple => {
-                val (lastName, lastTuple, _) = elems.last
-                (partitionIdx, lastName, ItoT(elems.length), firstTuple, lastTuple)
-              }).toIterator
-            }).setName(s"$N-name-bound-info"),
-            classes = true,
-            gzip = false
-          )
+            val lastTuplesRDD: RDD[NameTuple] =
+              backup("name-bound-info", () =>
+                namedTupleRDD.mapPartitionsWithIndex((partitionIdx, iter) => {
+                  val elems = iter.toArray
+                  elems.headOption.map(_._2).map(firstTuple => {
+                    val (lastName, lastTuple, _) = elems.last
+                    (partitionIdx, lastName, ItoT(elems.length), firstTuple, lastTuple)
+                  }).toIterator
+                }).setName(s"$N-name-bound-info")
+              )
 
-        val lastTuples = lastTuplesRDD.collect.sortBy(_._1)
+            val lastTuples = lastTuplesRDD.collect.sortBy(_._1)
 
-        //print(s"lastTuples: ${lastTuples.mkString(", ")}")
+            //print(s"lastTuples: ${lastTuples.mkString(", ")}")
 
-        var partitionStartIdxs = ArrayBuffer[(PartitionIdx, Name)]()
-        var prevEndCount = zero + 1
-        var prevLastTupleOpt: Option[T3] = None
+            var partitionStartIdxs = ArrayBuffer[(PartitionIdx, Name)]()
+            var prevEndCount = zero + 1
+            var prevLastTupleOpt: Option[T3] = None
 
-        lastTuples.foreach(cur => {
-          val (partitionIdx, curCount, partitionCount, curFirstTuple, curLastTuple) = cur
+            lastTuples.foreach(cur => {
+              val (partitionIdx, curCount, partitionCount, curFirstTuple, curLastTuple) = cur
 
-          val curStartCount =
-            if (prevLastTupleOpt.exists(!equivalentTuples(_, curFirstTuple)))
-              prevEndCount + 1
-            else
-              prevEndCount
+              val curStartCount =
+                if (prevLastTupleOpt.exists(!equivalentTuples(_, curFirstTuple)))
+                  prevEndCount + 1
+                else
+                  prevEndCount
 
-          prevEndCount = curStartCount + curCount
-          if (!foundDupes &&
-            ((curCount + 1 != partitionCount) ||
-              prevLastTupleOpt.exists(equivalentTuples(_, curFirstTuple)))) {
-            foundDupes = true
-          }
-          prevLastTupleOpt = Some(curLastTuple)
-          partitionStartIdxs += ((partitionIdx, curStartCount))
-        })
-
-        val partitionStartIdxsBroadcast = s.sparkContext.broadcast(partitionStartIdxs.toMap)
-
-        namedTupleRDD.mapPartitionsWithIndex((partitionIdx, iter) => {
-          partitionStartIdxsBroadcast.value.get(partitionIdx) match {
-            case Some(partitionStartName) =>
-              for {
-                (name, _, idx) <- iter
-              } yield {
-                (idx, partitionStartName + name)
+              prevEndCount = curStartCount + curCount
+              if (!foundDupes &&
+                ((curCount + 1 != partitionCount) ||
+                  prevLastTupleOpt.exists(equivalentTuples(_, curFirstTuple)))) {
+                foundDupes = true
               }
-            case _ =>
-              if (iter.nonEmpty)
-                throw new Exception(
-                  s"No partition start idxs found for $partitionIdx: ${iter.mkString(",")}"
-                )
-              else
-                Nil.toIterator
-          }
-        })
-      })
+              prevLastTupleOpt = Some(curLastTuple)
+              partitionStartIdxs += ((partitionIdx, curStartCount))
+            })
+
+            foundDupes = backupAny[Boolean]("foundDupes", () => foundDupes)
+
+            val partitionStartIdxsBroadcast = s.sparkContext.broadcast(partitionStartIdxs.toMap)
+
+            namedTupleRDD.mapPartitionsWithIndex((partitionIdx, iter) => {
+              partitionStartIdxsBroadcast.value.get(partitionIdx) match {
+                case Some(partitionStartName) =>
+                  for {
+                    (name, _, idx) <- iter
+                  } yield {
+                    (idx, partitionStartName + name)
+                  }
+                case _ =>
+                  if (iter.nonEmpty)
+                    throw new Exception(
+                      s"No partition start idxs found for $partitionIdx: ${iter.mkString(",")}"
+                    )
+                  else
+                    Nil.toIterator
+              }
+            })
+          },
+          classes = false,
+          gzip = false
+        )
 
       (foundDupes, named)
     }
@@ -447,7 +475,7 @@ object PDC3 {
         "P",
         () => {
           val (foundDupes, named) = name(S, N)
-          pm("named", named)
+          pm("named", () => named)
 
           if (foundDupes) {
             val onesThenTwos =
@@ -458,7 +486,7 @@ object PDC3 {
                       .sortByKey(numPartitions = ((n1 + n2) / target).toInt).setName(s"$N-mod-div-sorted")
                       .values
               )
-            pm("onesThenTwos", onesThenTwos)
+            pm("onesThenTwos", () => onesThenTwos)
 
             val SA12: RDD[T] = saImpl(
               Some(onesThenTwos),
@@ -472,7 +500,7 @@ object PDC3 {
             ).setName(s"$N-SA12")
 
             //pl("Done recursing")
-            pm("SA12", SA12)
+            pm("SA12", () => SA12)
 
             SA12
             .zipWithIndex().setName(s"$N-SA12-zipped")
@@ -495,7 +523,7 @@ object PDC3 {
         }
       )
 
-    pm("P", P)
+    pm("P", () => P)
 
     val keyedP: RDD[(T, Joined)] =
       backup("keyedP", () =>
@@ -520,7 +548,7 @@ object PDC3 {
         .reduceByKey(Joined.merge _, numPartitions = t.getNumPartitions)
       )
 
-    pm("keyedP", keyedP)
+    pm("keyedP", () => keyedP)
 
     val keyedT: RDD[(T, Joined)] =
       backup("keyedT", () =>
@@ -544,15 +572,15 @@ object PDC3 {
         .reduceByKey(Joined.merge)
       )
 
-    pm("keyedT", keyedT)
+    pm("keyedT", () => keyedT)
 
     val joined = backup("joined", () => keyedT.join(keyedP).mapValues(Joined.mergeT))
     //val joined = (keyedT ++ keyedP).setName(s"$N-keyed-T+P").reduceByKey(Joined.merge).setName(s"$N-joined")
 
-    pm("joined", joined)
+    pm("joined", () => joined)
 
     val sorted = backup("sorted", () => joined.sortWith(cmpFn).setName(s"$N-sorted"))
-    pm("sorted", sorted)
+    pm("sorted", () => sorted)
 
     pl("Returning")
     sorted.map(_._1).setName(s"$N-ret")

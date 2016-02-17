@@ -23,6 +23,7 @@ class BasesSerializationTest(withClasses: Boolean = false)
 
   def testBases(n: Int, k: Int, size: Int): Unit = {
     test(s"bases ${n}x$k") {
+      val c = sc.getConf
       verifyFileSizesAndSerde(
         s"bases-${n}x$k",
         makeBases(4*n, k),

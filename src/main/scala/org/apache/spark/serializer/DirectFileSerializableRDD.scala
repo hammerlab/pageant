@@ -81,7 +81,6 @@ class DirectFileRDDSerializer[T: ClassTag](@transient val rdd: RDD[T]) extends S
                        writeClass: Boolean = false,
                        gzip: Boolean = true,
                        returnOriginal: Boolean = false): RDD[T] = {
-    println(s"saving ${rdd.name} with ${rdd.getNumPartitions} partitions")
     def writePartition(ctx: TaskContext, iter: Iterator[T]): Unit = {
       val idx = ctx.partitionId()
       val serializer = SparkEnv.get.serializer.newInstance()

@@ -12,7 +12,7 @@ abstract class SparkFMBamTest extends FMSuite {
   }
 
   test("partitions") {
-    fm.bwtBlocks.getNumPartitions should be(12)
+    fm.bwtBlocks.getNumPartitions should be(4)
   }
 
   test("block idxs") {
@@ -132,7 +132,7 @@ class GenerateFMBamTest extends SparkFMBamTest {
     ts.count should be(count)
 
     val sa = sc.directFile[Long](resourcePath("normal.bam.sa"), gzip = true)
-    sa.getNumPartitions should be(12)
+    sa.getNumPartitions should be(4)
     sa.count should be(count)
 
     val fm = SparkFM(sa.zipWithIndex(), ts.zipWithIndex().map(_.swap), count, N = 6)

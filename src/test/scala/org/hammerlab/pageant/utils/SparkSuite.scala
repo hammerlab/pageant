@@ -14,7 +14,8 @@ trait SparkSuite extends FunSuite with Matchers with TmpFilesTest {
   var sc: SparkContext = _
   var properties = MMap(
     "spark.master" -> "local[%d]".format(Runtime.getRuntime.availableProcessors()),
-    "spark.app.name" -> this.getClass.getName
+    "spark.app.name" -> this.getClass.getName,
+    "spark.driver.allowMultipleContexts" -> "true"
   )
 
   befores.append(() => {
