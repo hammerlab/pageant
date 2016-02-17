@@ -1,6 +1,7 @@
-package org.hammerlab.pageant.suffixes
+package org.hammerlab.pageant.suffixes.pdc3
 
 import org.apache.spark.serializer.DirectFileRDDSerializer._
+import org.hammerlab.pageant.suffixes.base.SuffixArrayTestBase
 import org.hammerlab.pageant.utils.Utils.{loadBam, resourcePath}
 import org.hammerlab.pageant.utils.{KryoNoReferenceTracking, PageantSuite}
 import org.scalatest.{FunSuite, Matchers}

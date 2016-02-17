@@ -1,4 +1,4 @@
-package org.hammerlab.pageant.suffixes
+package org.hammerlab.pageant.suffixes.dc3
 
 import scala.collection.mutable.ArrayBuffer
 
@@ -8,7 +8,7 @@ import scala.collection.mutable.ArrayBuffer
   - parameterize zero-handling
  */
 
-object KarkainnenSuffixArray extends SuffixArray {
+object DC3 {
   def radixPass(a: Seq[Int], b: Array[Int], r: Seq[Int], n: Int, K: Int, stableZeros: Boolean = true): Unit = {
     var c = Array.fill(K + 1)(0)
     val zeros: ArrayBuffer[Int] = ArrayBuffer()

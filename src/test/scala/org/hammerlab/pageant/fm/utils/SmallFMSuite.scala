@@ -3,7 +3,7 @@ package org.hammerlab.pageant.fm.utils
 import org.apache.spark.SparkContext
 import Utils._
 import org.hammerlab.pageant.fm.index.SparkFM
-import org.hammerlab.pageant.suffixes.KarkainnenSuffixArray
+import org.hammerlab.pageant.suffixes.dc3.DC3
 import org.hammerlab.pageant.utils.Utils._
 
 trait SmallFMSuite extends FMSuite {
@@ -25,7 +25,7 @@ trait SmallFMSuite extends FMSuite {
 
 object SmallFMSuite {
   def initBWT(ts: String): (Array[Int], AT) = {
-    val sa = KarkainnenSuffixArray.make(ts.map(toI(_).toInt).toArray, 6)
+    val sa = DC3.make(ts.map(toI(_).toInt).toArray, 6)
 
     val bwtu =
       sa

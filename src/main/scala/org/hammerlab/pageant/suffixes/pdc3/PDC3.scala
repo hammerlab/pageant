@@ -1,12 +1,12 @@
-package org.hammerlab.pageant.suffixes
+package org.hammerlab.pageant.suffixes.pdc3
 
-import java.io.{ObjectOutputStream, ObjectInputStream}
+import java.io.{ObjectInputStream, ObjectOutputStream}
 
 import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.DirectFileRDDSerializer._
 import org.apache.spark.sortwith.SortWithRDD._
-import org.hammerlab.pageant.suffixes.PDC3.OT
+import org.hammerlab.pageant.suffixes.dc3.DC3
 import org.joda.time.format.PeriodFormatterBuilder
 
 import scala.collection.mutable.ArrayBuffer
@@ -24,38 +24,6 @@ import scala.reflect.ClassTag
 
 // not possible?
 // - return indexed SA, save ZWI() job
-
-
-case class Joined(t0O: OT = None, t1O: OT = None, n0O: OT = None, n1O: OT = None) {
-  override def toString: String = {
-    val s =
-      List(
-        t0O.getOrElse(" "),
-        t1O.getOrElse(" "),
-        n0O.getOrElse(" "),
-        n1O.getOrElse(" ")
-      ).mkString(",")
-    s"J($s)"
-  }
-}
-
-object Joined {
-  def merge(j1: Joined, j2: Joined): Joined = {
-    def get(fn: Joined => OT): OT = {
-      (fn(j1), fn(j2)) match {
-        case (Some(f1), Some(f2)) => throw new Exception(s"Merge error: $j1 $j2")
-        case (f1O, f2O) => f1O.orElse(f2O)
-      }
-    }
-    Joined(
-      get(_.t0O),
-      get(_.t1O),
-      get(_.n0O),
-      get(_.n1O)
-    )
-  }
-  def mergeT(t: (Joined, Joined)): Joined = merge(t._1, t._2)
-}
 
 object PDC3 {
 
@@ -282,7 +250,6 @@ object PDC3 {
     }
 
     def backup[U: ClassTag](name: String, fn: () => RDD[U], classes: Boolean = false, gzip: Boolean = true): RDD[U] = {
-      import scala.reflect.classTag
       (backupPathOpt match {
         case Some(bp) if !backupBlacklist(name) || (backupBlacklist.isEmpty && backupWhitelist(name)) =>
           val path = s"$bp/$n-$name"
@@ -316,7 +283,7 @@ object PDC3 {
     if (n <= target) {
       val r = t.map(_.toInt).collect()
       return t.context.parallelize(
-        KarkainnenSuffixArray.make(r, r.length).map(ItoT)
+        DC3.make(r, r.length).map(ItoT)
       )
     }
 

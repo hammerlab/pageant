@@ -7,7 +7,7 @@ import org.apache.commons.io.filefilter.PrefixFileFilter
 import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.DirectFileRDDSerializer._
 import org.hammerlab.pageant.serialization.SequenceFileSerializableRDD._
-import org.hammerlab.pageant.utils.{KryoSerialization => KryoSerdeTest, SparkSuite}
+import org.hammerlab.pageant.utils.{KryoSuite, SparkSuite}
 import org.scalatest.Matchers
 
 import scala.reflect.ClassTag
@@ -62,7 +62,7 @@ class DirectFileRDDTest(withClasses: Boolean = false) extends Utils {
   def deserializeRDD[T: ClassTag](path: String): RDD[T] = sc.directFile[T](path, withClasses, gzip = false)
 }
 
-trait FooRegistrarTest extends KryoSerdeTest {
+trait FooRegistrarTest extends KryoSuite {
   self: SparkSuite =>
   props ++= Map(
     "spark.kryo.referenceTracking" -> "true",

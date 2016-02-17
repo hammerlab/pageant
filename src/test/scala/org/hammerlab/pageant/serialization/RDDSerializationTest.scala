@@ -1,6 +1,6 @@
 package org.hammerlab.pageant.serialization
 
-import org.hammerlab.pageant.utils.{KryoSerialization, JavaSerialization}
+import org.hammerlab.pageant.utils.{KryoSuite, JavaSerialization}
 
 trait SerdeRDDTest extends Utils {
 
@@ -55,7 +55,7 @@ class JavaSequenceFileRDDTest extends SequenceFileRDDTest with SerdeRDDTest with
   testSomeFoos(100, 13015)
 }
 
-class KryoSequenceFileRDDTest extends SequenceFileRDDTest with SerdeRDDTest with KryoSerialization {
+class KryoSequenceFileRDDTest extends SequenceFileRDDTest with SerdeRDDTest with KryoSuite {
   testSmallInts(1532, 1595, 1595, 1595)
   testMediumInts(1595)
   testLongs(1795)
@@ -85,7 +85,7 @@ class JavaDirectFileRDDTest extends DirectFileRDDTest with SerdeRDDTest with Jav
   testSomeFoos(100, 3384)
 }
 
-class KryoDirectFileRDDTest extends DirectFileRDDTest with SerdeRDDTest with KryoSerialization {
+class KryoDirectFileRDDTest extends DirectFileRDDTest with SerdeRDDTest with KryoSuite {
   testSmallInts(137, 200, 200, 200)
   testMediumInts(200)
   testLongs(400)
@@ -95,7 +95,7 @@ class KryoDirectFileRDDTest extends DirectFileRDDTest with SerdeRDDTest with Kry
   testSomeFoos(100, 2337, 2400, 2400, 2400)
 }
 
-class KryoDirectFileWithClassesRDDTest extends DirectFileRDDTest(true) with SerdeRDDTest with KryoSerialization {
+class KryoDirectFileWithClassesRDDTest extends DirectFileRDDTest(true) with SerdeRDDTest with KryoSuite {
   testSmallInts(237, 300, 300, 300)
   testMediumInts(300)
   testLongs(500)

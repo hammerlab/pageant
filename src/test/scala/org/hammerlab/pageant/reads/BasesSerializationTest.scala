@@ -1,7 +1,7 @@
 package org.hammerlab.pageant.reads
 
 import org.hammerlab.pageant.serialization.{DirectFileRDDTest, Utils => TestUtils}
-import org.hammerlab.pageant.utils.{KryoSerdePageantRegistrar, KryoSerdePageantRegistrarNoReferences, KryoSerialization}
+import org.hammerlab.pageant.utils.{KryoSuite, KryoSerdePageantRegistrar, KryoSerdePageantRegistrarNoReferences}
 
 import scala.util.Random
 
@@ -33,7 +33,7 @@ class BasesSerializationTest(withClasses: Boolean = false)
   }
 }
 
-class BasesSerdeTest extends BasesSerializationTest with KryoSerialization {
+class BasesSerdeTest extends BasesSerializationTest with KryoSuite {
   testBases(1, 8, 6)
   testBases(10, 10, 70)
   testBases(10, 16, 80)

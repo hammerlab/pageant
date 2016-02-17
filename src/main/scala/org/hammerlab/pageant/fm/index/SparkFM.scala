@@ -9,7 +9,7 @@ import org.apache.spark.serializer.DirectFileRDDSerializer._
 import org.hammerlab.pageant.fm.blocks.{FullBWTBlock, RunLengthBWTBlock, BWTBlock}
 import org.hammerlab.pageant.fm.index.SparkFM.Counts
 import org.hammerlab.pageant.fm.utils.Utils.{BlockIdx, Idx, T, V}
-import org.hammerlab.pageant.suffixes.PDC3
+import org.hammerlab.pageant.suffixes.pdc3.PDC3
 
 
 import scala.collection.mutable.ArrayBuffer
