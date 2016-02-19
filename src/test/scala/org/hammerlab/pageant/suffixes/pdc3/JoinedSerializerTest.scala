@@ -3,12 +3,12 @@ package org.hammerlab.pageant.suffixes.pdc3
 import java.io.{ByteArrayInputStream, ByteArrayOutputStream}
 
 import com.esotericsoftware.kryo.io.{Input, Output}
-import org.hammerlab.pageant.suffixes.pdc3.PDC3.T
+import org.hammerlab.pageant.suffixes.pdc3.PDC3.L
 import org.hammerlab.pageant.utils.{KryoNoReferenceTracking, PageantSuite}
 
 class JoinedSerializerTest extends PageantSuite with KryoNoReferenceTracking {
 
-  def makeJ(t0: T = -1, t1: T = -1, n0: T = -1, n1: T = -1): Joined = {
+  def makeJ(t0: L = -1, t1: L = -1, n0: L = -1, n1: L = -1): Joined = {
     def opt(l: Long) = if (l < 0) None else Some(l)
     Joined(opt(t0), opt(t1), opt(n0), opt(n1))
   }

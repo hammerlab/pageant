@@ -2,7 +2,7 @@ package org.hammerlab.pageant.suffixes.pdc3
 
 import com.esotericsoftware.kryo.io.{Input, Output}
 import com.esotericsoftware.kryo.{Kryo, Serializer}
-import org.hammerlab.pageant.suffixes.pdc3.PDC3.OT
+import org.hammerlab.pageant.suffixes.pdc3.PDC3.OL
 
 import scala.collection.mutable.ArrayBuffer
 
@@ -37,10 +37,10 @@ class JoinedSerializer extends Serializer[Joined] {
   }
 
   override def read(kryo: Kryo, input: Input, tpe: Class[Joined]): Joined = {
-    var t0O: OT = None
-    var t1O: OT = None
-    var n0O: OT = None
-    var n1O: OT = None
+    var t0O: OL = None
+    var t1O: OL = None
+    var n0O: OL = None
+    var n1O: OL = None
 
     var firstLong = true
     val first = input.readLong()

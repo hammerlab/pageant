@@ -25,37 +25,36 @@ import scala.reflect.ClassTag
 // not possible?
 // - return indexed SA, save ZWI() job
 
+//case class NameTuple
+
+case class CheckpointConfig(dir: Option[String],
+                            whitelist: Set[String],
+                            blacklist: Set[String],
+                            unzip: Set[String],
+                            writeClasses: Set[String])
+
 object PDC3 {
 
-//  type T = Int
-//  val zero = 0
-//  def ItoT(i: Int): T = i
-//  def TtoI(t: T): Int = t
-//  def LtoT(l: Long): T = l.toInt
-
-  type T = Long
-  val zero = 0L
-  def ItoT(i: Int): T = i
-  def TtoI(t: T): Int = t.toInt
-  def LtoT(l: Long): T = l
+  type L = Long
 
   type PartitionIdx = Int
-  type Name = T
-  type T3 = (T, T, T)
-  type T3I = (T3, T)
-  type NameTuple = (PartitionIdx, Name, T, T3, T3)
-  type OT = Option[T]
+  type Name = L
+  type L3 = (L, L, L)
+  type L3I = (L3, L)
+  type NameTuple = (PartitionIdx, Name, L, L3, L3)
+  type OL = Option[L]
 
-  def apply(t: RDD[T]): RDD[T] = {
-    val count = LtoT(t.count)
-    apply(t, count)
+  def apply(t: RDD[L]): RDD[L] = {
+    apply(t, t.count)
   }
 
-  def apply(t: RDD[T],
+  def apply(t: RDD[L],
             count: Long,
             backupPath: String = null,
             backupWhitelist: Set[String] = Set(),
-            backupBlacklist: Set[String] = Set()): RDD[T] = {
+            backupBlacklist: Set[String] = Set(),
+            unzip: Set[String] = Set(),
+            includeClasses: Set[String] = Set()): RDD[L] = {
     val startTime = System.currentTimeMillis()
     withCount(
       t.setName("t").cache(),
@@ -64,38 +63,46 @@ object PDC3 {
       startTime,
       backupPath,
       backupWhitelist,
-      backupBlacklist
+      backupBlacklist,
+      unzip,
+      includeClasses
     )
   }
 
-  def withIndices(ti: RDD[(T, Long)],
+  def withIndices(ti: RDD[(L, Long)],
                   count: Long,
                   backupPath: String = null,
                   backupWhitelist: Set[String] = Set(),
-                  backupBlacklist: Set[String] = Set()): RDD[T] = {
+                  backupBlacklist: Set[String] = Set(),
+                  unzip: Set[String] = Set(),
+                  includeClasses: Set[String] = Set()): RDD[L] = {
     val startTime = System.currentTimeMillis()
     lastPrintedTime = startTime
-    withIndices(ti, count, count / ti.getNumPartitions, startTime, backupPath, backupWhitelist, backupBlacklist)
+    withIndices(ti, count, count / ti.getNumPartitions, startTime, backupPath, backupWhitelist, backupBlacklist, unzip, includeClasses)
   }
 
-  def withIndices(ti: RDD[(T, Long)],
-                  n: T,
-                  target: T,
+  def withIndices(ti: RDD[(L, Long)],
+                  n: L,
+                  target: L,
                   startTime: Long,
                   backupPath: String,
                   backupWhitelist: Set[String],
-                  backupBlacklist: Set[String]): RDD[T] = {
-    saImpl(None, Some(ti), n, target, startTime, backupPath, backupWhitelist, backupBlacklist)
+                  backupBlacklist: Set[String],
+                  unzip: Set[String],
+                  includeClasses: Set[String]): RDD[L] = {
+    saImpl(None, Some(ti), n, target, startTime, backupPath, backupWhitelist, backupBlacklist, unzip, includeClasses)
   }
 
-  def withCount(t: RDD[T],
-                n: T,
-                target: T,
+  def withCount(t: RDD[L],
+                n: L,
+                target: L,
                 startTime: Long,
                 backupPath: String,
                 backupWhitelist: Set[String] = Set(),
-                backupBlacklist: Set[String] = Set()): RDD[T] = {
-    saImpl(Some(t), None, n, target, startTime, backupPath, backupWhitelist, backupBlacklist)
+                backupBlacklist: Set[String] = Set(),
+                unzip: Set[String] = Set(),
+                includeClasses: Set[String] = Set()): RDD[L] = {
+    saImpl(Some(t), None, n, target, startTime, backupPath, backupWhitelist, backupBlacklist, unzip, includeClasses)
   }
 
   val debug = false
@@ -138,15 +145,14 @@ object PDC3 {
       s"${d/60}m${d%60}s"
     else
       s"${d}s"
-    //formatter.print(new Duration( - start).toPeriod())
   }
 
   var lastPrintedTime: Long = 0L
 
-  def equivalentTuples(t1: T3, t2: T3): Boolean = {
+  def equivalentTuples(t1: L3, t2: L3): Boolean = {
     t1 == t2 &&
-      t1._1 != zero && t1._2 != zero && t1._3 != zero &&
-      t2._1 != zero && t2._2 != zero && t2._3 != zero
+      t1._1 != 0L && t1._2 != 0L && t1._3 != 0L &&
+      t2._1 != 0L && t2._2 != 0L && t2._3 != 0L
   }
 
   def longToCmpFnReturn(l: Long) =
@@ -154,10 +160,10 @@ object PDC3 {
     else if (l > 0) 1
     else 0
 
-  def cmp2(t1: (T, T, T), t2: (T, T, T)): Int = {
+  def cmp2(t1: (L, L, L), t2: (L, L, L)): Int = {
     longToCmpFnReturn(
       if (t1._1 == t2._1)
-        if (t1._1 == zero)
+        if (t1._1 == 0L)
           t1._3 - t2._3
         else
           t1._2 - t2._2
@@ -166,14 +172,14 @@ object PDC3 {
     )
   }
 
-  def cmp3(t1: T3I, t2: T3I): Int = cmp3((t1._1._1, t1._1._2, t1._1._3, t1._2), (t2._1._1, t2._1._2, t2._1._3, t2._2))
-  def cmp3(t1: (T, T, T, T), t2: (T, T, T, T)): Int = {
+  def cmp3(t1: L3I, t2: L3I): Int = cmp3((t1._1._1, t1._1._2, t1._1._3, t1._2), (t2._1._1, t2._1._2, t2._1._3, t2._2))
+  def cmp3(t1: (L, L, L, L), t2: (L, L, L, L)): Int = {
     longToCmpFnReturn(
       if (t1._1 == t2._1)
-        if (t1._1 == zero)
+        if (t1._1 == 0L)
           t1._4 - t2._4
         else if (t1._2 == t2._2)
-          if (t1._2 == zero)
+          if (t1._2 == 0L)
             t1._4 - t2._4
           else if (t1._3 == t2._3)
             t1._4 - t2._4
@@ -192,41 +198,48 @@ object PDC3 {
     (i1 % 3, i2 % 3) match {
       case (0, 0) =>
         cmp2(
-          (j1.t0O.get, j1.n0O.getOrElse(zero), i1),
-          (j2.t0O.get, j2.n0O.getOrElse(zero), i2)
+          (j1.t0O.get, j1.n0O.getOrElse(0L), i1),
+          (j2.t0O.get, j2.n0O.getOrElse(0L), i2)
         )
       case (0, 1) =>
         cmp2(
-          (j1.t0O.get, j1.n0O.getOrElse(zero), i1),
-          (j2.t0O.get, j2.n1O.getOrElse(zero), i2)
+          (j1.t0O.get, j1.n0O.getOrElse(0L), i1),
+          (j2.t0O.get, j2.n1O.getOrElse(0L), i2)
         )
       case (1, 0) =>
         cmp2(
-          (j1.t0O.get, j1.n1O.getOrElse(zero), i1),
-          (j2.t0O.get, j2.n0O.getOrElse(zero), i2)
+          (j1.t0O.get, j1.n1O.getOrElse(0L), i1),
+          (j2.t0O.get, j2.n0O.getOrElse(0L), i2)
         )
       case (0, 2) | (2, 0) =>
         cmp3(
-          (j1.t0O.get, j1.t1O.getOrElse(zero), j1.n1O.getOrElse(zero), i1),
-          (j2.t0O.get, j2.t1O.getOrElse(zero), j2.n1O.getOrElse(zero), i2)
+          (j1.t0O.get, j1.t1O.getOrElse(0L), j1.n1O.getOrElse(0L), i1),
+          (j2.t0O.get, j2.t1O.getOrElse(0L), j2.n1O.getOrElse(0L), i2)
         )
       case _ =>
         longToCmpFnReturn(j1.n0O.get - j2.n0O.get)
     }
   }
 
-  def saImpl(tOpt: Option[RDD[T]],
-             tiOpt: Option[RDD[(T, Long)]],
-             n: T,
-             target: T,
+  def saImpl(tOpt: Option[RDD[L]],
+             tiOpt: Option[RDD[(L, Long)]],
+             n: L,
+             target: L,
              startTime: Long,
              backupPath: String,
              backupWhitelist: Set[String],
-             backupBlacklist: Set[String]): RDD[T] = {
+             backupBlacklist: Set[String],
+             unzip: Set[String],
+             includeClasses: Set[String]): RDD[L] = {
 
     val backupPathOpt = Option(backupPath)
     val sc = tOpt.orElse(tiOpt).get.context
     val fs = FileSystem.get(sc.hadoopConfiguration)
+
+    var phaseStart = System.currentTimeMillis()
+
+    val numDigits = n.toString.length
+    val N = s"e${numDigits - 1}·${n.toString.head}"
 
     def backupAny[U: ClassTag](name: String, fn: () => U): U = {
       backupPathOpt match {
@@ -249,27 +262,21 @@ object PDC3 {
       }
     }
 
-    def backup[U: ClassTag](name: String, fn: () => RDD[U], classes: Boolean = false, gzip: Boolean = true): RDD[U] = {
+    def backup[U: ClassTag](name: String, fn: () => RDD[U]): RDD[U] = {
       (backupPathOpt match {
         case Some(bp) if !backupBlacklist(name) || (backupBlacklist.isEmpty && backupWhitelist(name)) =>
-          val path = s"$bp/$n-$name"
+          val path = s"$bp/$n/$name"
           val donePath = new Path(s"$path.done")
           if (fs.exists(new Path(path)) && fs.exists(donePath)) {
-            sc.directFile[U](path, classes, gzip)
+            sc.directFile[U](path, includeClasses(name), !unzip(name))
           } else {
-            val rdd = fn().setName(s"$n-$name").saveAsDirectFile(path, classes, gzip)
+            val rdd = fn().setName(s"$n-$name").saveAsDirectFile(path, includeClasses(name), !unzip(name))
             fs.create(donePath).writeLong(1L)
             rdd
           }
         case _ => fn()
-      }).setName(s"$n-$name")
+      }).setName(s"$N-$name")
     }
-
-    var phaseStart = System.currentTimeMillis()
-    //    var lastPrintedTime = lastTime
-
-    val numDigits = n.toString.length
-    val N = s"e${numDigits - 1}*${n.toString.head}"
 
     def pl(s: String): Unit = {
       println(s"${List(since(startTime), since(lastPrintedTime), since(phaseStart), s"$N ($n)").mkString("\t")} $s")
@@ -278,23 +285,22 @@ object PDC3 {
 
     pl(s"PDC3: $target ($n/${tOpt.orElse(tiOpt).get.getNumPartitions})")
 
-    lazy val t = backup("t", () => tOpt.getOrElse(tiOpt.get.keys))
+    lazy val t = tOpt.getOrElse(tiOpt.get.keys)
 
     if (n <= target) {
       val r = t.map(_.toInt).collect()
       return t.context.parallelize(
-        DC3.make(r, r.length).map(ItoT)
+        DC3.make(r, r.length).map(_.toLong)
       )
     }
 
-    //print(s"n: $n ($n0, $n1, $n2), n02: $n02")
     pm("SA", () => t)
 
-    val ti = backup("ti", () => tiOpt.getOrElse(t.zipWithIndex().mapValues(LtoT)))
+    val ti = backup("ti", () => tiOpt.getOrElse(t.zipWithIndex()))
 
     pm("ti", () => ti)
 
-    val tuples: RDD[T3I] =
+    val tuples: RDD[L3I] =
       backup("tuples", () =>
         (for {
           (e, i) <- ti
@@ -309,8 +315,8 @@ object PDC3 {
         .mapValues(
           ts => {
             ts.toList.sortBy(_._2).map(_._1) match {
-              case e1 :: Nil => (e1, zero, zero)
-              case e1 :: e2 :: Nil => (e1, e2, zero)
+              case e1 :: Nil => (e1, 0L, 0L)
+              case e1 :: e2 :: Nil => (e1, e2, 0L)
               case es => (es(0), es(1), es(2))
             }
           })
@@ -320,24 +326,24 @@ object PDC3 {
 
     val padded =
       if (n % 3 == 1)
-        tuples ++ t.context.parallelize(((zero, zero, zero), n) :: Nil)
+        tuples ++ t.context.parallelize(((0L, 0L, 0L), n) :: Nil)
       else if (n % 3 == 0)
-        tuples ++ t.context.parallelize(((zero, zero, zero), n+1) :: Nil)
+        tuples ++ t.context.parallelize(((0L, 0L, 0L), n+1) :: Nil)
       else
         tuples
 
-    val S: RDD[T3I] = backup("S", () => padded.sortWith(cmp3))
+    val S: RDD[L3I] = backup("S", () => padded.sortWith(cmp3))
 
     pm("S", () => S)
 
-    def name(s: RDD[T3I], N: String): (Boolean, RDD[(T, Name)]) = {
+    def name(s: RDD[L3I], N: String): (Boolean, RDD[(L, Name)]) = {
 
       //print(s"s: ${s.collect.mkString(",")}")
 
-      val namedTupleRDD: RDD[(Name, T3, T)] =
+      val namedTupleRDD: RDD[(Name, L3, L)] =
         s.mapPartitions(iter => {
-          var prevTuples = ArrayBuffer[(Name, T3, T)]()
-          var prevTuple: Option[(Name, T3, T)] = None
+          var prevTuples = ArrayBuffer[(Name, L3, L)]()
+          var prevTuple: Option[(Name, L3, L)] = None
           iter.foreach(cur => {
             val (curTuple, curIdx) = cur
             val curName =
@@ -347,7 +353,7 @@ object PDC3 {
                     prevName
                   else
                     prevName + 1
-                case None => zero
+                case None => 0L
               }
 
             prevTuple = Some((curName, curTuple, curIdx))
@@ -359,28 +365,34 @@ object PDC3 {
       var foundDupes = false
 
       val named =
-        backup[(T, Long)](
+        backup[(L, Long)](
           "named",
           () => {
 
             val lastTuplesRDD: RDD[NameTuple] =
               backup("name-bound-info", () =>
                 namedTupleRDD.mapPartitionsWithIndex((partitionIdx, iter) => {
-                  val elems = iter.toArray
-                  elems.headOption.map(_._2).map(firstTuple => {
-                    val (lastName, lastTuple, _) = elems.last
-                    (partitionIdx, lastName, ItoT(elems.length), firstTuple, lastTuple)
-                  }).toIterator
-                }).setName(s"$N-name-bound-info")
+                  if (iter.hasNext) {
+                    var last: (Name, L3, L) = iter.next
+                    val firstTuple = last._2
+                    var len = 1
+                    while (iter.hasNext) {
+                      last = iter.next()
+                      len += 1
+                    }
+                    val (lastName, lastTuple, _) = last
+                    Array((partitionIdx, lastName, len.toLong, firstTuple, lastTuple)).toIterator
+                  } else {
+                    Iterator()
+                  }
+                })
               )
 
             val lastTuples = lastTuplesRDD.collect.sortBy(_._1)
 
-            //print(s"lastTuples: ${lastTuples.mkString(", ")}")
-
             var partitionStartIdxs = ArrayBuffer[(PartitionIdx, Name)]()
-            var prevEndCount = zero + 1
-            var prevLastTupleOpt: Option[T3] = None
+            var prevEndCount = 1L
+            var prevLastTupleOpt: Option[L3] = None
 
             lastTuples.foreach(cur => {
               val (partitionIdx, curCount, partitionCount, curFirstTuple, curLastTuple) = cur
@@ -422,9 +434,7 @@ object PDC3 {
                     Nil.toIterator
               }
             })
-          },
-          classes = false,
-          gzip = false
+          }
         )
 
       (foundDupes, named)
@@ -437,7 +447,7 @@ object PDC3 {
         case 2 => 0
       })
 
-    val P: RDD[(T, Name)] =
+    val P: RDD[(L, Name)] =
       backup(
         "P",
         () => {
@@ -455,7 +465,7 @@ object PDC3 {
               )
             pm("onesThenTwos", () => onesThenTwos)
 
-            val SA12: RDD[T] = saImpl(
+            val SA12: RDD[L] = saImpl(
               Some(onesThenTwos),
               None,
               n1 + n2,
@@ -463,7 +473,9 @@ object PDC3 {
               startTime,
               backupPath,
               backupWhitelist,
-              backupBlacklist
+              backupBlacklist,
+              unzip,
+              includeClasses
             ).setName(s"$N-SA12")
 
             //pl("Done recursing")
@@ -477,26 +489,22 @@ object PDC3 {
                   3 * p._1 + 1
                 else
                   3 * (p._1 - n1) + 2,
-                LtoT(p._2) + 1
+                p._2 + 1
               )
             }).setName(s"$N-indices-remapped")
             .sortByKey()
           } else {
-            backup(
-              "index-name-sorted-no-dupes",
-              () => named.sortByKey()
-            )
+            named.sortByKey()
           }
         }
       )
 
     pm("P", () => P)
 
-    val keyedP: RDD[(T, Joined)] =
+    val keyedP: RDD[(L, Joined)] =
       backup("keyedP", () =>
         (for {
           (idx, name) <- P
-          //if idx < n
           i <- idx-2 to idx
           if i >= 0 && i < n
         } yield {
@@ -517,7 +525,7 @@ object PDC3 {
 
     pm("keyedP", () => keyedP)
 
-    val keyedT: RDD[(T, Joined)] =
+    val keyedT: RDD[(L, Joined)] =
       backup("keyedT", () =>
         (for {
           (e, i) <- ti
@@ -546,11 +554,11 @@ object PDC3 {
 
     pm("joined", () => joined)
 
-    val sorted = backup("sorted", () => joined.sortWith(cmpFn).setName(s"$N-sorted"))
+    val sorted = backup("sorted", () => joined.sortWith(cmpFn).map(_._1))
     pm("sorted", () => sorted)
 
     pl("Returning")
-    sorted.map(_._1).setName(s"$N-ret")
+    sorted
   }
 
 }

@@ -16,7 +16,7 @@ class SequenceFileSerializableRDD[T: ClassTag](@transient val rdd: RDD[T]) exten
         (
           NullWritable.get(),
           new BytesWritable(serializer.serialize(x).array())
-          )
+        )
       )
     }).saveAsSequenceFile(path)
 
