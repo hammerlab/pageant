@@ -58,8 +58,6 @@ class BWTRunSerializerTest
       val fullBytes = kryoBytes(fullBlock)
       fullBytes.length should be(fullBlockSize)
 
-      println("")
-
       val rlBlock = RunLengthBWTBlock(start, counts, rl)
       val rlBytes = kryoBytes(rlBlock)
       rlBytes.length should be(rlBlockSize)

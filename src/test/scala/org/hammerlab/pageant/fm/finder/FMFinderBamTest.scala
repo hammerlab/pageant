@@ -10,7 +10,7 @@ import org.hammerlab.pageant.utils.Utils.resourcePath
 abstract class FMFinderBamTest extends FMSuite with FMFinderTest {
 
   def initFM(sc: SparkContext): SparkFM = {
-    SparkFM.load(sc, resourcePath("normal.bam.fm"), gzip = true)
+    SparkFM.load(sc, "src/test/resources/normal.bam.fm", gzip = false)
   }
 
   def formatActual(result: RDD[(AT, Bounds)]) = {

@@ -15,7 +15,7 @@ class PDC3Test extends SuffixArrayTestBase with PageantSuite with KryoNoReferenc
   }
 
   test("bam") {
-    val ots = loadBam(sc, resourcePath("normal.bam"))
+    val ots = loadBam(sc, "src/test/resources/normal.bam")
     val ts = ots.zipWithIndex().map(_.swap).sortByKey(numPartitions = 4).map(_._2)
 
     ots.getNumPartitions should be(1)
@@ -33,14 +33,30 @@ class PDC3Test extends SuffixArrayTestBase with PageantSuite with KryoNoReferenc
 
     sa.getNumPartitions should be(4)
 
-    val expectedSA = sc.directFile[Long]("src/test/resources/normal.bam.sa", gzip = true).collect
-    sa.collect should be(expectedSA)
+    val expectedSA = sc.directFile[Long]("src/test/resources/normal.bam.sa", gzip = false).collect
+    val actualSA = sa.collect
+    actualSA.length should be(expectedSA.length)
+    for {
+      ((actual, expected), idx) <- actualSA.zip(expectedSA).zipWithIndex
+    } {
+      withClue(s"SA, idx $idx:") {
+        actual should be(expected)
+      }
+    }
 
-    val expectedTS = sc.directFile[Long]("src/test/resources/normal.bam.ts", gzip = true).collect
-    ts.collect should be(expectedTS)
+    val expectedTS = sc.directFile[Byte]("src/test/resources/normal.bam.ts", gzip = false).collect
+    val actualTS = ts.collect
+    actualTS.length should be(expectedTS.length)
+    for {
+      ((actual, expected), idx) <- actualTS.zip(expectedTS).zipWithIndex
+    } {
+      withClue(s"TS, idx $idx:") {
+        actual should be(expected)
+      }
+    }
 
-//    ts.saveAsDirectFile("src/test/resources/normal.bam.ts", gzip = true)
-    //sa.saveAsDirectFile("src/test/resources/normal.bam.sa", gzip = true)
+//    ts.saveAsDirectFile("src/test/resources/normal.bam.ts", gzip = false)
+//    sa.saveAsDirectFile("src/test/resources/normal.bam.sa", gzip = false)
   }
 }
 

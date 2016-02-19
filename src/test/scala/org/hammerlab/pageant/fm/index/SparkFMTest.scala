@@ -56,10 +56,10 @@ class SparkFMTest extends PageantSuite with TmpFilesTest {
       }
 
       testFM(fm)
-      val fn = "src/test/resources/small.fm"//tmpPath("small")
+      val fn = tmpDirPath("small")
       fm.save(fn)
 
-      val fm2 = SparkFM.load(sc, fn)
+      val fm2 = SparkFM.load(sc, fn, gzip = false)
       testFM(fm2)
     }
   }

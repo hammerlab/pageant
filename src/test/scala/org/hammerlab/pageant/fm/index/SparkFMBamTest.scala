@@ -127,16 +127,16 @@ class GenerateFMBamTest extends SparkFMBamTest {
     val count = 102000
 
     // Written by PDC3Test
-    val ts = sc.directFile[Byte](resourcePath("normal.bam.ts"), gzip = true)
-    ts.getNumPartitions should be(4)
+    val ts = sc.directFile[Byte]("src/test/resources/normal.bam.ts", gzip = false)
     ts.count should be(count)
+    ts.getNumPartitions should be(4)
 
-    val sa = sc.directFile[Long](resourcePath("normal.bam.sa"), gzip = true)
+    val sa = sc.directFile[Long]("src/test/resources/normal.bam.sa", gzip = false)
     sa.getNumPartitions should be(4)
     sa.count should be(count)
 
     val fm = SparkFM(sa.zipWithIndex(), ts.zipWithIndex().map(_.swap), count, N = 6)
-    fm.save("src/test/resources/normal.bam.fm", gzip = true)
+    fm.save("src/test/resources/normal.bam.fm", gzip = false)
 
     fm
   }
@@ -144,6 +144,6 @@ class GenerateFMBamTest extends SparkFMBamTest {
 
 class LoadFMBamTest extends SparkFMBamTest {
   def initFM(sc: SparkContext) = {
-    SparkFM.load(sc, "src/test/resources/normal.bam.fm", gzip = true)
+    SparkFM.load(sc, "src/test/resources/normal.bam.fm", gzip = false)
   }
 }
