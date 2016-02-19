@@ -370,23 +370,21 @@ object PDC3 {
           () => {
 
             val lastTuplesRDD: RDD[NameTuple] =
-              backup("name-bound-info", () =>
-                namedTupleRDD.mapPartitionsWithIndex((partitionIdx, iter) => {
-                  if (iter.hasNext) {
-                    var last: (Name, L3, L) = iter.next
-                    val firstTuple = last._2
-                    var len = 1
-                    while (iter.hasNext) {
-                      last = iter.next()
-                      len += 1
-                    }
-                    val (lastName, lastTuple, _) = last
-                    Array((partitionIdx, lastName, len.toLong, firstTuple, lastTuple)).toIterator
-                  } else {
-                    Iterator()
+              namedTupleRDD.mapPartitionsWithIndex((partitionIdx, iter) => {
+                if (iter.hasNext) {
+                  var last: (Name, L3, L) = iter.next
+                  val firstTuple = last._2
+                  var len = 1
+                  while (iter.hasNext) {
+                    last = iter.next()
+                    len += 1
                   }
-                })
-              )
+                  val (lastName, lastTuple, _) = last
+                  Array((partitionIdx, lastName, len.toLong, firstTuple, lastTuple)).toIterator
+                } else {
+                  Iterator()
+                }
+              })
 
             val lastTuples = lastTuplesRDD.collect.sortBy(_._1)
 
@@ -428,7 +426,11 @@ object PDC3 {
                 case _ =>
                   if (iter.nonEmpty)
                     throw new Exception(
-                      s"No partition start idxs found for $partitionIdx: ${iter.mkString(",")}"
+                      List(
+                        s"No partition start idxs found for partition $partitionIdx:",
+                        s"\t${partitionStartIdxsBroadcast.value.toList.map(p => s"${p._1} -> ${p._2}").mkString("\n\t")}",
+                        s"${iter.take(100).mkString(",")}"
+                      ).mkString("\n\n")
                     )
                   else
                     Nil.toIterator

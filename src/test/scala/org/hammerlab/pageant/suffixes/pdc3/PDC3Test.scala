@@ -33,8 +33,14 @@ class PDC3Test extends SuffixArrayTestBase with PageantSuite with KryoNoReferenc
 
     sa.getNumPartitions should be(4)
 
-    ts.saveAsDirectFile("src/test/resources/normal.bam.ts", gzip = true)
-    sa.saveAsDirectFile("src/test/resources/normal.bam.sa", gzip = true)
+    val expectedSA = sc.directFile[Long]("src/test/resources/normal.bam.sa", gzip = true).collect
+    sa.collect should be(expectedSA)
+
+    val expectedTS = sc.directFile[Long]("src/test/resources/normal.bam.ts", gzip = true).collect
+    ts.collect should be(expectedTS)
+
+//    ts.saveAsDirectFile("src/test/resources/normal.bam.ts", gzip = true)
+    //sa.saveAsDirectFile("src/test/resources/normal.bam.sa", gzip = true)
   }
 }
 

@@ -1,7 +1,5 @@
 package org.hammerlab.pageant.fm.utils
 
-
-
 object Utils {
   val toI: Map[Char, Byte] = "$ACGTN".zipWithIndex.toMap.map(p => (p._1, p._2.toByte))
   val toC = toI.map(_.swap)

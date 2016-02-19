@@ -2,7 +2,7 @@ package org.apache.spark.serializer
 
 import java.io.EOFException
 import java.text.SimpleDateFormat
-import java.util.Date
+import java.util.{NoSuchElementException, Date}
 import java.util.zip.{GZIPInputStream, GZIPOutputStream}
 import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.hadoop.mapred.lib.CombineFileSplit
@@ -49,9 +49,9 @@ class DirectFileSerializableRDD[T: ClassTag](@transient val sc: SparkContext,
 
   }
 
-  override def compute(theSplit: Partition, context: TaskContext): Iterator[T] = {
+  override def compute(split: Partition, context: TaskContext): Iterator[T] = {
     new NextIterator[T] {
-      val file = new Path(filename, DirectFileSerializableRDD.partitionFileName(theSplit.index, gzip))
+      val file = new Path(filename, DirectFileSerializableRDD.partitionFileName(split.index, gzip))
 
       val env = SparkEnv.get
       val hadoopConf = SparkHadoopUtil.get.newConfiguration(SparkEnv.get.conf)
@@ -61,21 +61,17 @@ class DirectFileSerializableRDD[T: ClassTag](@transient val sc: SparkContext,
       val fileInputStream = if (gzip) new GZIPInputStream(hadoopInputStream) else hadoopInputStream
       val serializer = env.serializer.newInstance()
 
-      val split = theSplit.asInstanceOf[HadoopPartition]
       val inputMetrics = context.taskMetrics.getInputMetricsForReadMethod(DataReadMethod.Hadoop)
 
       // Find a function that will return the FileSystem bytes read by this thread. Do this before
       // creating RecordReader, because RecordReader's constructor might read some bytes
-      val bytesReadCallback = inputMetrics.bytesReadCallback.orElse {
-        split.inputSplit.value match {
-          case _: FileSplit | _: CombineFileSplit =>
-            SparkHadoopUtil.get.getFSBytesReadOnThreadCallback()
-          case _ => None
-        }
-      }
+      val bytesReadCallback =
+        inputMetrics.bytesReadCallback.orElse(
+          SparkHadoopUtil.get.getFSBytesReadOnThreadCallback()
+        )
       inputMetrics.setBytesReadCallback(bytesReadCallback)
 
-      val (stream, it) =
+      val (stream, itt) =
         serializer match {
           case ksi: KryoSerializerInstance =>
             val deserializeStream = new KryoObjectDeserializationStream(ksi, fileInputStream, readClass)
@@ -89,15 +85,19 @@ class DirectFileSerializableRDD[T: ClassTag](@transient val sc: SparkContext,
             (deserializeStream, deserializeStream.asIterator.asInstanceOf[Iterator[T]])
         }
 
+      val arr = itt.toArray
+      val it = arr.toIterator
       context.addTaskCompletionListener{ context => closeIfNeeded() }
 
       var t: T = _
       override protected def getNext(): T = {
         try {
           t = it.next()
-          finished = !it.hasNext
+          //finished = !it.hasNext
         } catch {
-          case eof: EOFException =>
+          case e: EOFException =>
+            finished = true
+          case e: NoSuchElementException =>
             finished = true
         }
         if (!finished) {

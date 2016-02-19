@@ -3,7 +3,7 @@ package org.hammerlab.pageant.fm.index
 import java.io.File
 
 import org.hammerlab.pageant.fm.blocks.RunLengthBWTBlock
-import org.hammerlab.pageant.fm.utils.SmallFMSuite
+import org.hammerlab.pageant.fm.utils.{Utils, SmallFMSuite}
 import org.hammerlab.pageant.utils.{TmpFilesTest, PageantSuite}
 
 
@@ -16,6 +16,10 @@ class SparkFMTest extends PageantSuite with TmpFilesTest {
 
   def testCase(saPartitions: Int, tsPartitions: Int, blockSize: Int): Unit = {
     test(s"spark-fm-$saPartitions-$tsPartitions-$blockSize") {
+
+      sa should be(Array(8, 7, 0, 6, 1, 5, 2, 4, 3))
+      bwt.map(Utils.toC).mkString("") should be("AC$GATCTG")
+
       val fm = SmallFMSuite.initFM(
         sc,
         saPartitions,
@@ -52,10 +56,11 @@ class SparkFMTest extends PageantSuite with TmpFilesTest {
       }
 
       testFM(fm)
-      val fn = tmpPath("small")
+      val fn = "src/test/resources/small.fm"//tmpPath("small")
       fm.save(fn)
 
-      testFM(SparkFM.load(sc, fn))
+      val fm2 = SparkFM.load(sc, fn)
+      testFM(fm2)
     }
   }
 
