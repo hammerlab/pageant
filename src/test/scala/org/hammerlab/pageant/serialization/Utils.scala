@@ -37,7 +37,7 @@ trait Utils extends SparkSuite with Matchers {
 
     val fileSizeMap = fileSizes.zipWithIndex.map(p => "part-%05d".format(p._2) -> p._1).toMap
 
-    val tmp = new File(tmpDir(name) + "/" + name)
+    val tmp = new File(tmpDir(), name)
 
     val rdd = sc.parallelize(l, fileSizes.size)
 

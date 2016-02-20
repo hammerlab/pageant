@@ -71,6 +71,8 @@ class KryoObjectDeserializationStream(serInstance: KryoSerializerInstance,
     }
   }
 
+  def bytesRead(): Long = input.total()
+
   def read[T]()(implicit ct: ClassTag[T]): T = {
     if (readClass)
       kryo.readClassAndObject(input).asInstanceOf[T]

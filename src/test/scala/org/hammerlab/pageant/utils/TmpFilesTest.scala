@@ -29,7 +29,7 @@ trait TmpFilesTest extends BeforeAndAfterTest {
 
   def tmpDirPath(name: String = "tmp"): String = tmpDir(name).toString
   def tmpDir(name: String = "tmp"): File = {
-    val file = new File(Files.createTempDirectory("test").toString)
+    val file = new File(Files.createTempDirectory(name).toString)
     dirsToDelete.append(file)
     file
   }

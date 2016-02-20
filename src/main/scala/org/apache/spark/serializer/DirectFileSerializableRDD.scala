@@ -6,8 +6,8 @@ import java.util.{NoSuchElementException, Date}
 import java.util.zip.{GZIPInputStream, GZIPOutputStream}
 import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.hadoop.mapred.lib.CombineFileSplit
-import org.apache.hadoop.mapred.{FileSplit, JobID}
-import org.apache.hadoop.mapreduce.lib.output.FileOutputCommitter
+import org.apache.hadoop.mapred.{JobConf, JobID}
+import org.apache.hadoop.mapreduce.lib.output.{FileOutputCommitter, FileOutputFormat}
 import org.apache.hadoop.mapreduce.{Job => NewAPIHadoopJob, OutputFormat => NewOutputFormat, RecordWriter => NewRecordWriter}
 import org.apache.spark.deploy.SparkHadoopUtil
 import org.apache.spark.executor.{DataReadMethod, DataWriteMethod, OutputMetrics}
@@ -63,15 +63,7 @@ class DirectFileSerializableRDD[T: ClassTag](@transient val sc: SparkContext,
 
       val inputMetrics = context.taskMetrics.getInputMetricsForReadMethod(DataReadMethod.Hadoop)
 
-      // Find a function that will return the FileSystem bytes read by this thread. Do this before
-      // creating RecordReader, because RecordReader's constructor might read some bytes
-      val bytesReadCallback =
-        inputMetrics.bytesReadCallback.orElse(
-          SparkHadoopUtil.get.getFSBytesReadOnThreadCallback()
-        )
-      inputMetrics.setBytesReadCallback(bytesReadCallback)
-
-      val (stream, itt) =
+      val (stream, it) =
         serializer match {
           case ksi: KryoSerializerInstance =>
             val deserializeStream = new KryoObjectDeserializationStream(ksi, fileInputStream, readClass)
@@ -85,15 +77,34 @@ class DirectFileSerializableRDD[T: ClassTag](@transient val sc: SparkContext,
             (deserializeStream, deserializeStream.asIterator.asInstanceOf[Iterator[T]])
         }
 
-      val arr = itt.toArray
-      val it = arr.toIterator
+      val bytesReadCallback =
+        inputMetrics.bytesReadCallback.orElse(
+          SparkHadoopUtil.get.getFSBytesReadOnThreadCallback()
+        )
+      inputMetrics.setBytesReadCallback(
+        inputMetrics.bytesReadCallback.orElse(
+          Some(
+            () => {
+              stream match {
+                case k: KryoObjectDeserializationStream =>
+                  val n = k.bytesRead()
+                  logWarning(s"Got $n bytes from KODS")
+                  n
+                case d: DeserializationStream =>
+                  logWarning(s"Reporting 0 input bytes for DeserializationStream")
+                  0L
+              }
+            }
+          )
+        )
+      )
+
       context.addTaskCompletionListener{ context => closeIfNeeded() }
 
       var t: T = _
       override protected def getNext(): T = {
         try {
           t = it.next()
-          //finished = !it.hasNext
         } catch {
           case e: EOFException =>
             finished = true
@@ -143,6 +154,17 @@ class DirectFileRDDSerializer[T: ClassTag](@transient val rdd: RDD[T])
     val jobConfiguration = SparkHadoopUtil.get.getConfigurationFromJobContext(job)
     val wrappedConf = new SerializableConfiguration(jobConfiguration)
 
+    val fs = FileSystem.get(hadoopConf)
+
+    val jobID = new JobID(jobtrackerID, rdd.id)
+    val jobContext = newJobContext(jobConfiguration, jobID)
+
+    val outputPath = new Path(path)
+    val jobCommitter = new FileOutputCommitter(outputPath, jobContext)
+
+//    val outputPath = FileOutputFormat.getOutputPath(jobContext)
+    val outputPathStr = outputPath.toString
+
     def writePartition(ctx: TaskContext, iter: Iterator[T]): Unit = {
       val config = wrappedConf.value
       /* "reduce task" <split #> <attempt # = spark task #> */
@@ -156,17 +178,22 @@ class DirectFileRDDSerializer[T: ClassTag](@transient val rdd: RDD[T])
         )
       val taskAttemptContext = newTaskAttemptContext(config, attemptId)
 
-      val dir = new Path(path)
+      val outputPath = new Path(outputPathStr)
+      val taskCommitter = new FileOutputCommitter(outputPath, taskAttemptContext)
 
-      val taskCommitter = new FileOutputCommitter(dir, taskAttemptContext)
       taskCommitter.setupTask(taskAttemptContext)
+
+      val tmpfile = new Path(
+        taskCommitter.getTaskAttemptPath(taskAttemptContext),
+        DirectFileSerializableRDD.partitionFileName(ctx.partitionId(), gzip)
+      )
 
       val idx = ctx.partitionId()
       val serializer = SparkEnv.get.serializer.newInstance()
 
       val metrics = ctx.taskMetrics()
       val fs = FileSystem.get(SparkHadoopUtil.get.newConfiguration(SparkEnv.get.conf))
-      val hos = fs.create(new Path(path, DirectFileSerializableRDD.partitionFileName(idx, gzip)))
+      val hos = fs.create(tmpfile)
       val os = if (gzip) new GZIPOutputStream(hos) else hos
 
       val ss = serializer match {
@@ -194,10 +221,6 @@ class DirectFileRDDSerializer[T: ClassTag](@transient val rdd: RDD[T])
       bytesWrittenCallback.foreach { fn => outputMetrics.setBytesWritten(fn()) }
       outputMetrics.setRecordsWritten(recordsWritten)
     }
-
-    val jobID = new JobID(jobtrackerID, rdd.id)
-    val jobContext = newJobContext(jobConfiguration, jobID)
-    val jobCommitter = new FileOutputCommitter(new Path(path), jobContext)
 
     jobCommitter.setupJob(jobContext)
     rdd.context.runJob(rdd, writePartition _)
