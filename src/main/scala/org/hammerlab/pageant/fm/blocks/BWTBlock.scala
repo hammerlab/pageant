@@ -9,7 +9,8 @@ trait BWTBlock {
   def startCounts: Counts
   def data: AT
 
-  def occ(t: T, bound: Bound): Long
+  def occ(t: T, bound: Bound): Long = occ(t, bound.v)
+  def occ(t: T, v: Long): Long
 
   override def equals(other: Any): Boolean = {
     other match {

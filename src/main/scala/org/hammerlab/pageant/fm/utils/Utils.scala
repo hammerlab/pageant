@@ -10,6 +10,7 @@ object Utils {
 
   type T = Byte
   type AT = Array[T]
+  type VT = Vector[T]
   type V = Long
   type Idx = Long
   type TPos = Int

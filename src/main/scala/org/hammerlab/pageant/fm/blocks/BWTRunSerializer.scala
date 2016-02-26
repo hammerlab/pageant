@@ -11,7 +11,6 @@ class BWTRunSerializer extends Serializer[BWTRun] {
 
     var byte = (o.t + (low4 << 4)).toByte
     if (rest > 0) byte = (byte | 0x8).toByte
-//    println(s"write: $o: ${b2b(byte)} $rest")
     os.write(byte)
     if (rest > 0)
       VarNum.write(os, rest)
@@ -21,7 +20,6 @@ class BWTRunSerializer extends Serializer[BWTRun] {
     val bytes = Array[Byte](0)
     val byte = is.readByte() //is.read(bytes).toByte
     val n = (byte & 0xf0) >> 4
-//    println(s"read: ${b2b(byte)} $n")
     BWTRun(
       (byte & 0x7).toByte,
       if ((byte & 0x8) > 0)

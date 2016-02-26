@@ -11,10 +11,10 @@ case class FullBWTBlock(startIdx: Long,
     s"BWTC($startIdx: ${startCounts.mkString(",")}, ${data.mkString(",")})"
   }
 
-  def occ(t: T, bound: Bound): Long = {
+  def occ(t: T, v: Long): Long = {
     var count = startCounts(t)
     var i = 0
-    while (i + startIdx < bound.v) {
+    while (i + startIdx < v) {
       if (data(i) == t) count += 1
       i += 1
     }

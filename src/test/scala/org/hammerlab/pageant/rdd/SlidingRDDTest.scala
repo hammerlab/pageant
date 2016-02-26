@@ -10,7 +10,14 @@ class SlidingRDDTest extends SparkSuite {
 
   def testN(n: Int): Unit = {
     test(s"$n") {
-      sc.parallelize(1 to n).sliding3.collect should be((1 to n).sliding(3).map(lToT).toArray)
+      val range = 1 to n
+      var expectedSlid = range.sliding(3).map(lToT).toArray
+
+      sc.parallelize(range).sliding3().collect should be(expectedSlid)
+
+      expectedSlid ++= Array((n - 1, n, 0), (n, 0, 0))
+
+      sc.parallelize(range).sliding3(0).collect should be(expectedSlid)
     }
   }
 

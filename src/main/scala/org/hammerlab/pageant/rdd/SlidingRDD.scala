@@ -12,12 +12,14 @@ class SlidingRDDPartitioner(override val numPartitions: Int) extends Partitioner
 }
 
 class SlidingRDD[T: ClassTag](@transient rdd: RDD[T]) extends Serializable {
-  def sliding3: RDD[(T, T, T)] = {
+  def sliding3(fill: T): RDD[(T, T, T)] = sliding3(Some(fill))
+  def sliding3(fillOpt: Option[T] = None): RDD[(T, T, T)] = {
+    val n = rdd.getNumPartitions
     val firstSplit: RDD[((Int, Boolean), Vector[T])] =
       rdd.mapPartitionsWithIndex((idx, iter) => {
         val arr = iter.toVector
         if (idx == 0)
-          Iterator(((idx, false), arr))
+          Iterator(((0, false), arr)) ++ fillOpt.map(fill => ((n - 1, true), Vector(fill, fill))).toIterator
         else {
           val first = arr(0)
           val second = arr(1)

@@ -8,6 +8,8 @@ import org.apache.spark.util.NextIterator
 
 import scala.reflect.ClassTag
 
+class PublicKryoSerializerInstance(ks: KryoSerializer) extends KryoSerializerInstance(ks)
+
 class KryoObjectSerializationStream(serInstance: KryoSerializerInstance,
                                     outStream: OutputStream,
                                     writeClass: Boolean = false) extends SerializationStream {
@@ -50,6 +52,7 @@ class KryoObjectDeserializationStream(serInstance: KryoSerializerInstance,
 
   private[this] var input: KryoInput = new KryoInput(inStream)
   private[this] var kryo: Kryo = serInstance.borrowKryo()
+  private[this] var finalBytesRead: Long = 0
 
   /**
     * Read the elements of this stream through an iterator. This can only be called once, as
@@ -71,7 +74,7 @@ class KryoObjectDeserializationStream(serInstance: KryoSerializerInstance,
     }
   }
 
-  def bytesRead(): Long = input.total()
+  def bytesRead(): Long = if (input == null) finalBytesRead else input.total()
 
   def read[T]()(implicit ct: ClassTag[T]): T = {
     if (readClass)
@@ -98,6 +101,7 @@ class KryoObjectDeserializationStream(serInstance: KryoSerializerInstance,
       } finally {
         serInstance.releaseKryo(kryo)
         kryo = null
+        finalBytesRead = input.total()
         input = null
       }
     }

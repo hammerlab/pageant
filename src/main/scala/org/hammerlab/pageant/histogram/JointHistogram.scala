@@ -2,12 +2,12 @@ package org.hammerlab.pageant.histogram
 
 import org.apache.spark.SparkContext
 import org.apache.spark.rdd.RDD
-import org.bdgenomics.adam.projections.{AlignmentRecordField, Projection}
+import org.bdgenomics.adam.projections.{AlignmentRecordField, FeatureField, Projection}
 import org.bdgenomics.adam.rdd.ADAMContext._
 import org.bdgenomics.adam.rich.RichAlignmentRecord
 import org.bdgenomics.formats.avro.{AlignmentRecord, Feature}
-import org.hammerlab.pageant.histogram.JointHistogram._
 import org.hammerlab.pageant.avro._
+import org.hammerlab.pageant.histogram.JointHistogram._
 
 import scala.collection.mutable.{Map => MMap}
 
@@ -335,8 +335,17 @@ object JointHistogram {
         )
       )
 
+    val featuresProjectionOpt =
+      Some(
+        Projection(
+          FeatureField.contig,
+          FeatureField.start,
+          FeatureField.end
+        )
+      )
+
     val reads = readFiles.map(file => sc.loadAlignments(file, projectionOpt))
-    val features = featureFiles.map(file => sc.loadFeatures(file))
+    val features = featureFiles.map(file => sc.loadFeatures(file, featuresProjectionOpt))
     JointHistogram.fromReadsAndFeatures(reads, features)
   }
 
@@ -363,7 +372,7 @@ object JointHistogram {
       refLen = end - start
       i <- 0 until refLen.toInt
     } yield {
-        ((name, start + i), 1)
+        ((if (name.startsWith("chr")) name.drop(3) else name, start + i), 1)
       }).reduceByKey(_ + _)
   }
 

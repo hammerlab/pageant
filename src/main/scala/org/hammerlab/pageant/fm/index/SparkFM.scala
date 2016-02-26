@@ -133,7 +133,6 @@ object SparkFM {
       val data: ArrayBuffer[T] = ArrayBuffer()
       val blocks = iter.toArray.sortBy(_.startIdx)
       val first = blocks.head
-      val last = blocks.last
       for {block <- blocks} {
         data ++= block.data
       }

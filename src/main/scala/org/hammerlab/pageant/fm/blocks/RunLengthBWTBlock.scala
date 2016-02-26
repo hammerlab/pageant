@@ -2,8 +2,7 @@ package org.hammerlab.pageant.fm.blocks
 
 import org.hammerlab.pageant.fm.index.RunLengthIterator
 import org.hammerlab.pageant.fm.index.SparkFM.Counts
-import org.hammerlab.pageant.fm.utils.Bound
-import org.hammerlab.pageant.fm.utils.Utils.{T, AT}
+import org.hammerlab.pageant.fm.utils.Utils.{AT, T}
 
 case class RunLengthBWTBlock(startIdx: Long,
                              startCounts: Counts,
@@ -13,17 +12,17 @@ case class RunLengthBWTBlock(startIdx: Long,
   }
 
   def data: AT = pieces.flatMap(p => Array.fill(p.n)(p.t))
-  def occ(t: T, bound: Bound): Long = {
+  def occ(t: T, v: Long): Long = {
     var count = startCounts(t)
     var pieceIdx = 0
     var idx = startIdx
-    while (idx < bound.v && pieceIdx < pieces.length) {
+    while (idx < v && pieceIdx < pieces.length) {
       val piece = pieces(pieceIdx)
       if (piece.t == t) count += piece.n
       idx += piece.n
       pieceIdx += 1
-      if (idx > bound.v) {
-        if (piece.t == t) count -= (idx - bound.v)
+      if (idx > v) {
+        if (piece.t == t) count -= (idx - v)
       }
     }
     count
@@ -41,3 +40,4 @@ object RunLengthBWTBlock {
              data: Seq[T]): RunLengthBWTBlock =
     RunLengthBWTBlock(startIdx, startCounts, RunLengthIterator(data).toArray)
 }
+

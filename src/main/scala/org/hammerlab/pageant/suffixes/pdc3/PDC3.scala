@@ -6,6 +6,7 @@ import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.DirectFileRDDSerializer._
 import org.apache.spark.sortwith.SortWithRDD._
+import org.hammerlab.pageant.rdd.SlidingRDD._
 import org.hammerlab.pageant.suffixes.dc3.DC3
 import org.joda.time.format.PeriodFormatterBuilder
 
@@ -301,28 +302,34 @@ object PDC3 {
     pm("ti", () => ti)
 
     val tuples: RDD[L3I] =
-      backup("tuples", () =>
-        (for {
-          (e, i) <- ti
-          j <- i-2 to i
-          if j >= 0 && j % 3 != 0
-        } yield {
-          (j, (e, i))
-        })
-        .setName(s"$N-flatmapped")
-        .groupByKey()
-        .setName(s"$N-tuples-grouped")
-        .mapValues(
-          ts => {
-            ts.toList.sortBy(_._2).map(_._1) match {
-              case e1 :: Nil => (e1, 0L, 0L)
-              case e1 :: e2 :: Nil => (e1, e2, 0L)
-              case es => (es(0), es(1), es(2))
-            }
+//      if (n / t.getNumPartitions < 2)
+        backup("tuples", () =>
+          (for {
+            (e, i) <- ti
+            j <- i-2 to i
+            if j >= 0 && j % 3 != 0
+          } yield {
+            (j, (e, i))
           })
-        .setName(s"$N-list->tupled;zero-padded")
-        .map(_.swap)
-      )
+          .setName(s"$N-flatmapped")
+          .groupByKey()
+          .setName(s"$N-tuples-grouped")
+          .mapValues(
+            ts => {
+              ts.toList.sortBy(_._2).map(_._1) match {
+                case e1 :: Nil => (e1, 0L, 0L)
+                case e1 :: e2 :: Nil => (e1, e2, 0L)
+                case es => (es(0), es(1), es(2))
+              }
+            })
+          .setName(s"$N-list->tupled;zero-padded")
+          .map(_.swap)
+        )
+//      else {
+//        backup("sliding", () => t.sliding3(0).zipWithIndex())
+//      }
+
+    println(s"${tuples.collect.map { case ((t1,t2,t3),i) => s"$i -> ($t1,$t2,$t3)"} mkString("\n")}")
 
     val padded =
       if (n % 3 == 1)
@@ -337,8 +344,6 @@ object PDC3 {
     pm("S", () => S)
 
     def name(s: RDD[L3I], N: String): (Boolean, RDD[(L, Name)]) = {
-
-      //print(s"s: ${s.collect.mkString(",")}")
 
       val namedTupleRDD: RDD[(Name, L3, L)] =
         s.mapPartitions(iter => {
@@ -461,9 +466,9 @@ object PDC3 {
               backup(
                 "ones-then-twos",
                 () => named
-                      .map(p => ((p._1 % 3, p._1 / 3), p._2)).setName(s"$N-mod-div-keyed")
-                      .sortByKey(numPartitions = ((n1 + n2) / target).toInt).setName(s"$N-mod-div-sorted")
-                      .values
+                        .map(p => ((p._1 % 3, p._1 / 3), p._2)).setName(s"$N-mod-div-keyed")
+                        .sortByKey(numPartitions = ((n1 + n2) / target).toInt).setName(s"$N-mod-div-sorted")
+                        .values
               )
             pm("onesThenTwos", () => onesThenTwos)
 
