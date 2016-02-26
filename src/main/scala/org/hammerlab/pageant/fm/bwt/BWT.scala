@@ -2,9 +2,9 @@ package org.hammerlab.pageant.fm.bwt
 
 import org.apache.spark.rdd.RDD
 import org.hammerlab.pageant.fm.blocks.{BWTRun, BlockIterator, MergeInsertsIterator, RunLengthBWTBlock}
-import org.hammerlab.pageant.fm.index.SparkFM.Counts
+import org.hammerlab.pageant.fm.utils.Counts
 import org.hammerlab.pageant.fm.index.{BoundPartitioner, DualBoundPartitioner}
-import org.hammerlab.pageant.fm.utils.Utils
+import org.hammerlab.pageant.fm.utils.{Pos, Utils}
 import org.hammerlab.pageant.fm.utils.Utils.{BlockIdx, Idx, N, T, VT}
 
 import scala.collection.mutable.ArrayBuffer
@@ -16,6 +16,8 @@ object BWT {
                       bwt: RDD[(BlockIdx, RunLengthBWTBlock)],
                       partitionBounds: Seq[(Int, Long)],
                       blockSize: Int,
+                      blocksPerPartition: Long,
+                      curSize: Long,
                       n: Long)
 
   case class NextStepInfo(nextStringPoss: RDD[(Idx, NextStringPos)],
@@ -23,6 +25,8 @@ object BWT {
                           bwt: RDD[(BlockIdx, RunLengthBWTBlock)],
                           partitionBounds: Seq[(Int, Long)],
                           blockSize: Int,
+                          blocksPerPartition: Long,
+                          nextSize: Long,
                           n: Long)
 
   case class StringPos(ts: VT, curPos: Long, nextInsertPos: Option[Long]) {
@@ -38,14 +42,26 @@ object BWT {
   }
 
   def primeNextStep(info: StepInfo): NextStepInfo = {
-    val (nextStringPoss, counts) = primeNextStep(info.bwt, info.stringPoss, info.counts, info.blockSize)
-    NextStepInfo(nextStringPoss, counts, info.bwt, info.partitionBounds, info.blockSize, info.n)
+    val (nextStringPoss, counts, nextSize, newBounds) =
+      primeNextStep(
+        info.bwt,
+        info.stringPoss,
+        info.counts,
+        info.curSize,
+        info.n,
+        info.blocksPerPartition,
+        info.blockSize
+      )
+    NextStepInfo(nextStringPoss, counts, info.bwt, newBounds, info.blockSize, info.blocksPerPartition, nextSize, info.n)
   }
 
   def primeNextStep(bwt: RDD[(BlockIdx, RunLengthBWTBlock)],
                     stringPoss: RDD[(Idx, StringPos)],
                     counts: Counts,
-                    blockSize: Int): (RDD[(Idx, NextStringPos)], Counts) = {
+                    curSize: Long,
+                    n: Long,
+                    blocksPerPartition: Long,
+                    blockSize: Int): (RDD[(Idx, NextStringPos)], Counts, Long, Seq[(Int, Long)]) = {
     val newCounts = updateCounts(stringPoss, counts)
 
     val targets: RDD[(BlockIdx, (Idx, T, Long, Boolean))] =
@@ -116,55 +132,56 @@ object BWT {
           tIdx → nextStringPos
       }
 
-    (nextStringPoss, newCounts)
+    val newBounds = getBounds(blockSize, blocksPerPartition, curSize, n)
+
+    (nextStringPoss, newCounts, curSize + n, newBounds)
   }
 
   def toNextStep(info: NextStepInfo): StepInfo = {
-    val (bwt, stringPoss, partitionBounds) = toNextStep(info.bwt, info.nextStringPoss, info.blockSize, info.partitionBounds, info.n)
-    StepInfo(stringPoss, info.counts, bwt, partitionBounds, info.blockSize, info.n)
+    val (bwt, stringPoss) =
+      toNextStep(
+        info.bwt,
+        info.nextStringPoss,
+        info.blockSize,
+        info.partitionBounds,
+        info.nextSize,
+        info.n
+      )
+    StepInfo(
+      stringPoss,
+      info.counts,
+      bwt,
+      info.partitionBounds,
+      info.blockSize,
+      info.blocksPerPartition,
+      info.nextSize,
+      info.n
+    )
   }
 
   def toNextStep(bwt: RDD[(BlockIdx, RunLengthBWTBlock)],
                  nextPoss: RDD[(Idx, NextStringPos)],
                  blockSize: Int,
                  partitionBounds: Seq[(Int, Long)],
-                 n: Long): (RDD[(BlockIdx, RunLengthBWTBlock)], RDD[(Idx, StringPos)], Seq[(Int, Long)]) = {
+                 nextSize: Long,
+                 n: Long): (RDD[(BlockIdx, RunLengthBWTBlock)], RDD[(Idx, StringPos)]) = {
 
     val partitioner = new BoundPartitioner(partitionBounds)
     val dualPartitioner = new DualBoundPartitioner(partitionBounds)
 
-    val insertionSumsAndCounts: Array[(Long, Counts)] =
+    val insertionSumsAndCounts: Array[Pos] =
       (for {
-        (tIdx, NextStringPos(ts, nextPos, nextInsertPos, _)) <- nextPoss
+        (tIdx, NextStringPos(ts, nextInsertPos, nextPos, _)) <- nextPoss
         t = if (ts.isEmpty) 0.toByte else ts.last
       } yield {
         nextInsertPos → t
-      }).partitionBy(partitioner).values.mapPartitions(it ⇒ {
-        val counts = Array.fill(N)(0L)
-        it.foreach(t ⇒ {
-          counts(t) += 1
-        })
-        Iterator((counts.sum, counts))
-      }).collect
+      })
+      .partitionBy(partitioner)
+      .values
+      .mapPartitions(it ⇒ Iterator(Pos(Counts(it))))
+      .collect
 
-    var totalInsertions = 0L
-    val insertionCounts = Array.fill(N)(0L)
-    val partialSums: ArrayBuffer[(Long, Counts)] =
-      if (insertionSumsAndCounts.length > 1) {
-        var ps: ArrayBuffer[(Long, Counts)] = ArrayBuffer()
-        for {
-          (partitionTotal, partitionCounts) ← insertionSumsAndCounts.dropRight(1)
-        } {
-          ps.append((totalInsertions, insertionCounts.clone()))
-          totalInsertions += partitionTotal
-          (0 until N).foreach(i => insertionCounts(i) += partitionCounts(i))
-        }
-        ps
-      } else
-        ArrayBuffer((totalInsertions, insertionCounts))
-
-    val sc = bwt.context
-    val partialSumsRDD = sc.parallelize(partialSums, partitioner.numPartitions)
+    val insertionPartialSums = Pos.partialSums(insertionSumsAndCounts)
 
     val newChars: RDD[(Long, T)] =
       (for {
@@ -174,36 +191,55 @@ object BWT {
         (nextPos, nextInsertPos) → last
       }).repartitionAndSortWithinPartitions(dualPartitioner).map(t => (t._1._2, t._2))
 
+    val newPartitionBwt: RDD[RunLengthBWTBlock] =
+      bwt
+        .values
+        .map(t ⇒ t.startIdx → t)
+        .repartitionAndSortWithinPartitions(partitioner)
+        .values
+
+    val partitionLastIndexAndCounts: Array[Pos] =
+      newPartitionBwt.mapPartitions(it ⇒
+        Iterator(Utils.lastOption(it).map(_.lastPos).getOrElse(Pos()))
+      ).collect
+
+    val bwtPartialSums = Pos.partialSums(partitionLastIndexAndCounts)
+
+    val totalPartialSums = bwtPartialSums.zip(insertionPartialSums).map(t ⇒ t._1 + t._2)
+    val sc = bwt.context
+    val totalPartialSumsRDD = sc.parallelize(totalPartialSums, partitioner.numPartitions)
+
     val newBwt: RDD[(BlockIdx, RunLengthBWTBlock)] =
-      bwt.values.zipPartitions(partialSumsRDD, newChars)(
-        (blocksIter, partialSumIter, newCharsIter) => {
-          val (startTotal, startCounts) = partialSumIter.next()
-          if (partialSumIter.hasNext) {
-            throw new Exception(s"partialSumIter with ${partialSumIter.size + 1} elements, starting with $startTotal")
+      newPartitionBwt
+        .zipPartitions(totalPartialSumsRDD, newChars)(
+          (blocksIter, partialSumIter, newCharsIter) => {
+            val startPos = partialSumIter.next()
+            if (partialSumIter.hasNext) {
+              throw new Exception(s"partialSumIter with ${partialSumIter.size + 1} elements, starting with $startPos")
+            }
+
+            val ba = blocksIter.toArray
+            val nca = newCharsIter.toArray
+
+            val mergedIter = new MergeInsertsIterator(ba.toIterator, nca.toIterator)
+            val ma = mergedIter.toArray
+
+            val bla = new BlockIterator(startPos, blockSize, ma.toIterator).toArray
+
+            bla.toIterator
+
+
+//            val mergedIter = new MergeInsertsIterator(blocksIter, newCharsIter)
+//            new BlockIterator(startTotal, startCounts, blockSize, mergedIter)
           }
-
-//          val blocksArr = blocksIter.toArray
-//          val newCharsArr = newCharsIter.toArray
-//
-//          val mergedIter = new MergeInsertsIterator(blocksArr.toIterator, newCharsArr.toIterator)
-//          val mergedArr = mergedIter.toArray
-//
-//          new BlockIterator(startTotal, startCounts, blockSize, mergedArr.toIterator)
-
-          val mergedIter = new MergeInsertsIterator(blocksIter, newCharsIter)
-          new BlockIterator(startTotal, startCounts, blockSize, mergedIter)
-        }
-      ).groupByKey.mapValues(blocksIter ⇒ {
-        val blocks = blocksIter.toArray.sortBy(_.startIdx)
-        val first = blocks.head
-        RunLengthBWTBlock(first.startIdx, first.startCounts, blocks.flatMap(_.pieces))
-      }).sortByKey()
-
-    val newBounds: Array[(Int, Long)] = newBwt.keys.mapPartitionsWithIndex((idx, it) ⇒ {
-      Iterator((idx, (it.toArray.last + 1) * blockSize))
-    }).collect
-
-    newBounds(newBounds.length - 1) = (newBounds(newBounds.length - 1)._1, newBounds(newBounds.length - 1)._2 + n)
+        )
+        .groupByKey
+        .mapValues(blocksIter ⇒ {
+          val blocks = blocksIter.toArray.sortBy(_.startIdx)
+          val first = blocks.head
+          RunLengthBWTBlock(first.startIdx, first.startCounts, blocks.flatMap(_.pieces))
+        })
+        .sortByKey()
 
     val stringPoss =
       for {
@@ -212,7 +248,7 @@ object BWT {
         tIdx → StringPos(ts, nextPos, next2InsertPos)
       }
 
-    (newBwt, stringPoss, newBounds)
+    (newBwt, stringPoss)
   }
 
   def updateCounts(stringPoss: RDD[(Long, StringPos)], curCounts: Counts): Counts = {
@@ -231,29 +267,39 @@ object BWT {
       newCounts(i) = curCounts(i) + cur
     })
 
-    newCounts
+    Counts(newCounts)
+  }
+
+  def getBounds(blockSize: Int, blocksPerPartition: Long, curSize: Long, n: Long): Seq[(Int, Long)] = {
+    val newSize = curSize + n
+
+    val numBlocks = (newSize + blockSize - 1) / blockSize
+    val newNumPartitions = ((numBlocks + blocksPerPartition - 1) / blocksPerPartition).toInt
+
+    (0 until newNumPartitions).map(i ⇒ (i, blocksPerPartition * blockSize * (i + 1)))
   }
 
   object NextStepInfo {
-    def apply(tss: RDD[VT], blockSize: Int = 100): NextStepInfo = {
+    def apply(tss: RDD[VT], blockSize: Int = 100, blocksPerPartition: Long = 10000): NextStepInfo = {
       val n = tss.count()
       val nextStringPoss = tss.zipWithIndex().map(t ⇒ t._2 → NextStringPos(t._1.dropRight(1), 0L, t._2, Some(n)))
-      val counts = Array.fill(N)(n)
-      counts(0) = 0L
+      val countsArr = Array.fill(N)(n)
+      countsArr(0) = 0L
+      val counts = Counts(countsArr)
       val sc = tss.context
       val bwt = sc.parallelize[(BlockIdx, RunLengthBWTBlock)](
         List(
           (
             0L,
-            RunLengthBWTBlock(0L, counts, Array[BWTRun]())
+            RunLengthBWTBlock(Pos(), Array[BWTRun]())
           )
         ),
         1
       )
 
-      val bounds = Array((0, n))
+      val bounds = getBounds(blockSize, blocksPerPartition, 0, n)
 
-      NextStepInfo(nextStringPoss, counts, bwt, bounds, blockSize, n)
+      NextStepInfo(nextStringPoss, counts, bwt, bounds, blockSize, blocksPerPartition, n, n)
     }
   }
 

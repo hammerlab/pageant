@@ -1,13 +1,13 @@
 package org.hammerlab.pageant.fm.blocks
 
-import org.hammerlab.pageant.fm.index.SparkFM.Counts
-import org.hammerlab.pageant.fm.utils.Bound
 import org.hammerlab.pageant.fm.utils.Utils.{AT, T, toC}
+import org.hammerlab.pageant.fm.utils.{Bound, Counts, Pos}
 
 trait BWTBlock {
-  def startIdx: Long
-  def startCounts: Counts
-  def data: AT
+  def pos: Pos
+  def startIdx: Long = pos.idx
+  def startCounts: Counts = pos.counts
+  def data: Seq[T]
 
   def occ(t: T, bound: Bound): Long = occ(t, bound.v)
   def occ(t: T, v: Long): Long
@@ -17,7 +17,7 @@ trait BWTBlock {
       case b: BWTBlock =>
         startIdx == b.startIdx &&
           startCounts.sameElements(b.startCounts) &&
-          data.sameElements(b.data)
+          data.equals(b.data)
       case _ => false
     }
   }

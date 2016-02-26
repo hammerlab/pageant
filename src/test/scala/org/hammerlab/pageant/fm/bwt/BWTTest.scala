@@ -26,17 +26,28 @@ class BWTTest extends PageantSuite {
   def order[U: ClassTag](rdd: RDD[(Long, U)]): Array[U] = rdd.collect.sortBy(_._1).map(_._2)
 
   def testFn(
-    blockSize: Int
+    blockSize: Int,
+    blocksPerPartition: Int = 1
   )(
-    pb1: (Int, Int), e1: (String, String)*
+    pb1: (Int, Int)*
   )(
-    pb2: (Int, Int), e2: (String, String)*
+    e1: (String, String)*
   )(
-    pb3: (Int, Int), e3: (String, String)*
+    pb2: (Int, Int)*
   )(
-    pb4: (Int, Int), e4: (String, String)*
+    e2: (String, String)*
   )(
-    pb5: (Int, Int), e5: (String, String)*
+    pb3: (Int, Int)*
+  )(
+    e3: (String, String)*
+  )(
+    pb4: (Int, Int)*
+  )(
+    e4: (String, String)*
+  )(
+    pb5: (Int, Int)*
+  )(
+    e5: (String, String)*
   ): Unit = {
 
     def expected(ss: Seq[(String, String)]): Array[RunLengthBWTBlock] = {
@@ -58,12 +69,12 @@ class BWTTest extends PageantSuite {
           ).map(sToTs)
         )
 
-      var nsi = NextStepInfo(tss, blockSize)
+      var nsi = NextStepInfo(tss, blockSize, blocksPerPartition)
 
       var si = BWT.toNextStep(nsi)
 
       si.counts should be (counts("0 4 4 4 4 4"))
-      si.partitionBounds should be (Array((pb1._1, pb1._2.toLong)))
+      si.partitionBounds should be (pb1.map(pb ⇒ (pb._1, pb._2.toLong)).toArray)
 
       order(si.stringPoss) should be(
         Array(
@@ -88,7 +99,7 @@ class BWTTest extends PageantSuite {
       )
 
       si = BWT.toNextStep(nsi)
-      si.partitionBounds should be (Array((pb2._1, pb2._2.toLong)))
+      si.partitionBounds should be (pb2.map(pb ⇒ (pb._1, pb._2.toLong)).toArray)
       order(si.stringPoss) should be(
         Array(
           sp("ACA", 6, 5),
@@ -111,7 +122,7 @@ class BWTTest extends PageantSuite {
       )
 
       si = BWT.toNextStep(nsi)
-      si.partitionBounds should be (Array((pb3._1, pb3._2.toLong)))
+      si.partitionBounds should be (pb3.map(pb ⇒ (pb._1, pb._2.toLong)).toArray)
       order(si.stringPoss) should be(
         Array(
           sp("AC",  5,  8),
@@ -134,7 +145,7 @@ class BWTTest extends PageantSuite {
       )
 
       si = BWT.toNextStep(nsi)
-      si.partitionBounds should be (Array((pb4._1, pb4._2.toLong)))
+      si.partitionBounds should be (pb4.map(pb ⇒ (pb._1, pb._2.toLong)).toArray)
       order(si.stringPoss) should be(
         Array(
           sp("A",  8,  5),
@@ -157,7 +168,7 @@ class BWTTest extends PageantSuite {
       )
 
       si = BWT.toNextStep(nsi)
-      si.partitionBounds should be (Array((pb5._1, pb5._2.toLong)))
+      si.partitionBounds should be (pb5.map(pb ⇒ (pb._1, pb._2.toLong)).toArray)
       order(si.stringPoss) should be(
         Array(
           sp("",  5),
@@ -173,33 +184,50 @@ class BWTTest extends PageantSuite {
   testFn(
     100
   )(
-    (0, 104), ("0 0 0 0 0 0", "2G 1A 1C")
+    (0, 100)
   )(
-    (0, 104), ("0 0 0 0 0 0", "2G 1A 1C 1G 1T 2A")
+    ("0 0 0 0 0 0", "2G 1A 1C")
   )(
-    (0, 104), ("0 0 0 0 0 0", "2G 1A 1C 1G 2C 1T 2A 1C 1G")
+    (0, 100)
   )(
-    (0, 104), ("0 0 0 0 0 0", "2G 1A 1C 1G 2C 1T 1A 1T 1C 2A 1C 1A 1G")
+    ("0 0 0 0 0 0", "2G 1A 1C 1G 1T 2A")
   )(
-    (0, 104), ("0 0 0 0 0 0", "2G 1A 1C 1G 1$ 2C 1$ 1T 1A 1T 1$ 1C 2A 1C 1A 1G 1$")
+    (0, 100)
+  )(
+    ("0 0 0 0 0 0", "2G 1A 1C 1G 2C 1T 2A 1C 1G")
+  )(
+    (0, 100)
+  )(
+    ("0 0 0 0 0 0", "2G 1A 1C 1G 2C 1T 1A 1T 1C 2A 1C 1A 1G")
+  )(
+    (0, 100)
+  )(
+    ("0 0 0 0 0 0", "2G 1A 1C 1G 1$ 2C 1$ 1T 1A 1T 1$ 1C 2A 1C 1A 1G 1$")
   )
 
   testFn(
     10
   )(
-    (0, 14), ("0 0 0 0 0 0", "2G 1A 1C")
+    (0, 10)
   )(
-    (0, 14), ("0 0 0 0 0 0", "2G 1A 1C 1G 1T 2A")
+    ("0 0 0 0 0 0", "2G 1A 1C")
   )(
-    (0, 24),
+    (0, 10)
+)(
+    ("0 0 0 0 0 0", "2G 1A 1C 1G 1T 2A")
+  )(
+    (0, 10), (1, 20)
+  )(
     ("0 0 0 0 0 0", "2G 1A 1C 1G 2C 1T 2A"),
     ("0 3 3 3 1 0", "1C 1G")
   )(
-    (0, 24),
+    (0, 10), (1, 20)
+  )(
     ("0 0 0 0 0 0", "2G 1A 1C 1G 2C 1T 1A 1T"),
     ("0 2 3 3 2 0", "1C 2A 1C 1A 1G")
   )(
-    (0, 24),
+    (0, 10), (1, 20)
+  )(
     ("0 0 0 0 0 0", "2G 1A 1C 1G 1$ 2C 1$ 1T"),
     ("2 1 3 3 1 0", "1A 1T 1$ 1C 2A 1C 1A 1G 1$")
   )

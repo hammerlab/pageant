@@ -7,7 +7,7 @@ import org.apache.spark.SparkContext
 import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.DirectFileRDDSerializer._
 import org.hammerlab.pageant.fm.blocks.{FullBWTBlock, RunLengthBWTBlock, BWTBlock}
-import org.hammerlab.pageant.fm.index.SparkFM.Counts
+import org.hammerlab.pageant.fm.utils.Counts
 import org.hammerlab.pageant.fm.utils.Utils.{BlockIdx, Idx, T, V}
 import org.hammerlab.pageant.suffixes.pdc3.PDC3
 
@@ -45,8 +45,6 @@ case class SparkFM(bwtBlocks: RDD[(BlockIdx, BWTBlock)],
 }
 
 object SparkFM {
-
-  type Counts = Array[Long]
 
   def load(sc: SparkContext, fn: String, gzip: Boolean = false): SparkFM = {
     val dir = if (fn.endsWith(".fm")) fn else fn + ".fmi"
@@ -112,14 +110,14 @@ object SparkFM {
         if (blockIdx == -1L) {
           blockIdx = idx / blockSize
           startIdx = idx
-          counts = startCounts.clone()
+          counts = startCounts.copy()
         } else if (idx % blockSize == 0) {
           val block = FullBWTBlock(startIdx, startCounts, data.toArray)
           blocks.append((blockIdx, block))
           blockIdx = idx / blockSize
           startIdx = idx
           data.clear()
-          startCounts = counts.clone()
+          startCounts = counts.copy()
         }
         counts(t) += 1
         data.append(t)
@@ -148,36 +146,15 @@ object SparkFM {
   def getStartCountsRDD(sc: SparkContext,
                         bwtt: RDD[T],
                         N: Int): (RDD[Counts], Counts) = {
-    @transient val partitionCounts: RDD[Array[Int]] =
-      bwtt.mapPartitions(
-        iter => {
-          var counts: Array[Int] = Array.fill(N)(0)
-          iter.foreach(t => {
-            counts(t) += 1
-          })
-          Array(counts).iterator
-        },
-        preservesPartitioning = false
-      ).setName("partitionCounts")
+    @transient val partitionCounts: RDD[Counts] =
+      bwtt
+        .mapPartitions(iter => Iterator(Counts(iter)))
+        .setName("partitionCounts")
 
-    @transient val lastCounts: Array[Array[Int]] = partitionCounts.collect
+    @transient val lastCounts: Array[Counts] = partitionCounts.collect
 
-    @transient val startCountsBuf: ArrayBuffer[Counts] = ArrayBuffer()
-    @transient var curStartCounts = Array.fill(N)(0L)
-    lastCounts.foreach(lastCount => {
-      startCountsBuf.append(curStartCounts.clone())
-      var i = 0
-      lastCount.foreach(c => {
-        curStartCounts(i) += c
-        i += 1
-      })
-    })
-
-    val startCounts: Array[Counts] = startCountsBuf.toArray
-    var totalSums: Counts = Array.fill(N)(0L)
-    for {i <- 1 until N} {
-      totalSums(i) = totalSums(i - 1) + curStartCounts(i - 1)
-    }
+    @transient val (startCounts, totalCounts) = Counts.partialSums(lastCounts)
+    @transient val totalSums = totalCounts.partialSum()
 
     (
       sc.parallelize(startCounts, startCounts.length),

@@ -1,17 +1,18 @@
 package org.hammerlab.pageant.fm.blocks
 
 import org.hammerlab.pageant.fm.index.RunLengthIterator
-import org.hammerlab.pageant.fm.index.SparkFM.Counts
-import org.hammerlab.pageant.fm.utils.Utils.{AT, T}
+import org.hammerlab.pageant.fm.utils.{Counts, Pos}
+import org.hammerlab.pageant.fm.utils.Utils.{AT, T, VT}
 
-case class RunLengthBWTBlock(startIdx: Long,
-                             startCounts: Counts,
-                             pieces: Array[BWTRun]) extends BWTBlock {
+case class RunLengthBWTBlock(pos: Pos,
+                             pieces: Seq[BWTRun]) extends BWTBlock {
   override def toString: String = {
-    s"B($startIdx: ${startCounts.mkString(",")}, ${pieces.mkString(" ")} (${pieces.length},${pieces.map(_.n).sum})"
+    s"B(${pos.idx}: ${pos.counts.mkString(",")}, ${pieces.mkString(" ")} (${pieces.length},${pieces.map(_.n).sum})"
   }
 
-  def data: AT = pieces.flatMap(p => Array.fill(p.n)(p.t))
+  def lastPos: Pos = pos + pieces
+
+  def data: Seq[T] = pieces.flatMap(p => Array.fill(p.n)(p.t))
   def occ(t: T, v: Long): Long = {
     var count = startCounts(t)
     var pieceIdx = 0
@@ -31,13 +32,23 @@ case class RunLengthBWTBlock(startIdx: Long,
 
 object RunLengthBWTBlock {
   def apply(startIdx: Long,
+            startCounts: Array[Long],
+            pieces: Seq[BWTRun]): RunLengthBWTBlock =
+    RunLengthBWTBlock(Pos(startIdx, startCounts), pieces)
+
+  def apply(startIdx: Long,
             startCounts: Counts,
             pieces: Seq[BWTRun]): RunLengthBWTBlock =
-    RunLengthBWTBlock(startIdx, startCounts, pieces.toArray)
+    RunLengthBWTBlock(Pos(startIdx, startCounts), pieces)
 
   def fromTs(startIdx: Long,
              startCounts: Counts,
              data: Seq[T]): RunLengthBWTBlock =
-    RunLengthBWTBlock(startIdx, startCounts, RunLengthIterator(data).toArray)
+    RunLengthBWTBlock(Pos(startIdx, startCounts), RunLengthIterator(data).toVector)
+
+  def fromTs(startIdx: Long,
+             startCounts: Array[Long],
+             data: Seq[T]): RunLengthBWTBlock =
+    RunLengthBWTBlock(Pos(startIdx, startCounts), RunLengthIterator(data).toVector)
 }
 

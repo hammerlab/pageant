@@ -1,9 +1,9 @@
 package org.hammerlab.pageant.fm.blocks
 
 import com.esotericsoftware.kryo.io.{Input, Output}
-import org.hammerlab.pageant.fm.index.SparkFM.Counts
-import org.hammerlab.pageant.utils.VarNum
+import org.hammerlab.pageant.fm.utils.Counts
 import org.hammerlab.pageant.fm.utils.Utils.N
+import org.hammerlab.pageant.utils.VarNum
 
 trait BWTBlockSerializer {
   def write(output: Output, o: BWTBlock, length: Int): Unit = {
@@ -21,6 +21,6 @@ trait BWTBlockSerializer {
       startCounts(i) = VarNum.read(input)
     }
     val length = VarNum.read(input).toInt
-    (startIdx, startCounts, length)
+    (startIdx, Counts(startCounts), length)
   }
 }

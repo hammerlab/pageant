@@ -8,8 +8,24 @@ object Utils {
 
   def rc(s: String): String = s.map(c => "$TGCAN"(toI(c))).reverse
 
+  def last[T](it: Iterator[T]): T = {
+    var l: T = it.next()
+    while (it.hasNext) l = it.next()
+    l
+  }
+
+  def lastOption[T](it: Iterator[T]): Option[T] = {
+    if (it.isEmpty) None
+    else {
+      var l = it.next()
+      while (it.hasNext) l = it.next()
+      Some(l)
+    }
+  }
+
   type T = Byte
   type AT = Array[T]
+  type ST = Seq[T]
   type VT = Vector[T]
   type V = Long
   type Idx = Long

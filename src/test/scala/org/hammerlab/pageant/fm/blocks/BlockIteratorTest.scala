@@ -2,12 +2,11 @@ package org.hammerlab.pageant.fm.blocks
 
 import org.scalatest.{FunSuite, Matchers}
 import Utils.{runs, counts}
-import org.hammerlab.pageant.fm.index.SparkFM.Counts
 
 class BlockIteratorTest extends FunSuite with Matchers {
 
   test("simple") {
-    new BlockIterator(10, counts("1 2 3 2 1 0"), 5, runs("5A 5C 1A 3C 1G").toIterator).toList should be(
+    BlockIterator(10, counts("1 2 3 2 1 0"), 5, runs("5A 5C 1A 3C 1G").toIterator).toList should be(
       List(
         2 → RunLengthBWTBlock(10, counts("1 2 3 2 1 0"), runs("5A")),
         3 → RunLengthBWTBlock(15, counts("1 7 3 2 1 0"), runs("5C")),
@@ -17,7 +16,7 @@ class BlockIteratorTest extends FunSuite with Matchers {
   }
 
   test("run across block border") {
-    new BlockIterator(10, counts("1 2 3 2 1 0"), 5, runs("7A 9C 1A 3C 1G").toIterator).toList should be(
+    BlockIterator(10, counts("1 2 3 2 1 0"), 5, runs("7A 9C 1A 3C 1G").toIterator).toList should be(
       List(
         2 → RunLengthBWTBlock(10, counts("1  2  3  2  1  0"), runs("5A")),
         3 → RunLengthBWTBlock(15, counts("1  7  3  2  1  0"), runs("2A 3C")),
@@ -29,7 +28,7 @@ class BlockIteratorTest extends FunSuite with Matchers {
   }
 
   test("start off block edge") {
-    new BlockIterator(12, counts("1 2 3 2 1 0"), 5, runs("7A 9C 1A 3C 1G").toIterator).toList should be(
+    BlockIterator(12, counts("1 2 3 2 1 0"), 5, runs("7A 9C 1A 3C 1G").toIterator).toList should be(
       List(
         2 → RunLengthBWTBlock(12, counts("1  2  3  2  1  0"), runs("3A")),
         3 → RunLengthBWTBlock(15, counts("1  5  3  2  1  0"), runs("4A 1C")),

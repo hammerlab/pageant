@@ -2,7 +2,7 @@ package org.hammerlab.pageant.fm.blocks
 
 class BWTRunIterator(block: RunLengthBWTBlock) extends Iterator[BWTRun] {
   val it = block.pieces.toIterator
-  var counts = block.startCounts.clone()
+  var counts = block.startCounts.copy()
   var idx = block.startIdx
 
   override def hasNext: Boolean = {

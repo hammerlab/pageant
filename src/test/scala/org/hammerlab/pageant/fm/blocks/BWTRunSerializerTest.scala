@@ -1,11 +1,10 @@
 package org.hammerlab.pageant.fm.blocks
 
 import org.hammerlab.pageant.fm.index.RunLengthIterator
-import org.hammerlab.pageant.fm.index.SparkFM.Counts
+import org.hammerlab.pageant.fm.utils.Counts
 import org.hammerlab.pageant.fm.utils.Utils.toI
 import org.hammerlab.pageant.serialization.KryoSerialization._
-import org.hammerlab.pageant.utils.Utils.pt
-import org.hammerlab.pageant.utils.{KryoRegistrationRequired, KryoNoReferenceTracking, KryoSuite, PageantSuite}
+import org.hammerlab.pageant.utils.{KryoNoReferenceTracking, KryoRegistrationRequired, KryoSuite, PageantSuite}
 
 class BWTRunSerializerTest
   extends PageantSuite
@@ -48,7 +47,7 @@ class BWTRunSerializerTest
                      rlBlockSize: Int,
                      start: Int = 0,
                      end: Int = 0,
-                     counts: Counts = Array.fill(6)(0)): Unit = {
+                     counts: Counts = Counts()): Unit = {
     test(name) {
       val ts = seq.trim().stripMargin.split("\n").mkString("").map(toI)
       val rl = RunLengthIterator(ts).toArray

@@ -3,7 +3,7 @@ package org.hammerlab.pageant.fm.index
 import org.apache.spark.Partitioner
 import org.apache.spark.rdd.RDD
 import org.hammerlab.pageant.fm.blocks.{BWTBlock, BWTRun, BWTRunIterator, BWTRunsIterator, MergeInsertsIterator, RunLengthBWTBlock}
-import org.hammerlab.pageant.fm.index.SparkFM.Counts
+import org.hammerlab.pageant.fm.utils.Counts
 import org.hammerlab.pageant.fm.utils.Utils.{AT, BlockIdx, N, T, VT}
 
 import scala.collection.mutable.ArrayBuffer
@@ -16,7 +16,7 @@ class BoundPartitioner(bounds: Seq[(Int, Long)]) extends Partitioner {
   override def getPartition(key: Any): Int = {
     val k = keyToBound(key)
     var i = 0
-    while (i < bounds.length && bounds(i)._2 < k) i += 1
+    while (i < bounds.length && bounds(i)._2 <= k) i += 1
     if (i == bounds.length)
       throw new Exception(s"Can't find partition for $k in bounds ${bounds.mkString(",")}")
     bounds(i)._1

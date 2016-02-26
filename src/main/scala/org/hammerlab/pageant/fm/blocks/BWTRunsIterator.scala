@@ -1,6 +1,6 @@
 package org.hammerlab.pageant.fm.blocks
 
-import org.hammerlab.pageant.fm.index.SparkFM.Counts
+import org.hammerlab.pageant.fm.utils.Counts
 
 class BWTRunsIterator(blocks: Iterator[RunLengthBWTBlock]) extends Iterator[BWTRun] {
   var block: RunLengthBWTBlock = _
@@ -20,14 +20,14 @@ class BWTRunsIterator(blocks: Iterator[RunLengthBWTBlock]) extends Iterator[BWTR
         finished = true
         if (it != null) {
           idx = it.idx
-          counts = it.counts.clone
+          counts = it.counts.copy()
         }
         nextRun = null
         false
       }
     } else {
       idx = it.idx
-      counts = it.counts.clone
+      counts = it.counts.copy()
       nextRun = it.next()
       true
     }

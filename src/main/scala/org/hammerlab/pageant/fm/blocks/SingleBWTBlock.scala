@@ -1,11 +1,9 @@
 package org.hammerlab.pageant.fm.blocks
 
-import org.hammerlab.pageant.fm.index.SparkFM.Counts
+import org.hammerlab.pageant.fm.utils.{Counts, Pos}
 import org.hammerlab.pageant.fm.utils.Utils.T
 
-case class SingleBWTBlock(startIdx: Long,
-                          startCounts: Counts,
-                          t: T) extends BWTBlock {
+case class SingleBWTBlock(pos: Pos, t: T) extends BWTBlock {
   def data = Array(t)
 
   override def occ(t: T, v: Long): Long = {
