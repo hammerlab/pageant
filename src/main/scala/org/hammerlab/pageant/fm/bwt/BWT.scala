@@ -49,17 +49,18 @@ object BWT {
       countsArr(0) = 0L
       val counts = Counts(countsArr)
       val sc = tss.context
+
+      val bounds = getBounds(blockSize, blocksPerPartition, 0, n)
+
       val bwt = sc.parallelize[(BlockIdx, RunLengthBWTBlock)](
-        List(
+        Array.fill(bounds.length)(
           (
             0L,
             RunLengthBWTBlock(Pos(), Array[BWTRun]())
-            )
+          )
         ),
-        numSlices = 1
+        numSlices = bounds.length
       )
-
-      val bounds = getBounds(blockSize, blocksPerPartition, 0, n)
 
       NextStepInfo(nextStringPoss, counts, bwt, bounds, blockSize, blocksPerPartition, 0, n)
     }
