@@ -18,8 +18,12 @@ class BoundPartitioner(bounds: Seq[(Int, Long)]) extends Partitioner {
     var i = 0
     while (i < bounds.length && bounds(i)._2 <= k) i += 1
     if (i == bounds.length)
-      throw new Exception(s"Can't find partition for $k in bounds ${bounds.mkString(",")}")
-    bounds(i)._1
+      if (bounds(i - 1)._2 == k)
+        bounds(i - 1)._1
+      else
+        throw new Exception(s"Can't find partition for $k in bounds ${bounds.mkString(",")}")
+    else
+      bounds(i)._1
   }
 }
 

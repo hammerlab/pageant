@@ -15,7 +15,7 @@ class LargerBWTTest extends BWTTest {
     "CTGGTCCTAA$"
   )
 
-  val blocks100: List[List[(String, String)]] = List(
+  val blocks100 = List(
     ("0  0  0  0  0  0", "GTGGAGCCTA") :: Nil,
     ("0  0  0  0  0  0", "GTGGAGCCTAAAACGTGGCC") :: Nil,
     ("0  0  0  0  0  0", "GTGGAGCCTAAATTAACACCGTGGAATCCT") :: Nil,
@@ -26,8 +26,85 @@ class LargerBWTTest extends BWTTest {
     ("0  0  0  0  0  0", "GTGGAGCCTAAATTTAGAGCACCCGGACCCCAGGGTCTCTCCCCCGGTGGGATTGAAATATTGGGCCGCCAGATGGCGGC") :: Nil,
     ("0  0  0  0  0  0", "GTGGAGCCTAAATTTAGAGCACCCGGACCCCCAGGGGGTCTCTCCCCCGGTGGGGAATTGAAATATTTAGGAACGCCGCCAGATGGCGGC") :: Nil,
     ("0  0  0  0  0  0", "GTGGAGCCTAAATTTAGAGCCACCCCGGGGACCCCCAAGGGGGTCTCTTCCCCCGGTGGGGAATTTGGAAATAATTTAGGAACGCCGCCAGATGGCGGCC") :: Nil,
+    ("0  0  0  0  0  0", "GTGGAGCCTAAATTTAGAG$CCACC$CCGGGGACC$CCC$AAGGGGGTCTCTTCCCCC$GGTGGGG$$AATTTGGAAATAAT$TTAGGAACGCCGCCAGA") :: ("8 22 25 28 17  0", "$TGG$CGGCC") :: Nil
+  )
 
-    ("0  0  0  0  0  0", "GTGGAGCCTAAATTTAGAG$CCACC$CCGGGGACC$CCC$AAGGGGGTCTCTTCCCCC$GGTGGGG$$AATTTGGAAATAAT$TTAGGAACGCCGCCAGA") ::
+  val blocks10 = List(
+    ("0  0  0  0  0  0", "GTGGAGCCTA") :: Nil,
+
+    ("0  0  0  0  0  0", "GTGGAGCCTA") ::
+    ("0  2  2  4  2  0", "AAACGTGGCC") :: Nil,
+
+    ("0  0  0  0  0  0", "GTGGAGCCTA") ::
+    ("0  2  2  4  2  0", "AATTAACACC") ::
+    ("0  7  5  4  4  0", "GTGGAATCCT") :: Nil,
+
+    ("0  0  0  0  0  0", "GTGGAGCCTA") ::
+    ("0  2  2  4  2  0", "AATTAAGCCA") ::
+    ("0  7  4  5  4  0", "CATCCCGTGG") ::
+    ("0  8  8  8  6  0", "AATCCGCTCC") :: Nil,
+
+    ("0  0  0  0  0  0", "GTGGAGCCTA") ::
+    ("0  2  2  4  2  0", "AATTTAAGCC") ::
+    ("0  6  4  5  5  0", "ACCCAGTCCC") ::
+    ("0  8 10  6  6  0", "CCGGTGGGAA") ::
+    ("0 10 12 11  7  0", "TGCCGCATCC") :: Nil,
+
+    ("0  0  0  0  0  0", "GTGGAGCCTA") ::
+    ("0  2  2  4  2  0", "AATTTAAGCC") ::
+    ("0  6  4  5  5  0", "GACCCAGGGT") ::
+    ("0  8  7  9  6  0", "CTTCCCCGGT") ::
+    ("0  8 12 11  9  0", "GGGGAAATAT") ::
+    ("0 12 12 15 11  0", "GCCGCCATCC") :: Nil,
+
+    ("0  0  0  0  0  0", "GTGGAGCCTA") ::
+    ("0  2  2  4  2  0", "AATTTAAGAC") ::
+    ("0  7  3  5  5  0", "CCGACCCAGG") ::
+    ("0  9  8  8  5  0", "GTCTTCCCCC") ::
+    ("0  9 14  9  8  0", "GGTGGGATTG") ::
+    ("0 10 14 15 11  0", "AAATATTGCC") ::
+    ("0 14 16 16 14  0", "GCCAGATCGC") :: Nil,
+
+    ("0  0  0  0  0  0", "GTGGAGCCTA") ::
+    ("0  2  2  4  2  0", "AATTTAGAGC") ::
+    ("0  6  3  6  5  0", "ACCCGGACCC") ::
+    ("0  8  9  8  5  0", "CAGGGTCTCT") ::
+    ("0  9 12 11  8  0", "CCCCCGGTGG") ::
+    ("0  9 17 15  9  0", "GATTGAAATA") ::
+    ("0 14 17 17 12  0", "TTGGGCCGCC") ::
+    ("0 14 21 21 14  0", "AGATGGCGGC") :: Nil,
+
+    ("0  0  0  0  0  0", "GTGGAGCCTA") ::
+    ("0  2  2  4  2  0", "AATTTAGAGC") ::
+    ("0  6  3  6  5  0", "ACCCGGACCC") ::
+    ("0  8  9  8  5  0", "CCAGGGGGTC") ::
+    ("0  9 12 13  6  0", "TCTCCCCCGG") ::
+    ("0  9 18 15  8  0", "TGGGGAATTG") ::
+    ("0 11 18 20 11  0", "AAATATTTAG") ::
+    ("0 16 18 21 15  0", "GAACGCCGCC") ::
+    ("0 18 23 24 15  0", "AGATGGCGGC") :: Nil,
+
+    ("0  0  0  0  0  0", "GTGGAGCCTA") ::
+    ("0  2  2  4  2  0", "AATTTAGAGC") ::
+    ("0  6  3  6  5  0", "CACCCCGGGG") ::
+    ("0  7  8 10  5  0", "ACCCCCAAGG") ::
+    ("0 10 13 12  5  0", "GGGTCTCTTC") ::
+    ("0 10 16 15  9  0", "CCCCGGTGGG") ::
+    ("0 10 20 20 10  0", "GAATTTGGAA") ::
+    ("0 14 20 23 13  0", "ATAATTTAGG") ::
+    ("0 18 20 25 17  0", "AACGCCGCCA") ::
+    ("0 21 25 27 17  0", "GATGGCGGCC") :: Nil,
+
+    ("0  0  0  0  0  0", "GTGGAGCCTA") ::
+    ("0  2  2  4  2  0", "AATTTAGAG$") ::
+    ("1  6  2  6  5  0", "CCACC$CCGG") ::
+    ("2  7  8  8  5  0", "GGACC$CCC$") ::
+    ("4  8 13 10  5  0", "AAGGGGGTCT") ::
+    ("4 10 14 15  7  0", "CTTCCCCC$G") ::
+    ("5 10 20 16  9  0", "GTGGGG$$AA") ::
+    ("7 12 20 21 10  0", "TTTGGAAATA") ::
+    ("7 16 20 23 14  0", "AT$TTAGGAA") ::
+    ("8 20 20 25 17  0", "CGCCGCCAGA") ::
     ("8 22 25 28 17  0", "$TGG$CGGCC") :: Nil
   )
 
@@ -45,6 +122,20 @@ class LargerBWTTest extends BWTTest {
     100 :: 200 :: Nil
   )
 
+  val bounds10: List[List[Int]] = List(
+    10 :: Nil,
+    10 :: 20 :: Nil,
+    10 :: 20 :: 30 :: Nil,
+    10 :: 20 :: 30 :: 40 :: Nil,
+    10 :: 20 :: 30 :: 40 :: 50 :: Nil,
+    10 :: 20 :: 30 :: 40 :: 50 :: 60 :: Nil,
+    10 :: 20 :: 30 :: 40 :: 50 :: 60 :: 70 :: Nil,
+    10 :: 20 :: 30 :: 40 :: 50 :: 60 :: 70 :: 80 :: Nil,
+    10 :: 20 :: 30 :: 40 :: 50 :: 60 :: 70 :: 80 :: 90 :: Nil,
+    10 :: 20 :: 30 :: 40 :: 50 :: 60 :: 70 :: 80 :: 90 :: 100 :: Nil,
+    10 :: 20 :: 30 :: 40 :: 50 :: 60 :: 70 :: 80 :: 90 :: 100 :: 110 :: Nil
+  )
+
   val stepCounts: List[String] = List(
     "0 10 10 10 10 10",
     "0 10 12 14 18 20",
@@ -60,14 +151,18 @@ class LargerBWTTest extends BWTTest {
   )
 
   val blocksMap = Map(
-    100 → blocks100
+    100 → blocks100,
+    10 → blocks10
   )
 
   val boundsMap = Map(
+    10 → bounds10,
     100 → bounds100
   )
 
   testFn(100)
+  testFn(10)
+  testFn(10, 10)
 
 }
 

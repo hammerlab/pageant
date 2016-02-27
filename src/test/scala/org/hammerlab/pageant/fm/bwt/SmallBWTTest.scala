@@ -63,6 +63,28 @@ class SmallBWTTest extends BWTTest {
     ("3 3 4 3 2 0", "ACAG$") :: Nil
   )
 
+  val blocks4 = List(
+    ("0 0 0 0 0 0", "GGAC") :: Nil,
+
+    ("0 0 0 0 0 0", "GGAC") ::
+    ("0 1 1 2 0 0", "GTAA") :: Nil,
+
+    ("0 0 0 0 0 0", "GGAC") ::
+    ("0 1 1 2 0 0", "GCCT") ::
+    ("0 1 3 3 1 0", "AACG") :: Nil,
+
+    ("0 0 0 0 0 0", "GGAC") ::
+    ("0 1 1 2 0 0", "GCCT") ::
+    ("0 1 3 3 1 0", "ATCA") ::
+    ("0 3 4 3 2 0", "ACAG") :: Nil,
+
+    ("0 0 0 0 0 0", "GGAC") ::
+    ("0 1 1 2 0 0", "G$CC") ::
+    ("1 1 3 3 0 0", "$TAT") ::
+    ("2 2 3 3 2 0", "$CAA") ::
+    ("3 4 4 3 2 0", "CAG$") :: Nil
+  )
+
   val blocks3 = List(
     ("0 0 0 0 0 0", "GGA") ::
     ("0 1 0 2 0 0", "C") :: Nil,
@@ -92,6 +114,14 @@ class SmallBWTTest extends BWTTest {
     ("3 5 5 3 2 0", "G$") :: Nil
   )
 
+  val bounds100 = List(
+    100 :: Nil,
+    100 :: Nil,
+    100 :: Nil,
+    100 :: Nil,
+    100 :: Nil
+  )
+
   val bounds15 = List(
     15 :: Nil,
     15 :: Nil,
@@ -100,12 +130,12 @@ class SmallBWTTest extends BWTTest {
     15 :: 30 :: Nil
   )
 
-  val bounds100 = List(
-    100 :: Nil,
-    100 :: Nil,
-    100 :: Nil,
-    100 :: Nil,
-    100 :: Nil
+  val bounds12 = List(
+    12 :: Nil,
+    12 :: Nil,
+    12 :: Nil,
+    12 :: 24 :: Nil,
+    12 :: 24 :: Nil
   )
 
   val bounds10 = List(
@@ -124,6 +154,14 @@ class SmallBWTTest extends BWTTest {
     9 :: 18 :: 27 :: Nil
   )
 
+  val bounds8 = List(
+    8 :: Nil,
+    8 :: Nil,
+    8 :: 16 :: Nil,
+    8 :: 16 :: Nil,
+    8 :: 16 :: 24 :: Nil
+  )
+
   val bounds6 = List(
     6 :: Nil,
     6 :: 12 :: Nil,
@@ -140,6 +178,14 @@ class SmallBWTTest extends BWTTest {
     5 :: 10 :: 15 :: 20 :: Nil
   )
 
+  val bounds4 = List(
+    4 :: Nil,
+    4 :: 8 :: Nil,
+    4 :: 8 :: 12 :: Nil,
+    4 :: 8 :: 12 :: 16 :: Nil,
+    4 :: 8 :: 12 :: 16 :: 20 :: Nil
+  )
+
   val bounds3 = List(
     3 :: 6 :: Nil,
     3 :: 6 :: 9 :: Nil,
@@ -149,19 +195,23 @@ class SmallBWTTest extends BWTTest {
   )
 
   val boundsMap = Map(
-    3 → bounds3,
-    5 → bounds5,
-    6 → bounds6,
-    9 → bounds9,
-    10 → bounds10,
-    15 → bounds15,
+      3 → bounds3,
+      4 → bounds4,
+      5 → bounds5,
+      6 → bounds6,
+      8 → bounds8,
+      9 → bounds9,
+     10 → bounds10,
+     12 → bounds12,
+     15 → bounds15,
     100 → bounds100
   )
 
   val blocksMap = Map(
-    3 → blocks3,
-    5 → blocks5,
-    10 → blocks10,
+      3 → blocks3,
+      4 → blocks4,
+      5 → blocks5,
+     10 → blocks10,
     100 → blocks100
   )
 
@@ -245,6 +295,9 @@ class SmallBWTTest extends BWTTest {
   testFn(5)
   testFn(5, 2)
   testFn(5, 3)
+  testFn(4)
+  testFn(4, 2)
+  testFn(4, 3)
   testFn(3)
   testFn(3, 2)
   testFn(3, 3)

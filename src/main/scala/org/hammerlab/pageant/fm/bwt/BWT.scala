@@ -153,7 +153,7 @@ object BWT {
         else
           None
         target ← (tIdx, last, curPos, false) :: nextToLastOpt.toList
-        blockIdx = target._3 / blockSize
+        blockIdx = if (target._3 > 0) (target._3 - 1) / blockSize else 0
       } yield {
         blockIdx → target
       }
