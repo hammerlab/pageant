@@ -112,10 +112,10 @@ object Pos {
   def apply(idx: Long, counts: Array[Long]): Pos = Pos(idx, Counts(counts))
   def partialSums(pss: Seq[Pos]): Seq[Pos] = {
     val sums: ArrayBuffer[Pos] = ArrayBuffer()
-    var cur = Pos()
+    var cur = Counts()
     pss.foreach(pos ⇒ {
-      sums += cur
-      cur = cur + pos
+      sums += Pos(pos.idx, cur)
+      cur = cur + pos.counts
     })
     sums
   }

@@ -1,13 +1,13 @@
 package org.hammerlab.pageant.fm.bwt
 
+import org.apache.spark.SparkContext
 import org.apache.spark.rdd.RDD
 import org.hammerlab.pageant.fm.blocks.{BWTRun, BlockIterator, MergeInsertsIterator, RunLengthBWTBlock}
 import org.hammerlab.pageant.fm.utils.Counts
-import org.hammerlab.pageant.fm.index.{BoundPartitioner, DualBoundPartitioner}
+import org.hammerlab.pageant.fm.index.{BoundPartitioner, DualBoundPartitioner, RunLengthIterator}
 import org.hammerlab.pageant.fm.utils.{Pos, Utils}
 import org.hammerlab.pageant.fm.utils.Utils.{BlockIdx, Idx, N, T, VT}
 
-import scala.collection.mutable.ArrayBuffer
 
 object BWT {
 
@@ -26,7 +26,7 @@ object BWT {
                           partitionBounds: Seq[(Int, Long)],
                           blockSize: Int,
                           blocksPerPartition: Long,
-                          nextSize: Long,
+                          curSize: Long,
                           n: Long)
 
   case class StringPos(ts: VT, curPos: Long, nextInsertPos: Option[Long]) {
@@ -41,27 +41,99 @@ object BWT {
     }
   }
 
+  object NextStepInfo {
+    def apply(tss: RDD[VT], blockSize: Int = 100, blocksPerPartition: Long = 10000): NextStepInfo = {
+      val n = tss.count()
+      val nextStringPoss = tss.zipWithIndex().map(t ⇒ t._2 → NextStringPos(t._1.dropRight(1), 0L, t._2, Some(n)))
+      val countsArr = Array.fill(N)(n)
+      countsArr(0) = 0L
+      val counts = Counts(countsArr)
+      val sc = tss.context
+      val bwt = sc.parallelize[(BlockIdx, RunLengthBWTBlock)](
+        List(
+          (
+            0L,
+            RunLengthBWTBlock(Pos(), Array[BWTRun]())
+            )
+        ),
+        numSlices = 1
+      )
+
+      val bounds = getBounds(blockSize, blocksPerPartition, 0, n)
+
+      NextStepInfo(nextStringPoss, counts, bwt, bounds, blockSize, blocksPerPartition, 0, n)
+    }
+  }
+
+  object StepInfo {
+    def apply(tss: RDD[VT], blockSize: Int = 100): StepInfo = {
+      val nextStepInfo = NextStepInfo(tss, blockSize)
+      toNextStep(nextStepInfo)
+    }
+  }
+
+  def apply(tss: RDD[VT], blockSize: Int, steps: Int): RDD[(BlockIdx, RunLengthBWTBlock)] = {
+    var curStep = StepInfo(tss, blockSize)
+    (1 until steps).foreach(i ⇒ {
+      curStep = step(curStep)
+    })
+    curStep.bwt
+  }
+
+  def step(info: StepInfo): StepInfo = {
+    toNextStep(primeNextStep(info))
+  }
+
+  // StepInfo => NextStepInfo
   def primeNextStep(info: StepInfo): NextStepInfo = {
-    val (nextStringPoss, counts, nextSize, newBounds) =
+    val (nextStringPoss, counts) =
       primeNextStep(
         info.bwt,
         info.stringPoss,
         info.counts,
-        info.curSize,
-        info.n,
-        info.blocksPerPartition,
         info.blockSize
       )
-    NextStepInfo(nextStringPoss, counts, info.bwt, newBounds, info.blockSize, info.blocksPerPartition, nextSize, info.n)
+    NextStepInfo(
+      nextStringPoss,
+      counts,
+      info.bwt,
+      info.partitionBounds,
+      info.blockSize,
+      info.blocksPerPartition,
+      info.curSize,
+      info.n
+    )
   }
 
+  // NextStepInfo => StepInfo
+  def toNextStep(info: NextStepInfo): StepInfo = {
+    val (newBwt, stringPoss, newBounds, newSize) =
+      toNextStep(
+        info.bwt,
+        info.nextStringPoss,
+        info.blockSize,
+        info.blocksPerPartition,
+        info.partitionBounds,
+        info.curSize,
+        info.n
+      )
+    StepInfo(
+      stringPoss,
+      info.counts,
+      newBwt,
+      newBounds,
+      info.blockSize,
+      info.blocksPerPartition,
+      newSize,
+      info.n
+    )
+  }
+
+  // StepInfo => NextStepInfo
   def primeNextStep(bwt: RDD[(BlockIdx, RunLengthBWTBlock)],
                     stringPoss: RDD[(Idx, StringPos)],
                     counts: Counts,
-                    curSize: Long,
-                    n: Long,
-                    blocksPerPartition: Long,
-                    blockSize: Int): (RDD[(Idx, NextStringPos)], Counts, Long, Seq[(Int, Long)]) = {
+                    blockSize: Int): (RDD[(Idx, NextStringPos)], Counts) = {
     val newCounts = updateCounts(stringPoss, counts)
 
     val targets: RDD[(BlockIdx, (Idx, T, Long, Boolean))] =
@@ -132,44 +204,22 @@ object BWT {
           tIdx → nextStringPos
       }
 
-    val newBounds = getBounds(blockSize, blocksPerPartition, curSize, n)
-
-    (nextStringPoss, newCounts, curSize + n, newBounds)
+    (nextStringPoss, newCounts)
   }
 
-  def toNextStep(info: NextStepInfo): StepInfo = {
-    val (bwt, stringPoss) =
-      toNextStep(
-        info.bwt,
-        info.nextStringPoss,
-        info.blockSize,
-        info.partitionBounds,
-        info.nextSize,
-        info.n
-      )
-    StepInfo(
-      stringPoss,
-      info.counts,
-      bwt,
-      info.partitionBounds,
-      info.blockSize,
-      info.blocksPerPartition,
-      info.nextSize,
-      info.n
-    )
-  }
-
+  // NextStepInfo => StepInfo
   def toNextStep(bwt: RDD[(BlockIdx, RunLengthBWTBlock)],
                  nextPoss: RDD[(Idx, NextStringPos)],
                  blockSize: Int,
+                 blocksPerPartition: Long,
                  partitionBounds: Seq[(Int, Long)],
-                 nextSize: Long,
-                 n: Long): (RDD[(BlockIdx, RunLengthBWTBlock)], RDD[(Idx, StringPos)]) = {
+                 curSize: Long,
+                 n: Long): (RDD[(BlockIdx, RunLengthBWTBlock)], RDD[(Idx, StringPos)], Seq[(Int, Long)], Long) = {
 
     val partitioner = new BoundPartitioner(partitionBounds)
     val dualPartitioner = new DualBoundPartitioner(partitionBounds)
 
-    val insertionSumsAndCounts: Array[Pos] =
+    val insertionSumsAndCounts: Array[Counts] =
       (for {
         (tIdx, NextStringPos(ts, nextInsertPos, nextPos, _)) <- nextPoss
         t = if (ts.isEmpty) 0.toByte else ts.last
@@ -178,10 +228,13 @@ object BWT {
       })
       .partitionBy(partitioner)
       .values
-      .mapPartitions(it ⇒ Iterator(Pos(Counts(it))))
+      .mapPartitions(it ⇒ Iterator(Counts(it)))
       .collect
 
-    val insertionPartialSums = Pos.partialSums(insertionSumsAndCounts)
+    val insertionPartialSums = Counts.partialSums(insertionSumsAndCounts)._1.map(c ⇒ Pos(c))
+
+    val sc = bwt.context
+    val insertionPartialSumRDD = sc.parallelize(insertionPartialSums, partitioner.numPartitions)
 
     val newChars: RDD[(Long, T)] =
       (for {
@@ -191,46 +244,37 @@ object BWT {
         (nextPos, nextInsertPos) → last
       }).repartitionAndSortWithinPartitions(dualPartitioner).map(t => (t._1._2, t._2))
 
-    val newPartitionBwt: RDD[RunLengthBWTBlock] =
+    val mergedBwt: RDD[(BlockIdx, RunLengthBWTBlock)] =
       bwt
         .values
-        .map(t ⇒ t.startIdx → t)
-        .repartitionAndSortWithinPartitions(partitioner)
-        .values
-
-    val partitionLastIndexAndCounts: Array[Pos] =
-      newPartitionBwt.mapPartitions(it ⇒
-        Iterator(Utils.lastOption(it).map(_.lastPos).getOrElse(Pos()))
-      ).collect
-
-    val bwtPartialSums = Pos.partialSums(partitionLastIndexAndCounts)
-
-    val totalPartialSums = bwtPartialSums.zip(insertionPartialSums).map(t ⇒ t._1 + t._2)
-    val sc = bwt.context
-    val totalPartialSumsRDD = sc.parallelize(totalPartialSums, partitioner.numPartitions)
-
-    val newBwt: RDD[(BlockIdx, RunLengthBWTBlock)] =
-      newPartitionBwt
-        .zipPartitions(totalPartialSumsRDD, newChars)(
-          (blocksIter, partialSumIter, newCharsIter) => {
-            val startPos = partialSumIter.next()
-            if (partialSumIter.hasNext) {
-              throw new Exception(s"partialSumIter with ${partialSumIter.size + 1} elements, starting with $startPos")
+        .zipPartitions(insertionPartialSumRDD, newChars)(
+          (blocksIter, insertionPartialSumIter, newCharsIter) => {
+            val insertionsPos = insertionPartialSumIter.next()
+            if (insertionPartialSumIter.hasNext) {
+              throw new Exception(s"insertionPartialSumIter with ${insertionPartialSumIter.size + 1} elements, starting with $insertionsPos")
             }
 
-            val ba = blocksIter.toArray
-            val nca = newCharsIter.toArray
+//            val ba = blocksIter.toArray
+//            val nca = newCharsIter.toArray
+//
+//            val mergedIter = new MergeInsertsIterator(ba.toIterator, nca.toIterator)
+//            val ma = mergedIter.toArray
+//
+//            val firstBlock = ba.head
+//            val firstBlockPos = firstBlock.pos
+//            val startPos = firstBlockPos + insertionsPos
+//
+//            val bla = new BlockIterator(startPos, blockSize, ma.toIterator).toArray
+//
+//            bla.toIterator
 
-            val mergedIter = new MergeInsertsIterator(ba.toIterator, nca.toIterator)
-            val ma = mergedIter.toArray
+            val bufferedBlocksIter = blocksIter.buffered
+            val firstBlock = bufferedBlocksIter.head
+            val firstBlockPos = firstBlock.pos
+            val startPos = firstBlockPos + insertionsPos
 
-            val bla = new BlockIterator(startPos, blockSize, ma.toIterator).toArray
-
-            bla.toIterator
-
-
-//            val mergedIter = new MergeInsertsIterator(blocksIter, newCharsIter)
-//            new BlockIterator(startTotal, startCounts, blockSize, mergedIter)
+            val mergedIter = new MergeInsertsIterator(bufferedBlocksIter, newCharsIter)
+            new BlockIterator(startPos, blockSize, mergedIter)
           }
         )
         .groupByKey
@@ -248,7 +292,18 @@ object BWT {
         tIdx → StringPos(ts, nextPos, next2InsertPos)
       }
 
-    (newBwt, stringPoss)
+    val newSize = curSize + n
+    val newBounds = getBounds(blockSize, blocksPerPartition, curSize, n)
+
+    val newPartitioner = new BoundPartitioner(newBounds)
+    val newBwt =
+      (for { (blockIdx, block) <- mergedBwt } yield {
+        block.startIdx → (blockIdx, block)
+      })
+      .repartitionAndSortWithinPartitions(newPartitioner)
+      .values
+
+    (newBwt, stringPoss, newBounds, newSize)
   }
 
   def updateCounts(stringPoss: RDD[(Long, StringPos)], curCounts: Counts): Counts = {
@@ -279,220 +334,49 @@ object BWT {
     (0 until newNumPartitions).map(i ⇒ (i, blocksPerPartition * blockSize * (i + 1)))
   }
 
-  object NextStepInfo {
-    def apply(tss: RDD[VT], blockSize: Int = 100, blocksPerPartition: Long = 10000): NextStepInfo = {
-      val n = tss.count()
-      val nextStringPoss = tss.zipWithIndex().map(t ⇒ t._2 → NextStringPos(t._1.dropRight(1), 0L, t._2, Some(n)))
-      val countsArr = Array.fill(N)(n)
-      countsArr(0) = 0L
-      val counts = Counts(countsArr)
-      val sc = tss.context
-      val bwt = sc.parallelize[(BlockIdx, RunLengthBWTBlock)](
-        List(
-          (
-            0L,
-            RunLengthBWTBlock(Pos(), Array[BWTRun]())
-          )
-        ),
-        1
+  def runLengthEncodeBWT(sc: SparkContext, bwt: RDD[T]): RDD[BWTRun] = {
+
+    val firstPass = bwt.mapPartitions(iter => new RunLengthIterator(iter)).setName("RLE BWT first pass")
+    firstPass.cache()
+
+    val lastPieces =
+      firstPass
+      .mapPartitions(iter => {
+        val arr = iter.toArray
+        Array ((arr.headOption, arr.lastOption, arr.length == 1)).toIterator
+      })
+      .collect
+      .sliding(2)
+      .map(a => (a(0), a(1)))
+
+    val dropLasts = Array.fill(lastPieces.length)(false)
+    val incFirsts = Array.fill(lastPieces.length)(0)
+    var i = 0
+    for {
+      ((_, prevLastOption, prevIsSolo), (nextFirstOption, _, _)) <- lastPieces
+    } {
+      (prevLastOption, nextFirstOption) match {
+        case (Some(prevLast), Some(nextFirst)) if prevLast.t == nextFirst.t =>
+          dropLasts(i) = true
+          incFirsts(i + 1) += prevLast.n
+          if (prevIsSolo) incFirsts(i + 1) += incFirsts(i)
+      }
+      i += 1
+    }
+
+    firstPass
+    .zipPartitions(
+      sc.parallelize(
+        dropLasts.zip(incFirsts),
+        lastPieces.length
       )
-
-      val bounds = getBounds(blockSize, blocksPerPartition, 0, n)
-
-      NextStepInfo(nextStringPoss, counts, bwt, bounds, blockSize, blocksPerPartition, n, n)
-    }
+    )(
+      (runIter, modsIter) => {
+        val modsArr = modsIter.toArray
+        assert(modsArr.length == 1, s"Bad mods arr: $modsArr")
+        val (dropFirst, incLast) = modsArr.head
+        new DropFirstIncLastIterator(dropFirst, incLast, runIter)
+      }
+    )
   }
-
-  object StepInfo {
-    def apply(tss: RDD[VT], blockSize: Int = 100): StepInfo = {
-      val nextStepInfo = NextStepInfo(tss, blockSize)
-      toNextStep(nextStepInfo)
-    }
-  }
-
-  def apply(tss: RDD[VT], blockSize: Int, steps: Int): RDD[(BlockIdx, RunLengthBWTBlock)] = {
-    var curStep = StepInfo(tss, blockSize)
-    (1 until steps).foreach(i ⇒ {
-      curStep = step(curStep)
-    })
-    curStep.bwt
-  }
-
-  def step(info: StepInfo): StepInfo = {
-    toNextStep(primeNextStep(info))
-//    val (tssi, counts, bwt, partitionBounds) = step(info.tssi, info.counts, info.bwt, info.partitionBounds, info.blockSize)
-//    StepInfo(tssi, counts, bwt, partitionBounds, info.blockSize)
-  }
-
-//  def step(tssi: RDD[(Idx, (VT, Long))],
-//           counts: Counts,
-//           bwt: RDD[(BlockIdx, RunLengthBWTBlock)],
-//           partitionBounds: Seq[(Int, Long)],
-//           blockSize: Int): (RDD[(Idx, (VT, Long))], Counts, RDD[(BlockIdx, RunLengthBWTBlock)], Seq[(Int, Long)]) = {
-//
-//    val newCharsMap = tssi.map(_._2._1.last -> 1L).reduceByKey(_ + _).collectAsMap()
-//    val newCounts = Array.fill(N)(0L)
-//    for {
-//      (t, c) <- newCharsMap
-//    } {
-//      newCounts(t) += c
-//    }
-//
-//    var next = 0L
-//    (0 until N).foreach(i ⇒ {
-//      val cur = next
-//      next += newCounts(i)
-//      newCounts(i) = counts(i) + cur
-//    })
-//
-//    val sc = tssi.context
-//    val newCountsBC = sc.broadcast(newCounts)
-//
-//    val positionsToBlocks: RDD[(BlockIdx, (Idx, T, Long))] =
-//      for {
-//        (tIdx, (ts, p)) <- tssi
-//        t = ts.last
-//        blockIdx = p / blockSize
-//      } yield {
-//        blockIdx -> (tIdx, t, p)
-//      }
-//
-//    val joined = bwt.join(positionsToBlocks)
-//
-//    val occsToTs: RDD[(Idx, Long)] =
-//      for {
-//        (blockIdx, (block, (tIdx, t, pos))) <- joined
-//        occ = block.occ(t, pos)
-//      } yield {
-//        tIdx -> occ
-//      }
-//
-//    val newTs: RDD[(Idx, (VT, Long, Long))] =
-//      for {
-//        (tIdx, ((ts, p), occ)) <- tssi.join(occsToTs)
-//        t = ts.last
-//        newCount = newCountsBC.value(t)
-//        newPos = newCount + occ
-//      } yield {
-//        (tIdx, (ts.dropRight(1), newPos, p))
-//      }
-//
-//    val partitioner = new BoundPartitioner(partitionBounds)
-//    val dualPartitioner = new DualBoundPartitioner(partitionBounds)
-//
-//    val newChars: RDD[(Long, T)] =
-//      (for {
-//        (tIdx, (ts, pos, prevPos)) <- newTs
-//      } yield {
-//        (pos, prevPos) -> ts.last
-//      }).repartitionAndSortWithinPartitions(dualPartitioner).map(t => (t._1._2, t._2))
-//
-//    val insertionSumsAndCounts: Array[(Long, Counts)] =
-//      (for {
-//        (tIdx, (ts, pos, prevPos)) <- newTs
-//        t = ts.last
-//      } yield {
-//        prevPos → t
-//      }).partitionBy(partitioner).values.mapPartitions(it ⇒ {
-//        val counts = Array.fill(N)(0L)
-//        it.foreach(t ⇒ {
-//          counts(t) += 1
-//        })
-//        Iterator((counts.sum, counts))
-//      }).collect
-//
-//    var totalInsertions = 0L
-//    val insertionCounts = Array.fill(N)(0L)
-//    val partialSums: ArrayBuffer[(Long, Counts)] =
-//      if (insertionSumsAndCounts.length > 1) {
-//        var ps: ArrayBuffer[(Long, Counts)] = ArrayBuffer()
-//        for {
-//          (partitionTotal, partitionCounts) ← insertionSumsAndCounts.dropRight(1)
-//        } {
-//          ps.append((totalInsertions, insertionCounts.clone()))
-//          totalInsertions += partitionTotal
-//          (0 until N).foreach(i => insertionCounts(i) += partitionCounts(i))
-//        }
-//        ps
-//      } else
-//        ArrayBuffer((totalInsertions, insertionCounts))
-//
-//    val partialSumsRDD = sc.parallelize(partialSums, partitioner.numPartitions)
-//
-//    val newBwt: RDD[(BlockIdx, RunLengthBWTBlock)] =
-//      bwt.values.zipPartitions(partialSumsRDD, newChars)(
-//        (blocksIter, partialSumIter, newCharsIter) => {
-//          val (startTotal, startCounts) = partialSumIter.next()
-//          if (partialSumIter.hasNext) {
-//            throw new Exception(s"partialSumIter with ${partialSumIter.size + 1} elements, starting with $startTotal")
-//          }
-//
-//          val blocksArr = blocksIter.toArray
-//          val newCharsArr = newCharsIter.toArray
-//
-//          val mergedIter = new MergeInsertsIterator(blocksArr.toIterator, newCharsArr.toIterator)
-//          val mergedArr = mergedIter.toArray
-//
-//          new BlockIterator(startTotal, startCounts, blockSize, mergedArr.toIterator)
-//        }
-//      ).groupByKey.mapValues(blocksIter ⇒ {
-//        val blocks = blocksIter.toArray.sortBy(_.startIdx)
-//        val first = blocks.head
-//        RunLengthBWTBlock(first.startIdx, first.startCounts, blocks.flatMap(_.pieces))
-//      }).sortByKey()
-//
-//    val newBounds = newBwt.keys.mapPartitionsWithIndex((idx, it) ⇒ {
-//      Iterator((idx, (it.toArray.last + 1) * blockSize))
-//    }).collect
-//
-//    (newTs.map(t => (t._1, (t._2._1, t._2._2))), newCounts, newBwt, newBounds)
-//  }
-
-
-
-//  def runLengthEncodeBWT(sc: SparkContext, bwt: RDD[T]): RDD[BWTRun] = {
-
-//    val firstPass = bwt.mapPartitions(iter => new RunLengthIterator(iter)).setName("RLE BWT first pass")
-//    firstPass.cache()
-//
-//    var lastPieces =
-//      firstPass
-//      .mapPartitions(iter => {
-//        val arr = iter.toArray
-//        Array ((arr.headOption, arr.lastOption, arr.length == 1)).toIterator
-//      })
-//      .collect
-//      .sliding(2)
-//      .map(a => (a(0), a(1)))
-//
-//    val dropLasts = Array.fill(lastPieces.length)(false)
-//    val incFirsts = Array.fill(lastPieces.length)(0)
-//    var i = 0
-//    for {
-//      ((_, prevLastOption, prevIsSolo), (nextFirstOption, _, _)) <- lastPieces
-//    } {
-//      (prevLastOption, nextFirstOption) match {
-//        case (Some(prevLast), Some(nextFirst)) if prevLast.t == nextFirst.t =>
-//          dropLasts(i) = true
-//          incFirsts(i + 1) += prevLast.n
-//          if (prevIsSolo) incFirsts(i + 1) += incFirsts(i)
-//      }
-//      i += 1
-//    }
-//
-//    firstPass
-//    .zipPartitions(
-//      sc.parallelize(
-//        dropLasts.zip(incFirsts),
-//        lastPieces.length
-//      )
-//    )(
-//      (runIter, modsIter) => {
-//        val modsArr = modsIter.toArray
-//        assert(modsArr.length == 1, s"Bad mods arr: $modsArr")
-//        val (dropFirst, incLast) = modsArr.head
-//        new DropFirstIncLastIterator(dropFirst, incLast, runIter)
-//      }
-//    )
-//  }
 }

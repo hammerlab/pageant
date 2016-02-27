@@ -74,6 +74,8 @@ class BWTTest extends PageantSuite {
       var si = BWT.toNextStep(nsi)
 
       si.counts should be (counts("0 4 4 4 4 4"))
+      si.curSize should be(4)
+      si.n should be(4)
       si.partitionBounds should be (pb1.map(pb ⇒ (pb._1, pb._2.toLong)).toArray)
 
       order(si.stringPoss) should be(
@@ -89,6 +91,7 @@ class BWTTest extends PageantSuite {
 
       nsi = BWT.primeNextStep(si)
       nsi.counts should be(counts("0 4 5 6 8 8"))
+      nsi.curSize should be(4)
       order(nsi.nextStringPoss) should be(
         Array(
           nsp("ACA", 4, 6, 5),
@@ -99,6 +102,7 @@ class BWTTest extends PageantSuite {
       )
 
       si = BWT.toNextStep(nsi)
+      si.curSize should be(8)
       si.partitionBounds should be (pb2.map(pb ⇒ (pb._1, pb._2.toLong)).toArray)
       order(si.stringPoss) should be(
         Array(
@@ -232,6 +236,38 @@ class BWTTest extends PageantSuite {
     ("2 1 3 3 1 0", "1A 1T 1$ 1C 2A 1C 1A 1G 1$")
   )
 
+  testFn(
+    5
+  )(
+    (0, 5)
+  )(
+    ("0 0 0 0 0 0", "2G 1A 1C")
+  )(
+    (0, 5), (1, 10)
+  )(
+    ("0 0 0 0 0 0", "2G 1A 1C 1G"),
+    ("0 1 1 3 0 0", "1T 2A")
+  )(
+    (0, 5), (1, 10), (2, 15)
+  )(
+    ("0 0 0 0 0 0", "2G 1A 1C 1G"),
+    ("0 1 1 3 0 0", "2C 1T 2A"),
+    ("0 3 3 3 1 0", "1C 1G")
+  )(
+    (0, 5), (1, 10), (2, 15), (3, 20)
+  )(
+    ("0 0 0 0 0 0", "2G 1A 1C 1G"),
+    ("0 1 1 3 0 0", "2C 1T 1A 1T"),
+    ("0 2 3 3 2 0", "1C 2A 1C 1A"),
+    ("0 5 5 3 2 0", "1G")
+  )(
+    (0, 5), (1, 10), (2, 15), (3, 20)
+  )(
+    ("0 0 0 0 0 0", "2G 1A 1C 1G"),
+    ("0 1 1 3 0 0", "1$ 2C 1$ 1T"),
+    ("2 1 3 3 1 0", "1A 1T 1$ 1C 1A"),
+    ("3 3 4 3 2 0", "1A 1C 1A 1G 1$")
+  )
 
 }
 
@@ -258,6 +294,7 @@ $  A  C  G  T  N
  3  0  AGT C $     * 3        4   5   8
 
 2G 1A 1C
+GGAC
 
 $  A  C  G  T  N
 0  4  5  6  8  8
@@ -272,6 +309,7 @@ $  A  C  G  T  N
  7      TC A G$    * 1        5   6   8
 
 2G 1A 1C 1G 1T 2A
+GGACGTAA
 
 $  A  C  G  T  N
 0  4  7  8 11 12
@@ -290,6 +328,7 @@ $  A  C  G  T  N
 11       A G TC$   * 3       11  14   7
 
 2G 1A 1C 1G 2C 1T 2A 1C 1G
+GGACGCCTAACG
 
 $  A  C  G  T  N
 0  4  7 11 15 16
@@ -312,6 +351,7 @@ $  A  C  G  T  N
 15 11    A G TC$        - 3
 
 2G 1A 1C 1G 2C 1T 1A 1T 1C 2A 1C 1A 1G
+GGACGCCTATCAACAG
 
 $  A  C  G  T  N
 0  4  9 14 18 20
@@ -338,6 +378,6 @@ $  A  C  G  T  N
 19         $ TCAG$ * 1       $
 
 2G 1A 1C 1G 1$ 2C 1$ 1T 1A 1T 1$ 1C 2A 1C 1A 1G 1$
-
+GGACG$CC$TAT$CAACAG$
 
  */

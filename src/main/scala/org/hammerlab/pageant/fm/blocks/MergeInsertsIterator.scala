@@ -6,7 +6,6 @@ class MergeInsertsIterator(blocksIter: Iterator[RunLengthBWTBlock],
 													 insertsIter: Iterator[(Long, T)]) extends Iterator[BWTRun] {
 
 	val bufferedBlocksIter = blocksIter.buffered
-	//val firstBlock = bufferedBlocksIter.head
 	val runsIter = new BWTRunsIterator(bufferedBlocksIter)
 
 	var nextRun: BWTRun = _
