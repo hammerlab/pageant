@@ -12,43 +12,31 @@ import scala.reflect.ClassTag
 
 class BWTTest extends PageantSuite {
 
-  def opt(l: Long): Option[Long] = if (l > 0) Some(l) else None
-  def sToTs(s: String): VT = s.map(Utils.toI).toVector
+  // Tests
+  testFn(100)
+  testFn(10)
+  testFn(5)
+  testFn(5, 2)
+  testFn(5, 3)
+  testFn(3)
+  testFn(3, 2)
+  testFn(3, 3)
 
-  def sp(s: String, curPos: Long, nextInsertPos: Long = -1): StringPos = {
-    StringPos(sToTs(s), curPos, opt(nextInsertPos))
-  }
+  def testFn(blockSize: Int, blocksPerPartition: Int = 1): Unit =
+    testFn(
+      blockSize,
+      blocksPerPartition,
+      blocksMap(blockSize),
+      boundsMap(blockSize * blocksPerPartition)
+    )
 
-  def nsp(s: String, nextInsertPos: Long, nextPos: Long, next2InsertPos: Long = -1): NextStringPos = {
-    NextStringPos(sToTs(s), nextInsertPos, nextPos, opt(next2InsertPos))
-  }
+  def testFn(blockSize: Int,
+             blocksPerPartition: Int,
+             blocks: (List[(String, String)], List[(String, String)], List[(String, String)], List[(String, String)], List[(String, String)]),
+             partitionBounds: (List[(Int, Int)], List[(Int, Int)], List[(Int, Int)], List[(Int, Int)], List[(Int, Int)])): Unit = {
 
-  def order[U: ClassTag](rdd: RDD[(Long, U)]): Array[U] = rdd.collect.sortBy(_._1).map(_._2)
-
-  def testFn(
-    blockSize: Int,
-    blocksPerPartition: Int = 1
-  )(
-    pb1: (Int, Int)*
-  )(
-    e1: (String, String)*
-  )(
-    pb2: (Int, Int)*
-  )(
-    e2: (String, String)*
-  )(
-    pb3: (Int, Int)*
-  )(
-    e3: (String, String)*
-  )(
-    pb4: (Int, Int)*
-  )(
-    e4: (String, String)*
-  )(
-    pb5: (Int, Int)*
-  )(
-    e5: (String, String)*
-  ): Unit = {
+    val (e1, e2, e3, e4, e5) = blocks
+    val (pb1, pb2, pb3, pb4, pb5) = partitionBounds
 
     def expected(ss: Seq[(String, String)]): Array[RunLengthBWTBlock] = {
       (for {
@@ -188,278 +176,164 @@ class BWTTest extends PageantSuite {
     }
   }
 
-  testFn(
-    blockSize = 100
-  )(
-    (0, 100)
-  )(
-    ("0 0 0 0 0 0", "2G 1A 1C")
-  )(
-    (0, 100)
-  )(
-    ("0 0 0 0 0 0", "2G 1A 1C 1G 1T 2A")
-  )(
-    (0, 100)
-  )(
-    ("0 0 0 0 0 0", "2G 1A 1C 1G 2C 1T 2A 1C 1G")
-  )(
-    (0, 100)
-  )(
-    ("0 0 0 0 0 0", "2G 1A 1C 1G 2C 1T 1A 1T 1C 2A 1C 1A 1G")
-  )(
-    (0, 100)
-  )(
-    ("0 0 0 0 0 0", "2G 1A 1C 1G 1$ 2C 1$ 1T 1A 1T 1$ 1C 2A 1C 1A 1G 1$")
+  val blocks100 = (
+    ("0 0 0 0 0 0", "2G 1A 1C") :: Nil,
+    ("0 0 0 0 0 0", "2G 1A 1C 1G 1T 2A") :: Nil,
+    ("0 0 0 0 0 0", "2G 1A 1C 1G 2C 1T 2A 1C 1G") :: Nil,
+    ("0 0 0 0 0 0", "2G 1A 1C 1G 2C 1T 1A 1T 1C 2A 1C 1A 1G") :: Nil,
+    ("0 0 0 0 0 0", "2G 1A 1C 1G 1$ 2C 1$ 1T 1A 1T 1$ 1C 2A 1C 1A 1G 1$") :: Nil
   )
 
-  testFn(
-    blockSize = 10
-  )(
-    (0, 10)
-  )(
-    ("0 0 0 0 0 0", "2G 1A 1C")
-  )(
-    (0, 10)
-)(
-    ("0 0 0 0 0 0", "2G 1A 1C 1G 1T 2A")
-  )(
-    (0, 10), (1, 20)
-  )(
-    ("0 0 0 0 0 0", "2G 1A 1C 1G 2C 1T 2A"),
-    ("0 3 3 3 1 0", "1C 1G")
-  )(
-    (0, 10), (1, 20)
-  )(
-    ("0 0 0 0 0 0", "2G 1A 1C 1G 2C 1T 1A 1T"),
-    ("0 2 3 3 2 0", "1C 2A 1C 1A 1G")
-  )(
-    (0, 10), (1, 20)
-  )(
-    ("0 0 0 0 0 0", "2G 1A 1C 1G 1$ 2C 1$ 1T"),
-    ("2 1 3 3 1 0", "1A 1T 1$ 1C 2A 1C 1A 1G 1$")
+  val blocks10 = (
+    ("0 0 0 0 0 0", "2G 1A 1C") :: Nil,
+
+    ("0 0 0 0 0 0", "2G 1A 1C 1G 1T 2A") :: Nil,
+
+    ("0 0 0 0 0 0", "2G 1A 1C 1G 2C 1T 2A") ::
+    ("0 3 3 3 1 0", "1C 1G") :: Nil,
+
+    ("0 0 0 0 0 0", "2G 1A 1C 1G 2C 1T 1A 1T") ::
+    ("0 2 3 3 2 0", "1C 2A 1C 1A 1G") :: Nil,
+
+    ("0 0 0 0 0 0", "2G 1A 1C 1G 1$ 2C 1$ 1T") ::
+    ("2 1 3 3 1 0", "1A 1T 1$ 1C 2A 1C 1A 1G 1$") :: Nil
   )
 
-  testFn(
-    blockSize = 5
-  )(
-    (0, 5)
-  )(
-    ("0 0 0 0 0 0", "2G 1A 1C")
-  )(
-    (0, 5), (1, 10)
-  )(
-    ("0 0 0 0 0 0", "2G 1A 1C 1G"),
-    ("0 1 1 3 0 0", "1T 2A")
-  )(
-    (0, 5), (1, 10), (2, 15)
-  )(
-    ("0 0 0 0 0 0", "2G 1A 1C 1G"),
-    ("0 1 1 3 0 0", "2C 1T 2A"),
-    ("0 3 3 3 1 0", "1C 1G")
-  )(
-    (0, 5), (1, 10), (2, 15), (3, 20)
-  )(
-    ("0 0 0 0 0 0", "2G 1A 1C 1G"),
-    ("0 1 1 3 0 0", "2C 1T 1A 1T"),
-    ("0 2 3 3 2 0", "1C 2A 1C 1A"),
-    ("0 5 5 3 2 0", "1G")
-  )(
-    (0, 5), (1, 10), (2, 15), (3, 20)
-  )(
-    ("0 0 0 0 0 0", "2G 1A 1C 1G"),
-    ("0 1 1 3 0 0", "1$ 2C 1$ 1T"),
-    ("2 1 3 3 1 0", "1A 1T 1$ 1C 1A"),
-    ("3 3 4 3 2 0", "1A 1C 1A 1G 1$")
+  val blocks5 = (
+    ("0 0 0 0 0 0", "2G 1A 1C") :: Nil,
+
+    ("0 0 0 0 0 0", "2G 1A 1C 1G") ::
+    ("0 1 1 3 0 0", "1T 2A") :: Nil,
+
+    ("0 0 0 0 0 0", "2G 1A 1C 1G") ::
+    ("0 1 1 3 0 0", "2C 1T 2A") ::
+    ("0 3 3 3 1 0", "1C 1G") :: Nil,
+
+    ("0 0 0 0 0 0", "2G 1A 1C 1G") ::
+    ("0 1 1 3 0 0", "2C 1T 1A 1T") ::
+    ("0 2 3 3 2 0", "1C 2A 1C 1A") ::
+    ("0 5 5 3 2 0", "1G") :: Nil,
+
+    ("0 0 0 0 0 0", "2G 1A 1C 1G") ::
+    ("0 1 1 3 0 0", "1$ 2C 1$ 1T") ::
+    ("2 1 3 3 1 0", "1A 1T 1$ 1C 1A") ::
+    ("3 3 4 3 2 0", "1A 1C 1A 1G 1$") :: Nil
   )
 
-  testFn(
-    blockSize = 5, blocksPerPartition = 2
-  )(
-    (0, 10)
-  )(
-    ("0 0 0 0 0 0", "2G 1A 1C")
-  )(
-    (0, 10)
-  )(
-    ("0 0 0 0 0 0", "2G 1A 1C 1G"),
-    ("0 1 1 3 0 0", "1T 2A")
-  )(
-    (0, 10), (1, 20)
-  )(
-    ("0 0 0 0 0 0", "2G 1A 1C 1G"),
-    ("0 1 1 3 0 0", "2C 1T 2A"),
-    ("0 3 3 3 1 0", "1C 1G")
-  )(
-    (0, 10), (1, 20)
-  )(
-    ("0 0 0 0 0 0", "2G 1A 1C 1G"),
-    ("0 1 1 3 0 0", "2C 1T 1A 1T"),
-    ("0 2 3 3 2 0", "1C 2A 1C 1A"),
-    ("0 5 5 3 2 0", "1G")
-  )(
-    (0, 10), (1, 20)
-  )(
-    ("0 0 0 0 0 0", "2G 1A 1C 1G"),
-    ("0 1 1 3 0 0", "1$ 2C 1$ 1T"),
-    ("2 1 3 3 1 0", "1A 1T 1$ 1C 1A"),
-    ("3 3 4 3 2 0", "1A 1C 1A 1G 1$")
+  val blocks3 = (
+    ("0 0 0 0 0 0", "2G 1A") ::
+    ("0 1 0 2 0 0", "1C") :: Nil,
+
+    ("0 0 0 0 0 0", "2G 1A") ::
+    ("0 1 0 2 0 0", "1C 1G 1T") ::
+    ("0 1 1 3 1 0", "2A") :: Nil,
+
+    ("0 0 0 0 0 0", "2G 1A") ::
+    ("0 1 0 2 0 0", "1C 1G 1C") ::
+    ("0 1 2 3 0 0", "1C 1T 1A") ::
+    ("0 2 3 3 1 0", "1A 1C 1G") :: Nil,
+
+    ("0 0 0 0 0 0", "2G 1A") ::
+    ("0 1 0 2 0 0", "1C 1G 1C") ::
+    ("0 1 2 3 0 0", "1C 1T 1A") ::
+    ("0 2 3 3 1 0", "1T 1C 1A") ::
+    ("0 3 4 3 2 0", "1A 1C 1A") ::
+    ("0 5 5 3 2 0", "1G") :: Nil,
+
+    ("0 0 0 0 0 0", "2G 1A") ::
+    ("0 1 0 2 0 0", "1C 1G 1$") ::
+    ("1 1 1 3 0 0", "2C 1$") ::
+    ("2 1 3 3 0 0", "1T 1A 1T") ::
+    ("2 2 3 3 2 0", "1$ 1C 1A") ::
+    ("3 3 4 3 2 0", "1A 1C 1A") ::
+    ("3 5 5 3 2 0", "1G 1$") :: Nil
   )
 
-  testFn(
-    blockSize = 5, blocksPerPartition = 3
-  )(
-    (0, 15)
-  )(
-    ("0 0 0 0 0 0", "2G 1A 1C")
-  )(
-    (0, 15)
-  )(
-    ("0 0 0 0 0 0", "2G 1A 1C 1G"),
-    ("0 1 1 3 0 0", "1T 2A")
-  )(
-    (0, 15)
-  )(
-    ("0 0 0 0 0 0", "2G 1A 1C 1G"),
-    ("0 1 1 3 0 0", "2C 1T 2A"),
-    ("0 3 3 3 1 0", "1C 1G")
-  )(
-    (0, 15), (1, 30)
-  )(
-    ("0 0 0 0 0 0", "2G 1A 1C 1G"),
-    ("0 1 1 3 0 0", "2C 1T 1A 1T"),
-    ("0 2 3 3 2 0", "1C 2A 1C 1A"),
-    ("0 5 5 3 2 0", "1G")
-  )(
-    (0, 15), (1, 30)
-  )(
-    ("0 0 0 0 0 0", "2G 1A 1C 1G"),
-    ("0 1 1 3 0 0", "1$ 2C 1$ 1T"),
-    ("2 1 3 3 1 0", "1A 1T 1$ 1C 1A"),
-    ("3 3 4 3 2 0", "1A 1C 1A 1G 1$")
+  val blocksMap = Map(
+    3 → blocks3,
+    5 → blocks5,
+    10 → blocks10,
+    100 → blocks100
   )
 
-  testFn(
-    blockSize = 3
-  )(
-    (0, 3), (1, 6)
-  )(
-    ("0 0 0 0 0 0", "2G 1A"),
-    ("0 1 0 2 0 0", "1C")
-  )(
-    (0, 3), (1, 6), (2, 9)
-  )(
-    ("0 0 0 0 0 0", "2G 1A"),
-    ("0 1 0 2 0 0", "1C 1G 1T"),
-    ("0 1 1 3 1 0", "2A")
-  )(
-    (0, 3), (1, 6), (2, 9), (3, 12)
-  )(
-    ("0 0 0 0 0 0", "2G 1A"),
-    ("0 1 0 2 0 0", "1C 1G 1C"),
-    ("0 1 2 3 0 0", "1C 1T 1A"),
-    ("0 2 3 3 1 0", "1A 1C 1G")
-  )(
-    (0, 3), (1, 6), (2, 9), (3, 12), (4, 15), (5, 18)
-  )(
-    ("0 0 0 0 0 0", "2G 1A"),
-    ("0 1 0 2 0 0", "1C 1G 1C"),
-    ("0 1 2 3 0 0", "1C 1T 1A"),
-    ("0 2 3 3 1 0", "1T 1C 1A"),
-    ("0 3 4 3 2 0", "1A 1C 1A"),
-    ("0 5 5 3 2 0", "1G")
-  )(
-    (0, 3), (1, 6), (2, 9), (3, 12), (4, 15), (5, 18), (6, 21)
-  )(
-    ("0 0 0 0 0 0", "2G 1A"),
-    ("0 1 0 2 0 0", "1C 1G 1$"),
-    ("1 1 1 3 0 0", "2C 1$"),
-    ("2 1 3 3 0 0", "1T 1A 1T"),
-    ("2 2 3 3 2 0", "1$ 1C 1A"),
-    ("3 3 4 3 2 0", "1A 1C 1A"),
-    ("3 5 5 3 2 0", "1G 1$")
+  val bounds100 = (
+    (0, 100) :: Nil,
+    (0, 100) :: Nil,
+    (0, 100) :: Nil,
+    (0, 100) :: Nil,
+    (0, 100) :: Nil
   )
 
-  testFn(
-    blockSize = 3, blocksPerPartition = 2
-  )(
-    (0, 6)
-  )(
-    ("0 0 0 0 0 0", "2G 1A"),
-    ("0 1 0 2 0 0", "1C")
-  )(
-    (0, 6), (1, 12)
-  )(
-    ("0 0 0 0 0 0", "2G 1A"),
-    ("0 1 0 2 0 0", "1C 1G 1T"),
-    ("0 1 1 3 1 0", "2A")
-  )(
-    (0, 6), (1, 12)
-  )(
-    ("0 0 0 0 0 0", "2G 1A"),
-    ("0 1 0 2 0 0", "1C 1G 1C"),
-    ("0 1 2 3 0 0", "1C 1T 1A"),
-    ("0 2 3 3 1 0", "1A 1C 1G")
-  )(
-    (0, 6), (1, 12), (2, 18)
-  )(
-    ("0 0 0 0 0 0", "2G 1A"),
-    ("0 1 0 2 0 0", "1C 1G 1C"),
-    ("0 1 2 3 0 0", "1C 1T 1A"),
-    ("0 2 3 3 1 0", "1T 1C 1A"),
-    ("0 3 4 3 2 0", "1A 1C 1A"),
-    ("0 5 5 3 2 0", "1G")
-  )(
-    (0, 6), (1, 12), (2, 18), (3, 24)
-  )(
-    ("0 0 0 0 0 0", "2G 1A"),
-    ("0 1 0 2 0 0", "1C 1G 1$"),
-    ("1 1 1 3 0 0", "2C 1$"),
-    ("2 1 3 3 0 0", "1T 1A 1T"),
-    ("2 2 3 3 2 0", "1$ 1C 1A"),
-    ("3 3 4 3 2 0", "1A 1C 1A"),
-    ("3 5 5 3 2 0", "1G 1$")
+  val bounds15 = (
+    (0, 15) :: Nil,
+    (0, 15) :: Nil,
+    (0, 15) :: Nil,
+    (0, 15) :: (1, 30) :: Nil,
+    (0, 15) :: (1, 30) :: Nil
   )
 
-  testFn(
-    blockSize = 3, blocksPerPartition = 3
-  )(
-    (0, 9)
-  )(
-    ("0 0 0 0 0 0", "2G 1A"),
-    ("0 1 0 2 0 0", "1C")
-  )(
-    (0, 9)
-  )(
-    ("0 0 0 0 0 0", "2G 1A"),
-    ("0 1 0 2 0 0", "1C 1G 1T"),
-    ("0 1 1 3 1 0", "2A")
-  )(
-    (0, 9), (1, 18)
-  )(
-    ("0 0 0 0 0 0", "2G 1A"),
-    ("0 1 0 2 0 0", "1C 1G 1C"),
-    ("0 1 2 3 0 0", "1C 1T 1A"),
-    ("0 2 3 3 1 0", "1A 1C 1G")
-  )(
-    (0, 9), (1, 18)
-  )(
-    ("0 0 0 0 0 0", "2G 1A"),
-    ("0 1 0 2 0 0", "1C 1G 1C"),
-    ("0 1 2 3 0 0", "1C 1T 1A"),
-    ("0 2 3 3 1 0", "1T 1C 1A"),
-    ("0 3 4 3 2 0", "1A 1C 1A"),
-    ("0 5 5 3 2 0", "1G")
-  )(
-    (0, 9), (1, 18), (2, 27)
-  )(
-    ("0 0 0 0 0 0", "2G 1A"),
-    ("0 1 0 2 0 0", "1C 1G 1$"),
-    ("1 1 1 3 0 0", "2C 1$"),
-    ("2 1 3 3 0 0", "1T 1A 1T"),
-    ("2 2 3 3 2 0", "1$ 1C 1A"),
-    ("3 3 4 3 2 0", "1A 1C 1A"),
-    ("3 5 5 3 2 0", "1G 1$")
+  val bounds10 = (
+    (0, 10) :: Nil,
+    (0, 10) :: Nil,
+    (0, 10) :: (1, 20) :: Nil,
+    (0, 10) :: (1, 20) :: Nil,
+    (0, 10) :: (1, 20) :: Nil
   )
+
+  val bounds9 = (
+    (0, 9) :: Nil,
+    (0, 9) :: Nil,
+    (0, 9) :: (1, 18) :: Nil,
+    (0, 9) :: (1, 18) :: Nil,
+    (0, 9) :: (1, 18) :: (2, 27) :: Nil
+  )
+
+  val bounds6 = (
+    (0, 6) :: Nil,
+    (0, 6) :: (1, 12) :: Nil,
+    (0, 6) :: (1, 12) :: Nil,
+    (0, 6) :: (1, 12) :: (2, 18) :: Nil,
+    (0, 6) :: (1, 12) :: (2, 18) :: (3, 24) :: Nil
+  )
+
+  val bounds5 = (
+    (0, 5) :: Nil,
+    (0, 5) :: (1, 10) :: Nil,
+    (0, 5) :: (1, 10) :: (2, 15) :: Nil,
+    (0, 5) :: (1, 10) :: (2, 15) :: (3, 20) :: Nil,
+    (0, 5) :: (1, 10) :: (2, 15) :: (3, 20) :: Nil
+  )
+
+  val bounds3 = (
+    (0, 3) :: (1, 6) :: Nil,
+    (0, 3) :: (1, 6) :: (2, 9) :: Nil,
+    (0, 3) :: (1, 6) :: (2, 9) :: (3, 12) :: Nil,
+    (0, 3) :: (1, 6) :: (2, 9) :: (3, 12) :: (4, 15) :: (5, 18) :: Nil,
+    (0, 3) :: (1, 6) :: (2, 9) :: (3, 12) :: (4, 15) :: (5, 18) :: (6, 21) :: Nil
+  )
+
+  val boundsMap = Map(
+    3 → bounds3,
+    5 → bounds5,
+    6 → bounds6,
+    9 → bounds9,
+    10 → bounds10,
+    15 → bounds15,
+    100 → bounds100
+  )
+
+  def opt(l: Long): Option[Long] = if (l > 0) Some(l) else None
+  def sToTs(s: String): VT = s.map(Utils.toI).toVector
+
+  def sp(s: String, curPos: Long, nextInsertPos: Long = -1): StringPos = {
+    StringPos(sToTs(s), curPos, opt(nextInsertPos))
+  }
+
+  def nsp(s: String, nextInsertPos: Long, nextPos: Long, next2InsertPos: Long = -1): NextStringPos = {
+    NextStringPos(sToTs(s), nextInsertPos, nextPos, opt(next2InsertPos))
+  }
+
+  def order[U: ClassTag](rdd: RDD[(Long, U)]): Array[U] = rdd.collect.sortBy(_._1).map(_._2)
 
 }
 
