@@ -2,12 +2,12 @@ package org.hammerlab.pageant.fm.blocks
 
 import org.hammerlab.pageant.fm.index.RunLengthIterator
 import org.hammerlab.pageant.fm.utils.{Counts, Pos}
-import org.hammerlab.pageant.fm.utils.Utils.{AT, T, VT}
+import org.hammerlab.pageant.fm.utils.Utils.{AT, T, VT, toC}
 
 case class RunLengthBWTBlock(pos: Pos,
                              pieces: Seq[BWTRun]) extends BWTBlock {
   override def toString: String = {
-    s"B(${pos.idx}: ${pos.counts.mkString(",")}, ${pieces.mkString(" ")} (${pieces.length},${pieces.map(_.n).sum})"
+    s"B(${pos.idx}: ${pos.counts.mkString(",")}, ${pieces.flatMap(p ⇒ Array.fill(p.n)(toC(p.t)).mkString("")).mkString("")} (${pieces.length},${pieces.map(_.n).sum})"
   }
 
   def lastPos: Pos = pos + pieces
