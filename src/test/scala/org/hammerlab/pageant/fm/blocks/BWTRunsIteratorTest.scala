@@ -21,12 +21,12 @@ class BWTRunsIteratorTest extends FunSuite with Matchers {
       )
 
     it.idx should be (123)
-    it.counts should be (Array(1L, 2L, 3L, 4L, 5L, 6L))
+    it.counts.c should be (Array(1L, 2L, 3L, 4L, 5L, 6L))
     it.hasNext should be (true)
     it.next should be (run('A', 10))
 
     it.idx should be (133)
-    it.counts should be (Array(1L, 12L, 3L, 4L, 5L, 6L))
+    it.counts.c should be (Array(1L, 12L, 3L, 4L, 5L, 6L))
     it.hasNext should be (false)
   }
 
@@ -39,22 +39,22 @@ class BWTRunsIteratorTest extends FunSuite with Matchers {
       )
 
     it.idx should be (123)
-    it.counts should be (Array(1L, 2L, 3L, 4L, 5L, 6L))
+    it.counts.c should be (Array(1L, 2L, 3L, 4L, 5L, 6L))
     it.hasNext should be (true)
     it.next should be (run('A', 10))
 
     it.idx should be (133)
-    it.counts should be (Array(1L, 12L, 3L, 4L, 5L, 6L))
+    it.counts.c should be (Array(1L, 12L, 3L, 4L, 5L, 6L))
     it.hasNext should be (true)
     it.next should be (run('G', 5))
 
     it.idx should be (138)
-    it.counts should be (Array(1L, 12L, 3L, 9L, 5L, 6L))
+    it.counts.c should be (Array(1L, 12L, 3L, 9L, 5L, 6L))
     it.hasNext should be (true)
     it.next should be (run('C', 1))
 
     it.idx should be (139)
-    it.counts should be (Array(1L, 12L, 4L, 9L, 5L, 6L))
+    it.counts.c should be (Array(1L, 12L, 4L, 9L, 5L, 6L))
     it.hasNext should be (false)
   }
 }

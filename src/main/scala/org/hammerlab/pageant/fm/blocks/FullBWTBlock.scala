@@ -1,9 +1,9 @@
 package org.hammerlab.pageant.fm.blocks
 
-import org.hammerlab.pageant.fm.utils.Utils.{ST, T}
+import org.hammerlab.pageant.fm.utils.Utils.{AT, ST, T, VT}
 import org.hammerlab.pageant.fm.utils.{Counts, Pos}
 
-case class FullBWTBlock(pos: Pos, data: ST) extends BWTBlock {
+case class FullBWTBlock(pos: Pos, data: Seq[T]) extends BWTBlock {
   override def toString: String = {
     s"BWTC($startIdx: ${startCounts.mkString(",")}, ${data.mkString(",")})"
   }
@@ -23,5 +23,5 @@ object FullBWTBlock {
   def apply(startIdx: Long,
             startCounts: Counts,
             data: Seq[T]): FullBWTBlock =
-    FullBWTBlock(Pos(startIdx, startCounts), data.toArray)
+    FullBWTBlock(Pos(startIdx, startCounts), data)
 }

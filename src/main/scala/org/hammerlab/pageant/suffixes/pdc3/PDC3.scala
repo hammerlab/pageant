@@ -329,7 +329,7 @@ object PDC3 {
 //        backup("sliding", () => t.sliding3(0).zipWithIndex())
 //      }
 
-    println(s"${tuples.collect.map { case ((t1,t2,t3),i) => s"$i -> ($t1,$t2,$t3)"} mkString("\n")}")
+    //println(s"${tuples.collect.map { case ((t1,t2,t3),i) => s"$i -> ($t1,$t2,$t3)"} mkString("\n")}")
 
     val padded =
       if (n % 3 == 1)

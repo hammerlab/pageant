@@ -38,63 +38,63 @@ class JointHistogramTest extends ADAMFunSuite with Matchers {
 
     j.jh.collectAsMap().toMap should be(
       Map(
-        (Some("chr2"), List(Some(1), Some(0), Some(1))) -> 3,
-        (Some("chr2"), List(Some(1), Some(0), Some(0))) -> 10,
-        (Some("chr2"), List(Some(0), Some(1), Some(0))) -> 100,
-        (Some("chr2"), List(Some(0), Some(1), Some(1))) -> 3,
-        (Some("chr2"), List(Some(0), Some(0), Some(1))) -> 4
+        (Some("2"), List(Some(1), Some(0), Some(1))) -> 3,
+        (Some("2"), List(Some(1), Some(0), Some(0))) -> 10,
+        (Some("2"), List(Some(0), Some(1), Some(0))) -> 100,
+        (Some("2"), List(Some(0), Some(1), Some(1))) -> 3,
+        (Some("2"), List(Some(0), Some(0), Some(1))) -> 4
       )
     )
 
     j.totalLoci should be(
       Map(
-        Some("chr2") -> 120L,
+        Some("2") -> 120L,
         None -> 120L
       )
     )
 
     j.sums.get(0, 1).collectAsMap().toMap should be(
       Map(
-        (Some("chr2"), List(None, None, Some(1))) -> 3.0,
-        (Some("chr2"), List(None, None, Some(0))) -> 10.0
+        (Some("2"), List(None, None, Some(1))) -> 3.0,
+        (Some("2"), List(None, None, Some(0))) -> 10.0
       )
     )
 
     j.sqsums.get(0, 1).collectAsMap().toMap should be(
       Map(
-        (Some("chr2"), List(None, None, Some(1))) -> 3.0,
-        (Some("chr2"), List(None, None, Some(0))) -> 10.0
+        (Some("2"), List(None, None, Some(1))) -> 3.0,
+        (Some("2"), List(None, None, Some(0))) -> 10.0
       )
     )
 
     j.dots.get(0, 1).collectAsMap().toMap should be(
       Map(
-        (Some("chr2"), List(None, None, Some(1))) -> 0.0,
-        (Some("chr2"), List(None, None, Some(0))) -> 0.0
+        (Some("2"), List(None, None, Some(1))) -> 0.0,
+        (Some("2"), List(None, None, Some(0))) -> 0.0
       )
     )
 
     j.ns.get(0, 1).collectAsMap().toMap should be(
       Map(
-        (Some("chr2"), List(None, None, Some(1))) -> 10.0,
-        (Some("chr2"), List(None, None, Some(0))) -> 110.0
+        (Some("2"), List(None, None, Some(1))) -> 10.0,
+        (Some("2"), List(None, None, Some(0))) -> 110.0
       )
     )
 
     j.weights(0, 1).collectAsMap().toMap should be(
       Map(
-        (Some("chr2"), List(None, None, Some(1))) -> (RegressionWeights(-0.42857142857142855, 0.42857142857142855, 1.7142857142857144, 0.18367346938775508), RegressionWeights(-0.42857142857142855, 0.42857142857142855, 1.7142857142857144, 0.18367346938775508)),
-        (Some("chr2"), List(None, None, Some(0))) -> (RegressionWeights(-1.0, 1.0, 0.0, 1.0), RegressionWeights(-1.0, 1.0, 0.0, 1.0))
+        (Some("2"), List(None, None, Some(1))) -> (RegressionWeights(-0.42857142857142855, 0.42857142857142855, 1.7142857142857144, 0.18367346938775508), RegressionWeights(-0.42857142857142855, 0.42857142857142855, 1.7142857142857144, 0.18367346938775508)),
+        (Some("2"), List(None, None, Some(0))) -> (RegressionWeights(-1.0, 1.0, 0.0, 1.0), RegressionWeights(-1.0, 1.0, 0.0, 1.0))
       )
     )
 
     j.eigens(0, 1).collectAsMap().toMap should be(
       Map(
-        (Some("chr2"), List(None, None, Some(1))) -> (
+        (Some("2"), List(None, None, Some(1))) -> (
           Eigen(0.33333333333333337, (0.7071067811865477, -0.7071067811865475), 0.7142857142857143),
           Eigen(0.13333333333333333, (-0.7071067811865475, -0.7071067811865475), 0.2857142857142857)
         ),
-        (Some("chr2"), List(None, None, Some(0))) -> (
+        (Some("2"), List(None, None, Some(0))) -> (
           Eigen(0.16680567139282737, (0.7071067811865475, -0.7071067811865476), 1.0),
           Eigen(0.0, (-0.7071067811865476, -0.7071067811865475), 0.0)
         )
@@ -104,7 +104,7 @@ class JointHistogramTest extends ADAMFunSuite with Matchers {
 
   def makeRead(start: Long, sequence: String, cigar: String): AlignmentRecord = {
     AlignmentRecord.newBuilder()
-      .setContig(Contig.newBuilder().setContigName("chr1").build())
+      .setContig(Contig.newBuilder().setContigName("1").build())
       .setSequence(sequence)
       .setStart(start)
       .setCigar(cigar)

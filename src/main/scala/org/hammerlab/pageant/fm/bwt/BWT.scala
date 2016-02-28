@@ -9,69 +9,70 @@ import org.hammerlab.pageant.fm.utils.{Pos, Utils}
 import org.hammerlab.pageant.fm.utils.Utils.{BlockIdx, Idx, N, T, VT}
 
 
-object BWT {
+case class StepInfo(stringPoss: RDD[(Idx, StringPos)],
+                    counts: Counts,
+                    bwt: RDD[(BlockIdx, RunLengthBWTBlock)],
+                    partitionBounds: Seq[(Int, Long)],
+                    blockSize: Int,
+                    blocksPerPartition: Long,
+                    curSize: Long,
+                    n: Long)
 
-  case class StepInfo(stringPoss: RDD[(Idx, StringPos)],
-                      counts: Counts,
-                      bwt: RDD[(BlockIdx, RunLengthBWTBlock)],
-                      partitionBounds: Seq[(Int, Long)],
-                      blockSize: Int,
-                      blocksPerPartition: Long,
-                      curSize: Long,
-                      n: Long)
+case class NextStepInfo(nextStringPoss: RDD[(Idx, NextStringPos)],
+                        counts: Counts,
+                        bwt: RDD[(BlockIdx, RunLengthBWTBlock)],
+                        partitionBounds: Seq[(Int, Long)],
+                        blockSize: Int,
+                        blocksPerPartition: Long,
+                        curSize: Long,
+                        n: Long)
 
-  case class NextStepInfo(nextStringPoss: RDD[(Idx, NextStringPos)],
-                          counts: Counts,
-                          bwt: RDD[(BlockIdx, RunLengthBWTBlock)],
-                          partitionBounds: Seq[(Int, Long)],
-                          blockSize: Int,
-                          blocksPerPartition: Long,
-                          curSize: Long,
-                          n: Long)
+object NextStepInfo {
+  def apply(tss: RDD[VT], blockSize: Int = 100, blocksPerPartition: Long = 10000): NextStepInfo = {
+    val n = tss.count()
+    val nextStringPoss = tss.zipWithIndex().map(t ⇒ t._2 → NextStringPos(t._1.dropRight(1), 0L, t._2, Some(n)))
+    val countsArr = Array.fill(N)(n)
+    countsArr(0) = 0L
+    val counts = Counts(countsArr)
+    val sc = tss.context
 
-  case class StringPos(ts: VT, curPos: Long, nextInsertPos: Option[Long]) {
-    override def toString: String = {
-      s"SP(${ts.map(Utils.toC).mkString("")} $curPos ${nextInsertPos.map(n ⇒ s" $n").getOrElse("")})"
-    }
-  }
+    val bounds = BWT.getBounds(blockSize, blocksPerPartition, 0, n)
 
-  case class NextStringPos(ts: VT, nextInsertPos: Long, nextPos: Long, next2InsertPos: Option[Long]) {
-    override def toString: String = {
-      s"NSP(${ts.map(Utils.toC).mkString("")} $nextInsertPos $nextPos${next2InsertPos.map(n ⇒ s" $n").getOrElse("")})"
-    }
-  }
-
-  object NextStepInfo {
-    def apply(tss: RDD[VT], blockSize: Int = 100, blocksPerPartition: Long = 10000): NextStepInfo = {
-      val n = tss.count()
-      val nextStringPoss = tss.zipWithIndex().map(t ⇒ t._2 → NextStringPos(t._1.dropRight(1), 0L, t._2, Some(n)))
-      val countsArr = Array.fill(N)(n)
-      countsArr(0) = 0L
-      val counts = Counts(countsArr)
-      val sc = tss.context
-
-      val bounds = getBounds(blockSize, blocksPerPartition, 0, n)
-
-      val bwt = sc.parallelize[(BlockIdx, RunLengthBWTBlock)](
-        Array.fill(bounds.length)(
-          (
-            0L,
-            RunLengthBWTBlock(Pos(), Array[BWTRun]())
+    val bwt = sc.parallelize[(BlockIdx, RunLengthBWTBlock)](
+      Array.fill(bounds.length)(
+        (
+          0L,
+          RunLengthBWTBlock(Pos(), Array[BWTRun]())
           )
-        ),
-        numSlices = bounds.length
-      )
+      ),
+      numSlices = bounds.length
+    )
 
-      NextStepInfo(nextStringPoss, counts, bwt, bounds, blockSize, blocksPerPartition, 0, n)
-    }
+    NextStepInfo(nextStringPoss, counts, bwt, bounds, blockSize, blocksPerPartition, 0, n)
   }
+}
 
-  object StepInfo {
-    def apply(tss: RDD[VT], blockSize: Int = 100): StepInfo = {
-      val nextStepInfo = NextStepInfo(tss, blockSize)
-      toNextStep(nextStepInfo)
-    }
+object StepInfo {
+  def apply(tss: RDD[VT], blockSize: Int = 100): StepInfo = {
+    val nextStepInfo = NextStepInfo(tss, blockSize)
+    BWT.toNextStep(nextStepInfo)
   }
+}
+
+
+case class StringPos(ts: VT, curPos: Long, nextInsertPos: Option[Long]) {
+  override def toString: String = {
+    s"SP(${ts.map(Utils.toC).mkString("")} $curPos ${nextInsertPos.map(n ⇒ s" $n").getOrElse("")})"
+  }
+}
+
+case class NextStringPos(ts: VT, nextInsertPos: Long, nextPos: Long, next2InsertPos: Option[Long]) {
+  override def toString: String = {
+    s"NSP(${ts.map(Utils.toC).mkString("")} $nextInsertPos $nextPos${next2InsertPos.map(n ⇒ s" $n").getOrElse("")})"
+  }
+}
+
+object BWT {
 
   def apply(tss: RDD[VT], blockSize: Int, steps: Int): RDD[(BlockIdx, RunLengthBWTBlock)] = {
     var curStep = StepInfo(tss, blockSize)

@@ -6,7 +6,7 @@ import com.esotericsoftware.kryo.{Kryo, Serializer}
 class FullBWTBlockSerializer extends Serializer[FullBWTBlock] with BWTBlockSerializer {
   override def write(kryo: Kryo, output: Output, o: FullBWTBlock): Unit = {
     write(output, o, o.data.length)
-    output.write(o.data.toArray)
+    o.data.foreach(b ⇒ output.writeByte(b))
   }
 
   override def read(kryo: Kryo, input: Input, `type`: Class[FullBWTBlock]): FullBWTBlock = {

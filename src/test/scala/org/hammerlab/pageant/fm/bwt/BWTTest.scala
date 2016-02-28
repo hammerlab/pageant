@@ -2,7 +2,6 @@ package org.hammerlab.pageant.fm.bwt
 
 import org.apache.spark.rdd.RDD
 import org.hammerlab.pageant.fm.blocks.Utils.{counts, makeRLBlocks, order, sToTs}
-import org.hammerlab.pageant.fm.bwt.BWT.{NextStepInfo, NextStringPos, StepInfo, StringPos}
 import org.hammerlab.pageant.fm.utils.Utils.VT
 import org.hammerlab.pageant.utils.PageantSuite
 import org.scalatest.Matchers

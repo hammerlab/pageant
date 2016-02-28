@@ -118,7 +118,7 @@ abstract class SparkFMBamTest extends FMSuite {
   }
 
   test("totals") {
-    fm.totalSums should be(Array(0, 1000, 32291, 56475, 80113, 101897))
+    fm.totalSums.c should be(Array(0, 1000, 32291, 56475, 80113, 101897))
   }
 }
 
@@ -135,10 +135,10 @@ class GenerateFMBamTest extends SparkFMBamTest {
     sa.getNumPartitions should be(4)
     sa.count should be(count)
 
-    val fm = SparkFM(sa.zipWithIndex(), ts.zipWithIndex().map(_.swap), count, N = 6)
-    fm.save("src/test/resources/normal.bam.fm", gzip = false)
-
-    fm
+//    val fm = SparkFM(sa.zipWithIndex(), ts.zipWithIndex().map(_.swap), count, N = 6)
+//    fm.save("src/test/resources/normal.bam.fm", gzip = false)
+//    fm
+    SparkFM(sa.zipWithIndex(), ts.zipWithIndex().map(_.swap), count, N = 6)
   }
 }
 

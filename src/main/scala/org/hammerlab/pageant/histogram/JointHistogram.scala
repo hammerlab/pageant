@@ -358,7 +358,7 @@ object JointHistogram {
       refLen = RichAlignmentRecord(read).referenceLength
       i <- 0 until refLen
     } yield {
-        ((name, start + i), 1)
+        ((if (name.startsWith("chr")) name.drop(3) else name, start + i), 1)
       }).reduceByKey(_ + _)
   }
 

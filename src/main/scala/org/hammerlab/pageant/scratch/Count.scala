@@ -3,7 +3,7 @@ package org.hammerlab.pageant.scratch
 import org.apache.hadoop.fs.{FileSystem, Path}
 //import BasesRDD._
 import TuplesRDD._
-import CountsRDD._
+import KmerCountRDD._
 
 object Count {
 

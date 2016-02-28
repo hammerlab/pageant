@@ -51,7 +51,7 @@ class SparkFMTest extends PageantSuite with TmpFilesTest {
         }).toArray.zipWithIndex.map(_.swap)
 
       def testFM(fm: SparkFM) {
-        fm.totalSums should be(Array(0, 1, 3, 5, 7, 9).map(_.toLong))
+        fm.totalSums.c should be(Array(0, 1, 3, 5, 7, 9).map(_.toLong))
         fm.bwtBlocks.collect.sortBy(_._1) should be(blocks)
       }
 
