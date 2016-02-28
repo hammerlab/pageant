@@ -302,7 +302,7 @@ object PDC3 {
     pm("ti", () => ti)
 
     val tuples: RDD[L3I] =
-//      if (n / t.getNumPartitions < 2)
+      if (n / t.getNumPartitions < 2)
         backup("tuples", () =>
           (for {
             (e, i) <- ti
@@ -325,9 +325,9 @@ object PDC3 {
           .setName(s"$N-list->tupled;zero-padded")
           .map(_.swap)
         )
-//      else {
-//        backup("sliding", () => t.sliding3(0).zipWithIndex())
-//      }
+      else {
+        backup("sliding", () => t.sliding3(0).zipWithIndex().filter(_._2 % 3 != 0))
+      }
 
     //println(s"${tuples.collect.map { case ((t1,t2,t3),i) => s"$i -> ($t1,$t2,$t3)"} mkString("\n")}")
 

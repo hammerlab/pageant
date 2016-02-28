@@ -45,6 +45,7 @@ class PageantKryoRegistrar extends KryoRegistrator {
     // Tuple2[Long, Any], afaict?
     // "J" == Long (obviously). https://github.com/twitter/chill/blob/6d03f6976f33f6e2e16b8e254fead1625720c281/chill-scala/src/main/scala/com/twitter/chill/TupleSerializers.scala#L861
     kryo.register(Class.forName("scala.Tuple2$mcJZ$sp"))
+    kryo.register(Class.forName("scala.Tuple2$mcIZ$sp"))
 
     new ADAMKryoRegistrator().registerClasses(kryo)
     new AdamWorkAroundKryoRegistrar().registerClasses(kryo)
