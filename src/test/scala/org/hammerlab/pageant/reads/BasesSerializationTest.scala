@@ -9,7 +9,7 @@ class BasesSerializationTest(withClasses: Boolean = false)
   extends DirectFileRDDTest(withClasses)
     with TestUtils {
 
-  val bases = "ACGT".zipWithIndex.map(_.swap).toMap
+  val bases = Bases.cToI.map(_.swap)
 
   Random.setSeed(1234L)
 

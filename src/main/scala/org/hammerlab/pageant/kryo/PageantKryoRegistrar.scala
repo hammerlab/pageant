@@ -9,7 +9,7 @@ import org.hammerlab.pageant.fm.blocks.{BWTRun, BWTRunSerializer, FullBWTBlock, 
 import org.hammerlab.pageant.fm.bwt.{NextStringPos, StringPos}
 import org.hammerlab.pageant.fm.finder.{PosNeedle, TNeedle}
 import org.hammerlab.pageant.fm.utils.{Bounds, BoundsMap, Counts, CountsMap, HiBound, LoBound, Pos}
-import org.hammerlab.pageant.reads.{Bases, BasesSerializer}
+import org.hammerlab.pageant.reads.{Bases, Bases5, Bases5Serializer, BasesSerializer}
 import org.hammerlab.pageant.scratch.{BasesTuple, BasesTupleSerializer, CountsSerializer, KmerCount}
 import org.hammerlab.pageant.suffixes.pdc3.{Joined, JoinedSerializer}
 
@@ -18,6 +18,7 @@ import scala.collection.mutable.ArrayBuffer
 class PageantKryoRegistrar extends KryoRegistrator {
   override def registerClasses(kryo: Kryo): Unit = {
     kryo.register(classOf[Bases], new BasesSerializer)
+    kryo.register(classOf[Bases5], new Bases5Serializer)
     kryo.register(classOf[KmerCount], new CountsSerializer)
     kryo.register(classOf[BasesTuple], new BasesTupleSerializer)
     kryo.register(classOf[BWTRun], new BWTRunSerializer)
