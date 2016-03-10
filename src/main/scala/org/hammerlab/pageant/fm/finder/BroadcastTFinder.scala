@@ -4,7 +4,7 @@ import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
 import org.hammerlab.pageant.fm.finder.BroadcastTFinder.TMap
 import org.hammerlab.pageant.fm.index.FMIndex.FMI
-import org.hammerlab.pageant.fm.index.SparkFMBuilder
+import org.hammerlab.pageant.fm.index.PDC3FMBuilder
 import org.hammerlab.pageant.fm.utils.{Bound, Bounds, BoundsMap, HiBound, LoBound}
 import org.hammerlab.pageant.fm.utils.Utils.{AT, BlockIdx, Idx, T, TPos}
 

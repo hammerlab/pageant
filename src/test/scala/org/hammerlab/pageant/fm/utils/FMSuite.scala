@@ -3,7 +3,7 @@ package org.hammerlab.pageant.fm.utils
 import org.apache.spark.SparkContext
 import org.hammerlab.pageant.fm.blocks.BWTBlock
 import org.hammerlab.pageant.fm.index.FMIndex.FMI
-import org.hammerlab.pageant.fm.index.{FMIndex, SparkFMBuilder}
+import org.hammerlab.pageant.fm.index.{FMIndex, PDC3FMBuilder}
 import org.hammerlab.pageant.utils.PageantSuite
 
 import scala.collection.mutable.ArrayBuffer

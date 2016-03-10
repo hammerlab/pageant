@@ -9,23 +9,7 @@ import org.hammerlab.pageant.suffixes.pdc3.PDC3
 
 import scala.collection.mutable.ArrayBuffer
 
-object SparkFMBuilder {
-
-  def apply[U](us: RDD[U],
-               N: Int,
-               toT: (U) => T,
-               blockSize: Int = 100): FMIndex = {
-    @transient val sc = us.context
-    us.cache()
-    val count = us.count
-    @transient val t: RDD[T] = us.map(toT)
-    t.cache()
-    @transient val tZipped: RDD[(Idx, T)] = t.zipWithIndex().map(_.swap)
-    @transient val sa = PDC3(t.map(_.toLong), count)
-    @transient val saZipped: RDD[(V, Idx)] = sa.zipWithIndex()
-
-    apply(saZipped, tZipped, count, N, blockSize)
-  }
+object PDC3FMBuilder {
 
   def makeBwtBlocks(indexedBwtt: RDD[(Idx, T)],
                     startCountsRDD: RDD[Counts],
@@ -104,12 +88,37 @@ object SparkFMBuilder {
     )
   }
 
-  def apply(saZipped: RDD[(V, Idx)],
-            tZipped: RDD[(Idx, T)],
-            count: Long,
+  def apply(ts: RDD[T],
             N: Int,
-            blockSize: Int = 100,
-            runLengthEncode: Boolean = true): FMIndex = {
+            blockSize: Int = 100): FMIndex = {
+    val count = ts.count()
+    @transient val sa = PDC3(ts.map(_.toLong), count)
+    withSA(sa, ts, count, N, blockSize)
+  }
+
+  def withSA(sa: RDD[V],
+             t: RDD[T],
+             N: Int,
+             blockSize: Int,
+             runLengthEncode: Boolean): FMIndex = {
+    withSA(sa, t, sa.count, N, blockSize, runLengthEncode)
+  }
+
+  def withSA(sa: RDD[V],
+             t: RDD[T],
+             count: Long,
+             N: Int,
+             blockSize: Int = 100,
+             runLengthEncode: Boolean = true): FMIndex = {
+    fromZipped(sa.zipWithIndex(), t.zipWithIndex().map(_.swap), count, N, blockSize, runLengthEncode)
+  }
+
+  def fromZipped(saZipped: RDD[(V, Idx)],
+                 tZipped: RDD[(Idx, T)],
+                 count: Long,
+                 N: Int,
+                 blockSize: Int = 100,
+                 runLengthEncode: Boolean = true): FMIndex = {
     @transient val sc = saZipped.sparkContext
 
     @transient val tShifted: RDD[(Idx, T)] =

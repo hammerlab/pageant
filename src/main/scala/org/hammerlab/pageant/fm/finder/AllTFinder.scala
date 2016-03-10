@@ -2,7 +2,7 @@ package org.hammerlab.pageant.fm.finder
 
 import org.apache.spark.rdd.RDD
 import org.hammerlab.pageant.fm.index.FMIndex.FMI
-import org.hammerlab.pageant.fm.index.SparkFMBuilder
+import org.hammerlab.pageant.fm.index.PDC3FMBuilder
 import org.hammerlab.pageant.fm.utils.Utils.{AT, BlockIdx, Idx, TPos}
 import org.hammerlab.pageant.fm.utils._
 

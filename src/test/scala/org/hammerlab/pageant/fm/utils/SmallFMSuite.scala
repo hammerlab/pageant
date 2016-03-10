@@ -3,7 +3,7 @@ package org.hammerlab.pageant.fm.utils
 import org.apache.spark.SparkContext
 import Utils._
 import org.hammerlab.pageant.fm.index.FMIndex.FMI
-import org.hammerlab.pageant.fm.index.SparkFMBuilder
+import org.hammerlab.pageant.fm.index.PDC3FMBuilder
 import org.hammerlab.pageant.suffixes.dc3.DC3
 import org.hammerlab.pageant.utils.Utils._
 
@@ -54,16 +54,16 @@ object SmallFMSuite {
 
   def initFM(sc: SparkContext,
              saPartitions: Int,
-             ts: String,
+             tsStr: String,
              tsPartitions: Int,
-             sa: Array[Int],
+             saArr: Array[Int],
              bwt: AT,
              blockSize: Int,
              N: Int): FMI = {
 
-    val saZipped = sc.parallelize(sa.map(_.toLong), saPartitions).zipWithIndex()
-    val tZipped = sc.parallelize(ts.map(toI), tsPartitions).zipWithIndex().map(_.swap)
+    val sa = sc.parallelize(saArr.map(_.toLong), saPartitions)
+    val ts = sc.parallelize(tsStr.map(toI), tsPartitions)
 
-    SparkFMBuilder(saZipped, tZipped, ts.length, N = N, blockSize = blockSize)
+    PDC3FMBuilder.withSA(sa, ts, tsStr.length, N = N, blockSize = blockSize)
   }
 }
