@@ -6,11 +6,16 @@ class MergeInsertsIterator(blocksIter: Iterator[RunLengthBWTBlock],
 													 insertsIter: Iterator[(Long, T)]) extends Iterator[BWTRun] {
 
 	val bufferedBlocksIter = blocksIter.buffered
-	val runsIter = new BWTRunsIterator(bufferedBlocksIter)
 
+  var nextRunStartIdx =
+    if (bufferedBlocksIter.hasNext)
+      bufferedBlocksIter.head.startIdx
+    else
+      -1L
 	var nextRun: BWTRun = _
-	var nextRunStartIdx = -1L
 	var nextRunEndIdx = -1L
+
+  val runsIter = BWTRunsIterator(bufferedBlocksIter)
 
 	var nextInsert: (Long, T) = null
 	var nextInsertPos: Long = -1
@@ -34,7 +39,10 @@ class MergeInsertsIterator(blocksIter: Iterator[RunLengthBWTBlock],
 
 	def advanceRun(): Unit = {
 		if (runsIter.hasNext) {
-			nextRunStartIdx = runsIter.idx
+      if (nextRun != null) {
+        nextRunStartIdx += nextRun.n
+      }
+			//nextRunStartIdx = runsIter.idx
 			nextRun = runsIter.next()
 			nextRunEndIdx = nextRunStartIdx + nextRun.n
 		} else {

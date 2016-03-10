@@ -1,14 +1,14 @@
 package org.hammerlab.pageant.fm.finder
 
 import org.apache.spark.rdd.RDD
-import org.hammerlab.pageant.fm.index.SparkFM
-import org.hammerlab.pageant.fm.utils.Utils.{BlockIdx, TPos, Idx, AT}
+import org.hammerlab.pageant.fm.index.FMIndex.FMI
+import org.hammerlab.pageant.fm.index.SparkFMBuilder
+import org.hammerlab.pageant.fm.utils.Utils.{AT, BlockIdx, Idx, TPos}
 import org.hammerlab.pageant.fm.utils._
-
 
 import scala.collection.mutable.ArrayBuffer
 
-case class AllTFinder(fm: SparkFM) extends FMFinder[TNeedle](fm) {
+case class AllTFinder(fm: FMI) extends FMFinder[TNeedle](fm) {
   def occAll(tss: RDD[AT]): RDD[(AT, BoundsMap)] = {
     val tssi = tss.zipWithIndex().map(_.swap).setName("tssi")
     val tssPrefixes: RDD[(Idx, TPos, AT)] =

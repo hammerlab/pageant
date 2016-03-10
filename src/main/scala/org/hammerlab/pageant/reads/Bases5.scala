@@ -62,7 +62,8 @@ case class Bases5(bytes: Array[Byte], length: Int) extends SeqLike[Char, Bases] 
 
 object Bases5 {
   val alphabet = "ACGTN"
-  val cToI = Map('A' -> 0, 'C' -> 1, 'G' -> 2, 'T' -> 3, 'N' → 4)
+  val cToT: Map[Char, Byte] = Map('A' -> 0, 'C' -> 1, 'G' -> 2, 'T' -> 3, 'N' → 4)
+  val tToC: Map[Byte, Char] = cToT.map(_.swap)
   val complement = Map('A' -> 'T', 'C' -> 'G', 'G' -> 'C', 'T' -> 'A', 'N' → 'N')
 
   def builder: mutable.Builder[Char, Bases5] = {
@@ -73,7 +74,7 @@ object Bases5 {
         if (size % 3 == 0) {
           bytes += 0.toByte
         }
-        val i = Bases5.cToI(elem)
+        val i = Bases5.cToT.getOrElse(elem, throw new Exception(s"Invalid char: ${elem.toByte}"))
         val fivePow = size % 3 match {
           case 0 ⇒ 1
           case 1 ⇒ 5

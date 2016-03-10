@@ -2,7 +2,8 @@ package org.hammerlab.pageant.fm.utils
 
 import org.apache.spark.SparkContext
 import Utils._
-import org.hammerlab.pageant.fm.index.SparkFM
+import org.hammerlab.pageant.fm.index.FMIndex.FMI
+import org.hammerlab.pageant.fm.index.SparkFMBuilder
 import org.hammerlab.pageant.suffixes.dc3.DC3
 import org.hammerlab.pageant.utils.Utils._
 
@@ -15,7 +16,7 @@ trait SmallFMSuite extends FMSuite {
   var sa: Array[Int] = _
   var bwt: Array[T] = _
 
-  override def initFM(sc: SparkContext): SparkFM = {
+  override def initFM(sc: SparkContext): FMI = {
     val (sa2, bwt2, fm2) = SmallFMSuite.initFM(sc, saPartitions, ts, tsPartitions, blockSize)
     sa = sa2
     bwt = bwt2
@@ -46,7 +47,7 @@ object SmallFMSuite {
              ts: String,
              tsPartitions: Int,
              blockSize: Int,
-             N: Int = 6): (Array[Int], Array[T], SparkFM) = {
+             N: Int = 6): (Array[Int], Array[T], FMI) = {
     val (sa, bwt) = initBWT(ts)
     (sa, bwt, initFM(sc, saPartitions, ts, tsPartitions, sa, bwt, blockSize, N))
   }
@@ -58,11 +59,11 @@ object SmallFMSuite {
              sa: Array[Int],
              bwt: AT,
              blockSize: Int,
-             N: Int): SparkFM = {
+             N: Int): FMI = {
 
     val saZipped = sc.parallelize(sa.map(_.toLong), saPartitions).zipWithIndex()
     val tZipped = sc.parallelize(ts.map(toI), tsPartitions).zipWithIndex().map(_.swap)
 
-    SparkFM(saZipped, tZipped, ts.length, N = N, blockSize = blockSize)
+    SparkFMBuilder(saZipped, tZipped, ts.length, N = N, blockSize = blockSize)
   }
 }

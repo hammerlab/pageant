@@ -31,6 +31,6 @@ trait KryoSerdePageantRegistrar extends KryoSuite with PageantRegistrar
 
 trait KryoSerdePageantRegistrarNoReferences extends KryoSerdePageantRegistrar with KryoNoReferenceTracking
 
-trait JavaSerialization extends SparkSuite {
+trait JavaSerializerSuite extends SparkSuite {
   props +:= "spark.serializer" -> "org.apache.spark.serializer.JavaSerializer"
 }

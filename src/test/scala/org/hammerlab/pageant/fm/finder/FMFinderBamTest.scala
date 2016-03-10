@@ -2,15 +2,15 @@ package org.hammerlab.pageant.fm.finder
 
 import org.apache.spark.SparkContext
 import org.apache.spark.rdd.RDD
-import org.hammerlab.pageant.fm.index.SparkFM
+import org.hammerlab.pageant.fm.index.FMIndex
+import org.hammerlab.pageant.fm.index.FMIndex.FMI
 import org.hammerlab.pageant.fm.utils.Utils._
 import org.hammerlab.pageant.fm.utils.{Bounds, FMSuite}
-import org.hammerlab.pageant.utils.Utils.resourcePath
 
 abstract class FMFinderBamTest extends FMSuite with FMFinderTest {
 
-  def initFM(sc: SparkContext): SparkFM = {
-    SparkFM.load(sc, "src/test/resources/normal.bam.fm", gzip = false)
+  def initFM(sc: SparkContext): FMI = {
+    FMIndex.load(sc, "src/test/resources/1000.fm", gzip = false)
   }
 
   def formatActual(result: RDD[(AT, Bounds)]) = {

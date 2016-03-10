@@ -35,7 +35,7 @@ class SortWithRDD[T: ClassTag](@transient rdd: RDD[T]) extends Serializable {
       } catch {
         case e: IllegalArgumentException =>
           throw new IllegalArgumentException(
-            s"Inconsistent sort:\n\t${arr.map({
+            s"Inconsistent sort:\n\t${arr.take(1000).map({
               case ((t1, t2, t3), i) => s"($t1,$t2,$t3) -> $i"
               case o => o.toString
             }).mkString("\n\t")}",

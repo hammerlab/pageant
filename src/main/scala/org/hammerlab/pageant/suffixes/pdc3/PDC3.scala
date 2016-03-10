@@ -8,6 +8,7 @@ import org.apache.spark.serializer.DirectFileRDDSerializer._
 import org.apache.spark.sortwith.SortWithRDD._
 import org.hammerlab.pageant.rdd.SlidingRDD._
 import org.hammerlab.pageant.suffixes.dc3.DC3
+import org.hammerlab.pageant.utils.Utils.longToCmpFnReturn
 import org.joda.time.format.PeriodFormatterBuilder
 
 import scala.collection.mutable.ArrayBuffer
@@ -156,11 +157,6 @@ object PDC3 {
       t2._1 != 0L && t2._2 != 0L && t2._3 != 0L
   }
 
-  def longToCmpFnReturn(l: Long) =
-    if (l < 0) -1
-    else if (l > 0) 1
-    else 0
-
   def cmp2(t1: (L, L, L), t2: (L, L, L)): Int = {
     longToCmpFnReturn(
       if (t1._1 == t2._1)
@@ -284,11 +280,13 @@ object PDC3 {
       lastPrintedTime = System.currentTimeMillis()
     }
 
-    pl(s"PDC3: $target ($n/${tOpt.orElse(tiOpt).get.getNumPartitions})")
+    val numPartitions = tOpt.orElse(tiOpt).get.getNumPartitions
+
+    pl(s"PDC3: $target ($n/$numPartitions)")
 
     lazy val t = tOpt.getOrElse(tiOpt.get.keys)
 
-    if (n <= target) {
+    if (n <= target || numPartitions == 1) {
       val r = t.map(_.toInt).collect()
       return t.context.parallelize(
         DC3.make(r, r.length).map(_.toLong)
@@ -332,13 +330,21 @@ object PDC3 {
     //println(s"${tuples.collect.map { case ((t1,t2,t3),i) => s"$i -> ($t1,$t2,$t3)"} mkString("\n")}")
 
     val padded =
-      if (n % 3 == 1)
-        tuples ++ t.context.parallelize(((0L, 0L, 0L), n) :: Nil)
-      else if (n % 3 == 0)
+      if (n % 3 == 0)
         tuples ++ t.context.parallelize(((0L, 0L, 0L), n+1) :: Nil)
+      else if (n % 3 == 1)
+        tuples ++ t.context.parallelize(((0L, 0L, 0L), n) :: Nil)
       else
-        tuples
+//        tuples
+        tuples ++ t.context.parallelize(((0L, 0L, 0L), n) :: Nil)
 
+//    val padded =
+//      if (n % 3 == 0)
+//        tuples ++ t.context.parallelize(((0L, 0L, 0L), n+1) :: Nil)
+//      else
+//        tuples ++ t.context.parallelize(((0L, 0L, 0L), n) :: Nil)
+
+    // All [12]%3 triplets and indexes, sorted.
     val S: RDD[L3I] = backup("S", () => padded.sortWith(cmp3))
 
     pm("S", () => S)
@@ -447,7 +453,7 @@ object PDC3 {
       (foundDupes, named)
     }
 
-    val (n0, n2) = ((n + 2) / 3, n / 3)
+    val (n0, n2) = ((n + 2) / 3, (n + 1) / 3)
     val n1 = (n + 1)/3 +
       (n % 3 match {
         case 0|1 => 1
@@ -563,6 +569,16 @@ object PDC3 {
 
     val sorted = backup("sorted", () => joined.sortWith(cmpFn).map(_._1))
     pm("sorted", () => sorted)
+
+    val num = sorted
+      .map(_ → null)
+      .sortByKey()
+      .keys
+      .zipWithIndex
+      .map(t ⇒
+        if (t._1 != t._2)
+          throw new Exception(s"idx ${t._2}: ${t._1}")
+      ).count()
 
     pl("Returning")
     sorted

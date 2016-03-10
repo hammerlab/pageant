@@ -128,4 +128,8 @@ class SlidingRDDTest extends SparkSuite {
     )
   }
 
+  test("small") {
+    testSlideUntil("$AC$AAA$AAA$")
+  }
+
 }

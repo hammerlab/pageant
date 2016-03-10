@@ -44,13 +44,13 @@ object Pos {
   def apply(counts: Counts): Pos = Pos(counts.sum, counts)
   def apply(counts: Array[Long]): Pos = Pos(Counts(counts))
   def apply(idx: Long, counts: Array[Long]): Pos = Pos(idx, Counts(counts))
-  def partialSums(pss: Seq[Pos]): Seq[Pos] = {
+  def partialSums(pss: Seq[Pos]): (Seq[Pos], Pos) = {
     val sums: ArrayBuffer[Pos] = ArrayBuffer()
-    var cur = Counts()
+    var cur = Pos()
     pss.foreach(pos ⇒ {
-      sums += Pos(pos.idx, cur)
-      cur = cur + pos.counts
+      sums += cur
+      cur = cur + pos
     })
-    sums
+    (sums, cur)
   }
 }

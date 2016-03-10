@@ -79,7 +79,7 @@ object DC3 {
     // sorting with it incorporated, and then filter it out in the end while building the final result.
     val padding =
       Array.fill(
-        if (s.length % 3 == 1) 3 else 2
+        if (s.length % 3 > 0) 3 else 2
       )(0)
 
     make(
@@ -94,20 +94,20 @@ object DC3 {
     if (n == 0) return Array()
     if (n == 1) return Array(0)
 
-    val (n0, n1, n2) = ((n + 2) / 3, (n + 1) / 3, n / 3)
+    val (n0, n1, n2) = ((n + 2) / 3, (n + 1) / 3, (n + 1) / 3)
     val n02 = n0 + n2
 
     // The [12]%3 indices of s will be placed in here, replaced with "name"s, and sent to the recursive make() call.
     // The latter step requires zero-padding as described in the make() wrapper above: 3 zeros if the length is 1%3,
     // 2 zeros otherwise.
-    var s12 = Array.fill(n02 + (if (n02 % 3 == 1) 3 else 2))(0)
+    var s12 = Array.fill(n02 + (if (n02 % 3 > 0) 3 else 2))(0)
 
     // This will eventually store the suffix array of the [12]%3 elements of s.
     var SA12 = Array.fill(n02)(0)
 
     // Populate s12 with all [12]%3 indices in s, e.g. [1, 2, 4, 5, 7, 8, ...)
     var j = 0
-    (0 until (n + n0 - n1)).foreach(i => {
+    (0 until (n + (if (n % 3 > 0) 1 else 0))).foreach(i => {
       if (i % 3 != 0) {
         s12(j) = i
         j += 1

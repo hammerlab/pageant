@@ -27,5 +27,10 @@ case class BWTRun(t: T, n: Int) {
   override def toString: String = {
     s"$n${toC(t)}"
   }
+
+  def +(more: Int): BWTRun = {
+    BWTRun(t, n + more)
+  }
+
 }
 

@@ -1,47 +1,52 @@
 package org.hammerlab.pageant.fm.blocks
 
-import org.hammerlab.pageant.fm.utils.Counts
-
-class BWTRunsIterator(blocks: Iterator[RunLengthBWTBlock]) extends Iterator[BWTRun] {
-  var block: RunLengthBWTBlock = _
-  var it: BWTRunIterator = _
+class BWTRunsIterator(runs: Iterator[BWTRun]) extends Iterator[BWTRun] {
+  var curRun: BWTRun = _
   var nextRun: BWTRun = _
   var finished = false
-  var idx: Long = 0L
-  var counts: Counts = _
 
-  def advance(): Boolean = {
-    if (it == null || !it.hasNext) {
-      if (blocks.hasNext) {
-        block = blocks.next()
-        it = new BWTRunIterator(block)
-        advance()
-      } else {
-        finished = true
-        if (it != null) {
-          idx = it.idx
-          counts = it.counts.copy()
+  def advance() = {
+    if (nextRun != null) {
+      curRun = nextRun
+      nextRun = null
+    } else if (runs.hasNext) {
+      curRun = runs.next()
+    } else {
+      curRun = null
+    }
+
+    if (curRun != null) {
+      var filling = true
+      while (runs.hasNext && filling) {
+        nextRun = runs.next()
+        if (nextRun.t == curRun.t) {
+          curRun += nextRun.n
+          nextRun = null
+        } else {
+          filling = false
         }
-        nextRun = null
-        false
+      }
+      if (filling) {
+        finished = true
       }
     } else {
-      idx = it.idx
-      counts = it.counts.copy()
-      nextRun = it.next()
-      true
+      finished = true
     }
   }
 
   advance()
 
   override def hasNext: Boolean = {
-    nextRun != null
+    !finished || curRun != null
   }
 
   override def next(): BWTRun = {
-    val r = nextRun
+    val r = curRun
     advance()
     r
   }
+}
+
+object BWTRunsIterator {
+  def apply(blocks: Iterator[RunLengthBWTBlock]): BWTRunsIterator = new BWTRunsIterator(blocks.flatMap(_.pieces))
 }

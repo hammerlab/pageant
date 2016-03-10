@@ -1,6 +1,7 @@
 package org.hammerlab.pageant.fm.utils
 
 import Utils.{N, T}
+import org.hammerlab.pageant.fm.blocks.BWTRun
 
 import scala.collection.mutable.ArrayBuffer
 
@@ -19,6 +20,10 @@ case class Counts(c: Array[Long]) {
 
   def +=(t: T): Unit = {
     c(t) += 1
+  }
+
+  def +=(run: BWTRun): Unit = {
+    c(run.t) += run.n
   }
 
   def apply(t: T): Long = c(t)

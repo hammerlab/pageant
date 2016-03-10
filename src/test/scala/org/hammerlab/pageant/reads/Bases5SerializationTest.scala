@@ -9,12 +9,12 @@ class Bases5SerializationTest(withClasses: Boolean = false)
   extends DirectFileRDDTest(withClasses)
     with TestUtils {
 
-  val bases = Bases5.cToI.map(_.swap)
+  val bases = Bases5.cToT.map(_.swap)
 
   Random.setSeed(1234L)
 
   def randomBases(n: Int) = {
-    (0 until n).map(_ => Random.nextInt(5)).map(bases.apply).mkString("")
+    (0 until n).map(_ => Random.nextInt(5).toByte).map(bases.apply).mkString("")
   }
 
   def makeBases(n: Int, k: Int) = {

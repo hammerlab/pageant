@@ -3,9 +3,9 @@ package org.hammerlab.pageant.fm.index
 import java.io.File
 
 import org.hammerlab.pageant.fm.blocks.RunLengthBWTBlock
-import org.hammerlab.pageant.fm.utils.{Utils, SmallFMSuite}
-import org.hammerlab.pageant.utils.{TmpFilesTest, PageantSuite}
-
+import org.hammerlab.pageant.fm.index.FMIndex.FMI
+import org.hammerlab.pageant.fm.utils.{SmallFMSuite, Utils}
+import org.hammerlab.pageant.utils.{PageantSuite, TmpFilesTest}
 
 import scala.collection.mutable.ArrayBuffer
 
@@ -50,7 +50,7 @@ class SparkFMTest extends PageantSuite with TmpFilesTest {
           )
         }).toArray.zipWithIndex.map(_.swap)
 
-      def testFM(fm: SparkFM) {
+      def testFM(fm: FMI) {
         fm.totalSums.c should be(Array(0, 1, 3, 5, 7, 9).map(_.toLong))
         fm.bwtBlocks.collect.sortBy(_._1) should be(blocks)
       }
@@ -59,7 +59,7 @@ class SparkFMTest extends PageantSuite with TmpFilesTest {
       val fn = tmpDirPath("small")
       fm.save(fn)
 
-      val fm2 = SparkFM.load(sc, fn, gzip = false)
+      val fm2 = FMIndex.load(sc, fn, gzip = false)
       testFM(fm2)
     }
   }

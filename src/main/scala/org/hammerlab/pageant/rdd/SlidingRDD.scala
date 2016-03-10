@@ -83,6 +83,9 @@ class SlidingRDD[T: ClassTag](@transient rdd: RDD[T]) extends Serializable {
               else
                 toSentinel.append(next)
             }
+            if (filling) {
+              throw new IllegalArgumentException(s"Partition $idx did not include sentinel $sentinel:\n${toSentinel.take(100).mkString(",")}")
+            }
             Iterator(
               (idx - 1) → toSentinel
             )

@@ -1,17 +1,17 @@
 package org.hammerlab.pageant.utils
 
-import org.scalatest.{BeforeAndAfter, Suite}
+import org.scalatest.{BeforeAndAfter, BeforeAndAfterAll, Suite}
 
 import scala.collection.mutable.ArrayBuffer
 
-trait BeforeAndAfterTest extends BeforeAndAfter {
+trait BeforeAndAfterTest extends BeforeAndAfterAll {
   self: Suite =>
   var befores: ArrayBuffer[() => Unit] = ArrayBuffer()
   var afters: ArrayBuffer[() => Unit] = ArrayBuffer()
-  before {
+  override def beforeAll() = {
     befores.foreach(_())
   }
-  after {
+  override def afterAll() = {
     afters.foreach(_())
   }
 }

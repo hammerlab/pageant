@@ -3,16 +3,17 @@ package org.hammerlab.pageant.fm.finder
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
 import org.hammerlab.pageant.fm.finder.BroadcastTFinder.TMap
-import org.hammerlab.pageant.fm.index.SparkFM
-import org.hammerlab.pageant.fm.utils.{Bounds, HiBound, LoBound, Bound, BoundsMap}
-import org.hammerlab.pageant.fm.utils.Utils.{Idx, TPos, T, BlockIdx, AT}
+import org.hammerlab.pageant.fm.index.FMIndex.FMI
+import org.hammerlab.pageant.fm.index.SparkFMBuilder
+import org.hammerlab.pageant.fm.utils.{Bound, Bounds, BoundsMap, HiBound, LoBound}
+import org.hammerlab.pageant.fm.utils.Utils.{AT, BlockIdx, Idx, T, TPos}
 
 /**
   * FMFinder implementation that performs LF-mappings using a broadcasted Map of all target sequences.
   *
   * If the target sequences are (in aggregate) larger than makes sense to broadcast, this can run in to problems.
   */
-case class BroadcastTFinder(fm: SparkFM) extends FMFinder[PosNeedle](fm) with Serializable {
+case class BroadcastTFinder(fm: FMI) extends FMFinder[PosNeedle](fm) with Serializable {
 
   def occAll(tssRdd: RDD[AT]): RDD[(AT, BoundsMap)] = {
     val (tssi, tsBC) = tssToIndexAndBroadcast(tssRdd)

@@ -7,7 +7,17 @@ import org.hammerlab.pageant.fm.utils.Utils.{AT, T, VT, toC}
 case class RunLengthBWTBlock(pos: Pos,
                              pieces: Seq[BWTRun]) extends BWTBlock {
   override def toString: String = {
-    s"B(${pos.idx}: ${pos.counts.mkString(",")}, ${pieces.flatMap(p ⇒ Array.fill(p.n)(toC(p.t)).mkString("")).mkString("")} (${pieces.length},${pieces.map(_.n).sum})"
+    //s"B(${pos.idx}: ${pos.counts.mkString(",")}, ${pieces.flatMap(p ⇒ Array.fill(p.n)(toC(p.t)).mkString("")).mkString("")} (${pieces.length},${pieces.map(_.n).sum})"
+    s"B(${pos.idx}: ${pos.counts.mkString(",")}, ${pieces.mkString(" ")} (${pieces.length},${pieces.map(_.n).sum})"
+  }
+
+  for {
+    (t, i) <- pieces.sliding(2).zipWithIndex
+    if t.length == 2
+  } {
+    if (t(0).t == t(1).t) {
+      throw new Exception(s"Bad pieces, $i: ${pieces.mkString(" ")}")
+    }
   }
 
   def lastPos: Pos = pos + pieces

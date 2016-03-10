@@ -2,13 +2,14 @@ package org.hammerlab.pageant.fm.finder
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.rdd.RDD._
+import org.hammerlab.pageant.fm.index.FMIndex.FMI
 import org.hammerlab.pageant.fm.index._
-import org.hammerlab.pageant.fm.utils.Utils.{BlockIdx, Idx, TPos, AT}
-import org.hammerlab.pageant.fm.utils.{BoundsMap, CountsMap, Bounds}
+import org.hammerlab.pageant.fm.utils.Utils.{AT, BlockIdx, Idx, TPos}
+import org.hammerlab.pageant.fm.utils.{Bounds, BoundsMap, CountsMap}
 
 import scala.reflect.ClassTag
 
-abstract class FMFinder[NT <: Needle](fm: SparkFM) extends Serializable {
+abstract class FMFinder[NT <: Needle](fm: FMI) extends Serializable {
 
   def occAll(tss: RDD[AT]): RDD[(AT, BoundsMap)]
   def occ(tss: RDD[AT]): RDD[(AT, Bounds)]

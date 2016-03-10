@@ -192,7 +192,7 @@ private[spark] object ElementRangePartitioner {
       } catch {
         case e: IllegalArgumentException =>
           throw new IllegalArgumentException(
-            s"Inconsistent sort:\n\t${candidates.map(_._1).map({
+            s"Inconsistent sort:\n\t${candidates.take(1000).map(_._1).map({
               case ((t1, t2, t3), idx) => s"($t1,$t2,$t3) -> $idx"
               case o => o.toString
             }).mkString("\n\t")}",

@@ -6,23 +6,23 @@ import org.hammerlab.pageant.fm.utils.Utils.T
 case class RunLengthIterator(iter: Iterator[T]) extends Iterator[BWTRun] {
   var cur: T = if (iter.isEmpty) (-1).toByte else iter.next()
   var count = 1
+  var reachedEnd = false
   var done = false
 
   override def hasNext: Boolean = {
     if (iter.hasNext)
       true
     else {
-      if (!done) {
-        done = true
-        true
-      } else {
-        false
+      if (!reachedEnd) {
+        reachedEnd = true
       }
+      !done
     }
   }
 
   override def next(): BWTRun = {
-    if (done) {
+    if (reachedEnd) {
+      done = true
       BWTRun(cur, count)
     } else {
       var continue = true

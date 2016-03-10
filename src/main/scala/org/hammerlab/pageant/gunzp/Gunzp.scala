@@ -33,8 +33,8 @@ abstract class Gunzp {
     n
   }
 
-//  val in = new GZIPInputStream(new FileInputStream("normal.bam.gz"))
-//  val out = new FileOutputStream("normal.bam")
+//  val in = new GZIPInputStream(new FileInputStream("1000.bam.gz"))
+//  val out = new FileOutputStream("1000.bam")
 //  var buffer: Array[Byte] = Array.fill(1024)(0)
 //  var len = in.read(buffer)
 //  while (len >= 0) {

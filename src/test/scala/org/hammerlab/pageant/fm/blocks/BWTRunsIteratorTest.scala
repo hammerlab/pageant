@@ -2,60 +2,80 @@ package org.hammerlab.pageant.fm.blocks
 
 import org.hammerlab.pageant.fm.utils.Utils.toI
 import org.scalatest.{FunSuite, Matchers}
+import Utils.runs
 
 class BWTRunsIteratorTest extends FunSuite with Matchers {
   def run(c: Char, n: Int): BWTRun = BWTRun(toI(c), n)
 
   test("empty") {
-    val it = new BWTRunsIterator(Array().toIterator)
+    val it = BWTRunsIterator(Array().toIterator)
     it.hasNext should be (false)
     it.toList should be (List())
   }
 
   test("simple") {
     val it =
-      new BWTRunsIterator(
+      BWTRunsIterator(
         Array(
           RunLengthBWTBlock(123L, Array(1L, 2L, 3L, 4L, 5L, 6L), List(run('A', 10)))
         ).toIterator
       )
 
-    it.idx should be (123)
-    it.counts.c should be (Array(1L, 2L, 3L, 4L, 5L, 6L))
-    it.hasNext should be (true)
-    it.next should be (run('A', 10))
-
-    it.idx should be (133)
-    it.counts.c should be (Array(1L, 12L, 3L, 4L, 5L, 6L))
-    it.hasNext should be (false)
+    it.toArray should be(runs("10A"))
   }
 
-  test("multiple") {
+  test("multiple runs") {
     val it =
-      new BWTRunsIterator(
+      BWTRunsIterator(
         Array(
-          RunLengthBWTBlock(123L, Array(1L, 2L, 3L, 4L, 5L, 6L), List(run('A', 10), run('G', 5), run('C', 1)))
+          RunLengthBWTBlock(123L, Array(1L, 2L, 3L, 4L, 5L, 6L), runs("10A 5G 1C"))
         ).toIterator
       )
 
-    it.idx should be (123)
-    it.counts.c should be (Array(1L, 2L, 3L, 4L, 5L, 6L))
-    it.hasNext should be (true)
-    it.next should be (run('A', 10))
+    it.toArray should be(runs("10A 5G 1C"))
+  }
 
-    it.idx should be (133)
-    it.counts.c should be (Array(1L, 12L, 3L, 4L, 5L, 6L))
-    it.hasNext should be (true)
-    it.next should be (run('G', 5))
+  test("multiple blocks") {
+    val it =
+      BWTRunsIterator(
+        Array(
+          RunLengthBWTBlock(123L, Array(1L, 2L, 3L, 4L, 5L, 6L), runs("10A 5G 1C")),
+          RunLengthBWTBlock(139L, Array(1L, 12L, 4L, 9L, 5L, 6L), runs("10C 5T 1A")),
+          RunLengthBWTBlock(139L, Array(1L, 13L, 14L, 9L, 10L, 6L), runs("1A"))
+        ).toIterator
+      )
 
-    it.idx should be (138)
-    it.counts.c should be (Array(1L, 12L, 3L, 9L, 5L, 6L))
-    it.hasNext should be (true)
-    it.next should be (run('C', 1))
+    it.toArray should be(runs("10A 5G 11C 5T 2A"))
+  }
 
-    it.idx should be (139)
-    it.counts.c should be (Array(1L, 12L, 4L, 9L, 5L, 6L))
-    it.hasNext should be (false)
+  test("repeat then end") {
+    val it =
+      BWTRunsIterator(
+        Array(
+          RunLengthBWTBlock(123L, Array(1L, 2L, 3L, 4L, 5L, 6L), runs("10A 5G 1C")),
+          RunLengthBWTBlock(139L, Array(1L, 12L, 4L, 9L, 5L, 6L), runs("10C 5T 1A")),
+          RunLengthBWTBlock(139L, Array(1L, 13L, 14L, 9L, 10L, 6L), runs("1A 3C"))
+        ).toIterator
+      )
+
+    it.toArray should be(runs("10A 5G 11C 5T 2A 3C"))
+  }
+
+  test("complex runs") {
+    val rs =
+      runs(
+        """
+          |2G 3A 2G 1A 1T 3G 1A 1T 1A 1G
+          |1A 1G 1A 1T 1A 1G 1C 1T 1C 1A
+          |1C 1A 4G 1A 1G 1A 1T 1G 1$ 1C
+          |1T 1C 1T 1G 1A 2C 2A 3G 1A 1T
+          |4G 1T 5A 1T 2A 2T 2A 2T 4A 1G
+          |1A 1G 2A 2T 2A 2C 1A 1C 1G 1C
+          |1G 2T 1G 1T 2G 1C 2T 1A
+          |""".trim().stripMargin.split("\n").map(_.trim).mkString(" ")
+      )
+    val it = new BWTRunsIterator(rs.toIterator)
+    it.toArray should be(rs)
   }
 }
 

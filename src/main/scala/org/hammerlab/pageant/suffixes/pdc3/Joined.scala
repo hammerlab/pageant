@@ -19,7 +19,8 @@ object Joined {
   def merge(j1: Joined, j2: Joined): Joined = {
     def get(fn: Joined => OL): OL = {
       (fn(j1), fn(j2)) match {
-        case (Some(f1), Some(f2)) => throw new Exception(s"Merge error: $j1 $j2")
+        case (Some(f1), Some(f2)) =>
+          throw new Exception(s"Merge error: $j1 $j2")
         case (f1O, f2O) => f1O.orElse(f2O)
       }
     }
