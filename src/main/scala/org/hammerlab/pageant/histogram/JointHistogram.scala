@@ -1,5 +1,6 @@
 package org.hammerlab.pageant.histogram
 
+import org.apache.hadoop.fs.Path
 import org.apache.spark.SparkContext
 import org.apache.spark.rdd.RDD
 import org.bdgenomics.adam.projections.{AlignmentRecordField, FeatureField, Projection}
@@ -9,7 +10,7 @@ import org.bdgenomics.formats.avro.{AlignmentRecord, Feature}
 import org.hammerlab.pageant.avro._
 import org.hammerlab.pageant.histogram.JointHistogram._
 
-import scala.collection.mutable.{Map => MMap}
+import scala.collection.mutable.{Map ⇒ MMap}
 
 case class RegressionWeights(slope: Double, intercept: Double, mse: Double, rSquared: Double) {
   override def toString: String = {
@@ -241,6 +242,7 @@ case class JointHistogram(jh: JointHist) {
     })
   }
 
+  def write(path: Path): JointHistogram = write(path.toString)
   def write(filename: String): JointHistogram = {
     JointHistogram.write(jh, filename)
     this
@@ -388,16 +390,18 @@ object JointHistogram {
 
   def fromDepthMaps(rdds: Seq[DepthMap]): JointHistogram = {
     val union: RDD[(Pos, Depths)] =
-      rdds.head.context.union(for {
-        (rdd, idx) <- rdds.zipWithIndex
-      } yield {
+      rdds.head.context.union(
+        for {
+          (rdd, idx) <- rdds.zipWithIndex
+        } yield {
           for {
             (pos, depth) <- rdd
             seq = ((0 until idx).toList.map(i => Some(0)) :+ Some(depth)) ++ ((idx + 1) until rdds.length).map(i => Some(0)): Depths
           } yield {
             pos -> seq
           }
-        }).reduceByKey(sumSeqs)
+        }
+      ).reduceByKey(sumSeqs)
 
     JointHistogram(
       (for {

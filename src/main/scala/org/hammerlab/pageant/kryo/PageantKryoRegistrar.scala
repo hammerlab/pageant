@@ -10,6 +10,8 @@ import org.hammerlab.pageant.fm.blocks.{BWTBlock, BWTRun, BWTRunSerializer, Full
 import org.hammerlab.pageant.fm.finder.{PosNeedle, TNeedle}
 import org.hammerlab.pageant.fm.index.{NextStringPos, StringPos}
 import org.hammerlab.pageant.fm.utils.{Bounds, BoundsMap, Counts, CountsMap, HiBound, LoBound, Pos}
+import org.hammerlab.pageant.histogram.Count
+import org.hammerlab.pageant.rdd.{BottomLeftElem, BottomRow, LeftCol}
 import org.hammerlab.pageant.reads.{Bases, Bases5, Bases5Serializer, BasesSerializer}
 import org.hammerlab.pageant.scratch.{BasesTuple, BasesTupleSerializer, CountsSerializer, KmerCount}
 import org.hammerlab.pageant.suffixes.pdc3.{Joined, JoinedSerializer}
@@ -29,6 +31,10 @@ class PageantKryoRegistrar extends KryoRegistrator {
     kryo.register(classOf[Array[BWTRun]])
     kryo.register(classOf[Array[Array[BWTRun]]])
     kryo.register(classOf[Counts])
+    kryo.register(classOf[Count])
+    kryo.register(classOf[BottomLeftElem[_]])
+    kryo.register(classOf[BottomRow[_]])
+    kryo.register(classOf[LeftCol[_]])
     kryo.register(classOf[Array[Counts]])
     kryo.register(classOf[CountsMap])
     kryo.register(classOf[Pos])
