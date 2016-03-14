@@ -325,7 +325,8 @@ object JointHistogram {
 
   def fromFiles(sc: SparkContext,
                 readFiles: Seq[String] = Nil,
-                featureFiles: Seq[String] = Nil): JointHistogram = {
+                featureFiles: Seq[String] = Nil,
+                dedupeFeatureLoci: Boolean = true): JointHistogram = {
     val projectionOpt =
       Some(
         Projection(
@@ -348,7 +349,7 @@ object JointHistogram {
 
     val reads = readFiles.map(file => sc.loadAlignments(file, projectionOpt))
     val features = featureFiles.map(file => sc.loadFeatures(file, featuresProjectionOpt))
-    JointHistogram.fromReadsAndFeatures(reads, features)
+    JointHistogram.fromReadsAndFeatures(reads, features, dedupeFeatureLoci)
   }
 
   def readsToDepthMap(reads: RDD[AlignmentRecord]): DepthMap = {
@@ -364,22 +365,37 @@ object JointHistogram {
       }).reduceByKey(_ + _)
   }
 
-  def featuresToDepthMap(features: RDD[Feature]): DepthMap = {
-    (for {
-      feature <- features
-      contig <- Option(feature.getContig).toList
-      name <- Option(contig.getContigName).toList
-      start <- Option(feature.getStart).toList
-      end <- Option(feature.getEnd).toList
-      refLen = end - start
-      i <- 0 until refLen.toInt
-    } yield {
+  def featuresToDepthMap(features: RDD[Feature], dedupeLoci: Boolean = true): DepthMap = {
+    if (dedupeLoci)
+      (for {
+        feature <- features
+        contig <- Option(feature.getContig).toList
+        name <- Option(contig.getContigName).toList
+        start <- Option(feature.getStart).toList
+        end <- Option(feature.getEnd).toList
+        refLen = end - start
+        i <- 0 until refLen.toInt
+      } yield {
+        (if (name.startsWith("chr")) name.drop(3) else name, start + i)
+      }).distinct.map(_ → 1)
+    else
+      (for {
+        feature <- features
+        contig <- Option(feature.getContig).toList
+        name <- Option(contig.getContigName).toList
+        start <- Option(feature.getStart).toList
+        end <- Option(feature.getEnd).toList
+        refLen = end - start
+        i <- 0 until refLen.toInt
+      } yield {
         ((if (name.startsWith("chr")) name.drop(3) else name, start + i), 1)
       }).reduceByKey(_ + _)
   }
 
-  def fromReadsAndFeatures(reads: Seq[RDD[AlignmentRecord]] = Nil, features: Seq[RDD[Feature]] = Nil): JointHistogram = {
-    fromDepthMaps(reads.map(readsToDepthMap) ++ features.map(featuresToDepthMap))
+  def fromReadsAndFeatures(reads: Seq[RDD[AlignmentRecord]] = Nil,
+                           features: Seq[RDD[Feature]] = Nil,
+                           dedupeFeatureLoci: Boolean = true): JointHistogram = {
+    fromDepthMaps(reads.map(readsToDepthMap) ++ features.map(featuresToDepthMap(_, dedupeFeatureLoci)))
   }
 
   def sumSeqs(a: Depths, b: Depths): Depths = a.zip(b).map {
