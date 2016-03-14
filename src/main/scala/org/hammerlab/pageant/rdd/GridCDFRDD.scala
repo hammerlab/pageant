@@ -6,12 +6,9 @@ import org.apache.spark.rdd.RDD
 import scala.collection.mutable.{ArrayBuffer, Map ⇒ MMap}
 import scala.reflect.ClassTag
 
-case class GridPartitioner(w: Int, h: Int) extends Partitioner {
-  val cWidth = math.ceil(math.sqrt(w)).toInt
-  val rHeight = math.ceil(math.sqrt(h)).toInt
-
-  val partitionRows = (h + rHeight - 1) / rHeight
-  val partitionCols = (w + cWidth - 1) / cWidth
+case class GridPartitioner(maxRow: Int, maxCol: Int, rHeight: Int, cWidth: Int) extends Partitioner {
+  val partitionRows = (maxRow + rHeight - 1) / rHeight
+  val partitionCols = (maxCol + cWidth - 1) / cWidth
 
   override def numPartitions: Int = {
     partitionRows * partitionCols
@@ -28,7 +25,18 @@ case class GridPartitioner(w: Int, h: Int) extends Partitioner {
 }
 
 object GridPartitioner {
-  def apply(w: Long, h: Long): GridPartitioner = GridPartitioner(w.toInt, h.toInt)
+  def apply(maxRow: Int, maxCol: Int, partitionPenalty: Int = 100): GridPartitioner = {
+    val sqrtPenalty = math.sqrt(partitionPenalty)
+
+    // Introduce a factor of sqrt(penalty) difference between [partition width] and [num partition columns],
+    // and also between [partition height] and [num partition rows].
+    //
+    // Overall, this will result in each partition having approximately @partitionPenalty times as many elements
+    // as there are partitions.
+    val cWidth = math.ceil(math.sqrt(maxRow * sqrtPenalty)).toInt
+    val rHeight = math.ceil(math.sqrt(maxCol * sqrtPenalty)).toInt
+    GridPartitioner(maxRow, maxCol, rHeight, cWidth)
+  }
 }
 
 sealed trait Message[T]
@@ -51,8 +59,8 @@ class GridCDFRDD[T: ClassTag](@transient val rdd: RDD[((Int, Int), T)]) extends 
         val rHeight = partitioner.rHeight
         val cWidth = partitioner.cWidth
 
-        val (firstRow, lastRow) = (rHeight * pRow, math.min(rHeight * (pRow + 1) - 1, partitioner.h - 1))
-        val (firstCol, lastCol) = (cWidth * pCol, math.min(cWidth * (pCol + 1) - 1, partitioner.w - 1))
+        val (firstRow, lastRow) = (rHeight * pRow, math.min(rHeight * (pRow + 1) - 1, partitioner.maxRow - 1))
+        val (firstCol, lastCol) = (cWidth * pCol, math.min(cWidth * (pCol + 1) - 1, partitioner.maxCol - 1))
 
         val map = it.toMap
         val summedMap = MMap[(Int, Int), T]()
@@ -170,15 +178,21 @@ object GridCDFRDD {
     new GridCDFRDD(rdd.partitionBy(partitioner))
   }
 
+  def rddToGridCDFRDD[T: ClassTag](rdd: RDD[((Int, Int), T)], rHeight: Int, cWidth: Int): GridCDFRDD[T] = {
+    val (maxR, maxC) = rdd.keys.reduce((p1, p2) ⇒ (math.max(p1._1, p2._1), math.max(p1._2, p2._2)))
+    val partitioner = GridPartitioner(maxR + 1, maxC + 1, rHeight, cWidth)
+    new GridCDFRDD(rdd.partitionBy(partitioner))
+  }
+
   def apply[T: ClassTag, U: ClassTag](rdd: RDD[U],
                                       rowFn: U ⇒ Int,
                                       colFn: U ⇒ Int,
                                       tFn: U ⇒ T,
                                       fn: (T, T) ⇒ T,
-                                      zero: T): (RDD[((Int, Int), T)], RDD[((Int, Int), T)]) = {
+                                      zero: T): (RDD[((Int, Int), T)], RDD[((Int, Int), T)], Int, Int) = {
     val ts = rdd.map(u ⇒ (rowFn(u), colFn(u)) → tFn(u))
     val (maxR, maxC) = ts.keys.reduce((p1, p2) ⇒ (math.max(p1._1, p2._1), math.max(p1._2, p2._2)))
     val partitioner = GridPartitioner(maxR, maxC)
-    (ts, ts.reduceByKey(partitioner, fn).cdf(fn, zero))
+    (ts, ts.reduceByKey(partitioner, fn).cdf(fn, zero), maxR, maxC)
   }
 }

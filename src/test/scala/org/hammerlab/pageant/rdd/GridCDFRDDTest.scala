@@ -2,20 +2,80 @@ package org.hammerlab.pageant.rdd
 
 import org.hammerlab.pageant.utils.SparkSuite
 import GridCDFRDD._
+import math.ceil
 
+abstract class GridCDFRDDTest(n: Int) extends SparkSuite {
+  val input =
+    for {
+      r ← 0 until n
+      c ← 0 until n
+    } yield {
+      (r, c) → (n * (n - 1 - r) + (n - 1 - c)) // aka: n^2 - 1 - nr - c
+    }
 
-class GridCDFRDDTest extends SparkSuite {
+  def expectedStr: String
+  def expected = expectedStr.trim.stripMargin.split("\n").reverse.map(_.trim.split("\\s+").map(_.toInt))
 
-  test("4x4") {
-    val input =
-      for {
-        r ← 0 until 4
-        c ← 0 until 4
-      } yield {
-        (r, c) → (4 * (3 - r) + (3 - c))  // aka: 15 - 4r - c
-      }
+  def testFn(rHeight: Int, cWidth: Int): Unit = {
+    test(s"${rHeight}x$cWidth") {
+      val rdd = sc.parallelize(input)
+      val gridRDD = GridCDFRDD.rddToGridCDFRDD(rdd, rHeight, cWidth)
+      val partitioner = gridRDD.partitioner
 
-    /*
+      val pRows = ceil(n * 1.0 / rHeight).toInt
+      val pCols = ceil(n * 1.0 / cWidth).toInt
+
+      partitioner.partitionRows should be(pRows)
+      partitioner.partitionCols should be(pCols)
+      partitioner.numPartitions should be(pRows * pCols)
+
+      gridRDD.rdd.count should be(n * n)
+
+      val cdf = gridRDD.cdf(_ + _, 0).sortByKey().collect
+
+//      val expected =
+//        (for {
+//          (row, r) ← rawExpected.map(_.zipWithIndex).zipWithIndex
+//          (t, c) ← row
+//        } yield {
+//          (n - 1 - r, c) → t
+//        }).sortBy(_._1)
+
+      val actual = cdf.grouped(n).toArray.map(_.map(_._2))
+
+      actual should be(expected)
+    }
+  }
+
+}
+
+class GridCDFRDDTest4x4 extends GridCDFRDDTest(4) {
+
+  def expectedStr =
+    """
+      |   6  3  1  0
+      |  28 18 10  4
+      |  66 45 27 12
+      | 120 84 52 24
+    """
+
+  testFn(1, 1)
+  testFn(2, 2)
+  testFn(3, 3)
+  testFn(4, 4)
+
+  testFn(1, 2)
+  testFn(2, 1)
+
+  testFn(3, 2)
+  testFn(2, 3)
+
+  testFn(1, 4)
+  testFn(4, 1)
+
+  testFn(2, 4)
+  testFn(4, 2)
+  /*
 
       Input / PDF:
 
@@ -42,48 +102,9 @@ class GridCDFRDDTest extends SparkSuite {
        120  84 | 52  24
 
      */
+}
 
-    val rdd = sc.parallelize(input)
-    val gridRDD = GridCDFRDD.rddToGridCDFRDD(rdd)
-    val partitioner = gridRDD.partitioner
-    partitioner.numPartitions should be(4)
-    partitioner.partitionRows should be(2)
-    partitioner.partitionCols should be(2)
-
-    gridRDD.rdd.count should be(16)
-
-    val cdf = gridRDD.cdf(_ + _, 0).sortByKey().collect
-
-    val rawExpected =
-      List(
-        List(  6,  3,  1,  0),
-        List( 28, 18, 10,  4),
-        List( 66, 45, 27, 12),
-        List(120, 84, 52, 24)
-      )
-
-    val expected =
-      (for {
-        (row, r) ← rawExpected.map(_.zipWithIndex).zipWithIndex
-        (t, c) ← row
-      } yield {
-        (3 - r, c) → t
-      }).sortBy(_._1)
-
-    cdf should be(expected)
-  }
-
-  test("10x10") {
-    val input =
-      for {
-        r ← 0 until 10
-        c ← 0 until 10
-      } yield {
-        (r, c) → (10 * (9 - r) + (9 - c))
-      }
-
-    val rdd = sc.parallelize(input)
-    val cdf = rdd.cdf(_ + _, 0).sortByKey().values.collect
+class GridCDFRDDTest10x10 extends GridCDFRDDTest(10) {
 
     /*
 
@@ -100,39 +121,27 @@ class GridCDFRDDTest extends SparkSuite {
           89   88   87   86   85   84   83   82   81   80
           99   98   97   96   95   94   93   92   91   90
 
-      Output / CDF:
-
-          45   36   28   21   15   10    6    3    1    0
-         190  162  136  112   90   70   52   36   22   10
-         435  378  324  273  225  180  138   99   63   30
-         780  684  592  504  420  340  264  192  124   60
-        1225 1080  940  805  675  550  430  315  205  100
-        1770 1566 1368 1176  990  810  636  468  306  150
-        2415 2142 1876 1617 1365 1120  882  651  427  210
-        3160 2808 2464 2128 1800 1480 1168  864  568  280
-        4005 3564 3132 2709 2295 1890 1494 1107  729  360
-        4950 4410 3880 3360 2850 2350 1860 1380  910  450
-
      */
 
-    val expectedStr =
-      """
-        |   45   36   28   21   15   10    6    3    1    0
-        |  190  162  136  112   90   70   52   36   22   10
-        |  435  378  324  273  225  180  138   99   63   30
-        |  780  684  592  504  420  340  264  192  124   60
-        | 1225 1080  940  805  675  550  430  315  205  100
-        | 1770 1566 1368 1176  990  810  636  468  306  150
-        | 2415 2142 1876 1617 1365 1120  882  651  427  210
-        | 3160 2808 2464 2128 1800 1480 1168  864  568  280
-        | 4005 3564 3132 2709 2295 1890 1494 1107  729  360
-        | 4950 4410 3880 3360 2850 2350 1860 1380  910  450
-      """.trim.stripMargin
+  val expectedStr =
+    """
+      |   45   36   28   21   15   10    6    3    1    0
+      |  190  162  136  112   90   70   52   36   22   10
+      |  435  378  324  273  225  180  138   99   63   30
+      |  780  684  592  504  420  340  264  192  124   60
+      | 1225 1080  940  805  675  550  430  315  205  100
+      | 1770 1566 1368 1176  990  810  636  468  306  150
+      | 2415 2142 1876 1617 1365 1120  882  651  427  210
+      | 3160 2808 2464 2128 1800 1480 1168  864  568  280
+      | 4005 3564 3132 2709 2295 1890 1494 1107  729  360
+      | 4950 4410 3880 3360 2850 2350 1860 1380  910  450
+    """
 
-    val expected = expectedStr.split("\n").reverse.map(_.trim.split("\\s+").map(_.toInt))
+  testFn(1, 1)
+  testFn(3, 3)
+  testFn(4, 4)
+  testFn(10, 10)
 
-    val actual = cdf.grouped(10).toArray
-
-    actual should be(expected)
-  }
+  testFn(2, 8)
+  testFn(8, 2)
 }
