@@ -1,6 +1,6 @@
 package org.hammerlab.pageant.histogram
 
-import org.apache.hadoop.fs.Path
+import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.spark.SparkContext
 import org.apache.spark.rdd.RDD
 import org.bdgenomics.adam.projections.{AlignmentRecordField, FeatureField, Projection}
@@ -326,29 +326,33 @@ object JointHistogram {
   def fromFiles(sc: SparkContext,
                 readFiles: Seq[String] = Nil,
                 featureFiles: Seq[String] = Nil,
-                dedupeFeatureLoci: Boolean = true): JointHistogram = {
-    val projectionOpt =
-      Some(
-        Projection(
-          AlignmentRecordField.readMapped,
-          AlignmentRecordField.sequence,
-          AlignmentRecordField.contig,
-          AlignmentRecordField.start,
-          AlignmentRecordField.cigar
-        )
+                dedupeFeatureLoci: Boolean = true,
+                bytesPerIntervalPartition: Int = 1 << 26): JointHistogram = {
+
+    val projection =
+      Projection(
+        AlignmentRecordField.readMapped,
+        AlignmentRecordField.sequence,
+        AlignmentRecordField.contig,
+        AlignmentRecordField.start,
+        AlignmentRecordField.cigar
       )
 
-    val featuresProjectionOpt =
-      Some(
-        Projection(
-          FeatureField.contig,
-          FeatureField.start,
-          FeatureField.end
-        )
+    val featuresProjection =
+      Projection(
+        FeatureField.contig,
+        FeatureField.start,
+        FeatureField.end
       )
 
-    val reads = readFiles.map(file => sc.loadAlignments(file, projectionOpt))
-    val features = featureFiles.map(file => sc.loadFeatures(file, featuresProjectionOpt))
+    val reads = readFiles.map(file => sc.loadAlignments(file, Some(projection)).rdd)
+    val features = featureFiles.map(file => {
+      val fs = FileSystem.get(sc.hadoopConfiguration)
+      val fileLength = fs.getFileStatus(new Path(file)).getLen
+      val numPartitions = (fileLength / bytesPerIntervalPartition).toInt
+      println(s"Loading interval file $file of size $fileLength using $numPartitions")
+      sc.loadFeatures(file, Some(featuresProjection), numPartitions)
+    })
     JointHistogram.fromReadsAndFeatures(reads, features, dedupeFeatureLoci)
   }
 
@@ -361,8 +365,8 @@ object JointHistogram {
       refLen = RichAlignmentRecord(read).referenceLength
       i <- 0 until refLen
     } yield {
-        ((if (name.startsWith("chr")) name.drop(3) else name, start + i), 1)
-      }).reduceByKey(_ + _)
+      (if (name.startsWith("chr")) name.drop(3) else name, start + i) → 1
+    }).reduceByKey(_ + _)
   }
 
   def featuresToDepthMap(features: RDD[Feature], dedupeLoci: Boolean = true): DepthMap = {
@@ -388,7 +392,7 @@ object JointHistogram {
         refLen = end - start
         i <- 0 until refLen.toInt
       } yield {
-        ((if (name.startsWith("chr")) name.drop(3) else name, start + i), 1)
+        (if (name.startsWith("chr")) name.drop(3) else name, start + i) → 1
       }).reduceByKey(_ + _)
   }
 

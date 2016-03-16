@@ -41,7 +41,7 @@ object Utils {
               name: String,
               includeRC: Boolean = false,
               numPartitions: Int = 0): RDD[Byte] = {
-    val reads = sc.loadAlignments(name).iff(numPartitions > 0, _.orderedRepartition(numPartitions))
+    val reads = sc.loadAlignments(name).rdd.iff(numPartitions > 0, _.orderedRepartition(numPartitions))
     for {
       read <- reads
       seq = s"${read.getSequence}$$" + (if (includeRC) s"${rc(read.getSequence)}$$" else "")

@@ -7,7 +7,7 @@ case class Read(name: String, first: Boolean, seq: Bases) {
 }
 
 object Read {
-  def apply(a: AlignmentRecord): Read = new Read(a.getReadName, a.getReadNum == 0, Bases(a.getSequence))
+  def apply(a: AlignmentRecord): Read = new Read(a.getReadName, a.getReadInFragment == 0, Bases(a.getSequence))
 }
 
 case class Pair(name: String, b1O: Option[Bases], b2O: Option[Bases])

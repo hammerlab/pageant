@@ -41,7 +41,7 @@ class Foo(@transient val sc: SparkContext) extends Serializable {
     (f1, f2) <- prs
     rgn = f1.substring(f1.lastIndexOf("/") + 1).drop("PT189_".length).replaceAll("_L[0-9]{3}_R[1-2]_[0-9]+.*", "")
   } yield {
-    ac.loadPairedFastq(f1, f2, Some(rgn), ValidationStringency.SILENT)
+    ac.loadPairedFastq(f1, f2, Some(rgn), ValidationStringency.SILENT).rdd
   }
 
   val urdd = sc.union(rdds)
