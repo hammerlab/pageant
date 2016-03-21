@@ -1,15 +1,12 @@
 package org.hammerlab.pageant.gunzp
 
-import java.io.{File, FileInputStream, FileNotFoundException, FileOutputStream, IOException, OutputStream}
+import java.io.{FileNotFoundException, IOException}
 import java.util.zip.GZIPInputStream
 
-import org.apache.commons.compress.archivers.{ArchiveEntry, ArchiveException, ArchiveStreamFactory}
-import org.apache.commons.compress.archivers.tar.{TarArchiveEntry, TarArchiveInputStream}
+import org.apache.commons.compress.archivers.{ArchiveException, ArchiveStreamFactory}
 import org.apache.commons.io.IOUtils
 import org.apache.hadoop.fs.Path
 import org.apache.spark.{SparkConf, SparkContext}
-
-import scala.collection.mutable.ArrayBuffer
 
 object Untar {
 
@@ -33,9 +30,12 @@ object Untar {
     unTar(sc, inputPath, outputPath, inputPath.endsWith(".gz"))
   }
 
-  /** Untar an input file into an output file.
- *
- * The output file is created in the output folder, having the same name
+  /**
+    * Adapted from http://stackoverflow.com/a/7556307/544236.
+    *
+    * Untar an input file into an output file.
+    *
+    * The output file is created in the output folder, having the same name
     * as the input file, minus the '.tar' extension.
     *
     * @param inputFile     the input .tar file
