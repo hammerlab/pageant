@@ -26,11 +26,11 @@ class RoundNumberIterator(steps: Seq[Int], base: Int = 10, limitOpt: Option[Int]
 }
 
 object RoundNumbers {
-  def apply(steps: Seq[Int], limit: Long, base: Int = 10): Seq[Long] = {
+  def apply(steps: Seq[Int], limit: Long, base: Int = 10): Seq[Int] = {
     var idx = 0
     var basePow = 1
     var next = steps(idx)
-    val ret = ArrayBuffer[Long](0)
+    val ret = ArrayBuffer[Int](0)
     while (next < limit) {
       ret.append(next)
       idx = (idx + 1) % steps.size

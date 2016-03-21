@@ -1,5 +1,6 @@
 package org.hammerlab.pageant.fm.utils
 
+import org.hammerlab.pageant.utils.{Utils ⇒ PUtils}
 import Utils.{N, T}
 import org.hammerlab.pageant.fm.blocks.BWTRun
 
@@ -58,6 +59,7 @@ case class Counts(c: Array[Long]) {
 
 object Counts {
   def apply(): Counts = Counts(Array.fill(N)(0L))
+  def one(i: Int): Counts = Counts(PUtils.oneHot(1L, 0L, i, N))
   def apply(it: Iterator[T]): Counts = {
     val counts = Array.fill(N)(0L)
     it.foreach(t ⇒ counts(t) += 1)

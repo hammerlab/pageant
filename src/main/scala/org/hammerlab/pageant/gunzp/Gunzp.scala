@@ -1,46 +1,42 @@
 package org.hammerlab.pageant.gunzp
 
-import java.io.{FileOutputStream, FileInputStream}
 import java.util.zip.GZIPInputStream
 
 import org.apache.commons.io.IOUtils
 import org.apache.hadoop.fs.Path
-import org.apache.spark.deploy.SparkHadoopUtil
-import org.apache.spark.SparkEnv
+import org.apache.spark.{SparkConf, SparkContext}
 
-abstract class Gunzp {
-  def gunzip(fn: String): Long = {
-    if (!fn.endsWith(".gz")) {
-      throw new Exception(s"Bad path: $fn")
-    }
+object Gunzp {
+  def main(args: Array[String]): Unit = {
+    val inputPath = args(0)
+    val outputPath =
+      if (args.length > 1)
+        args(1)
+      else if (inputPath.endsWith(".gz"))
+        inputPath.dropRight(3)
+      else
+        throw new IllegalArgumentException(s"Suspicious input path, not sure what to name output: $inputPath")
 
-    val infile = new Path(fn)
-    val env = SparkEnv.get
-    val hadoopConf = SparkHadoopUtil.get.newConfiguration(SparkEnv.get.conf)
-    val fs = infile.getFileSystem(hadoopConf)
-    val outfile = fn.dropRight(3)
-    val outpath = new Path(outfile)
+    val conf = new SparkConf()
+    conf.setAppName(s"Gunzp:$outputPath")
+    val sc = new SparkContext(conf)
 
-    if (fs.exists(outpath)) {
+    gunzip(sc, new Path(inputPath), new Path(outputPath))
+  }
+
+  def gunzip(sc: SparkContext, inputPath: Path, outputPath: Path): Long = {
+    val fs = inputPath.getFileSystem(sc.hadoopConfiguration)
+
+    if (fs.exists(outputPath)) {
+      println(s"$outputPath already exists")
       return 0L
     }
 
-    val instream = new GZIPInputStream(fs.open(infile, 65536))
-    val outstream = fs.create(outpath)
+    val instream = new GZIPInputStream(fs.open(inputPath, 65536))
+    val outstream = fs.create(outputPath)
     val n = IOUtils.copyLarge(instream, outstream)
     instream.close()
     outstream.close()
     n
   }
-
-//  val in = new GZIPInputStream(new FileInputStream("1000.bam.gz"))
-//  val out = new FileOutputStream("1000.bam")
-//  var buffer: Array[Byte] = Array.fill(1024)(0)
-//  var len = in.read(buffer)
-//  while (len >= 0) {
-//    out.write(buffer, 0, len)
-//    len = in.read(buffer)
-//  }
-//  in.close()
-//  out.close()
 }

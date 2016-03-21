@@ -327,7 +327,7 @@ object JointHistogram {
                 readFiles: Seq[String] = Nil,
                 featureFiles: Seq[String] = Nil,
                 dedupeFeatureLoci: Boolean = true,
-                bytesPerIntervalPartition: Int = 1 << 26): JointHistogram = {
+                bytesPerIntervalPartition: Int = 1 << 16): JointHistogram = {
 
     val projection =
       Projection(

@@ -6,11 +6,13 @@ import org.bdgenomics.adam.kryo.AdamWorkAroundKryoRegistrar
 import org.bdgenomics.adam.models.ReferenceRegion
 import org.bdgenomics.adam.serialization.ADAMKryoRegistrator
 import org.bdgenomics.formats.avro.AlignmentRecord
+import org.hammerlab.pageant
+import org.hammerlab.pageant.coverage
+import org.hammerlab.pageant.coverage.Count
 import org.hammerlab.pageant.fm.blocks.{BWTBlock, BWTRun, BWTRunSerializer, FullBWTBlock, FullBWTBlockSerializer, RunLengthBWTBlock, RunLengthBWTBlockSerializer}
 import org.hammerlab.pageant.fm.finder.{PosNeedle, TNeedle}
 import org.hammerlab.pageant.fm.index.{NextStringPos, StringPos}
 import org.hammerlab.pageant.fm.utils.{Bounds, BoundsMap, Counts, CountsMap, HiBound, LoBound, Pos}
-import org.hammerlab.pageant.histogram.{Count, Counts ⇒ DepthCounts}
 import org.hammerlab.pageant.rdd.{BottomLeftElem, BottomRow, LeftCol}
 import org.hammerlab.pageant.reads.{Bases, Bases5, Bases5Serializer, BasesSerializer}
 import org.hammerlab.pageant.scratch.{BasesTuple, BasesTupleSerializer, CountsSerializer, KmerCount}
@@ -31,7 +33,7 @@ class PageantKryoRegistrar extends KryoRegistrator {
     kryo.register(classOf[Array[BWTRun]])
     kryo.register(classOf[Array[Array[BWTRun]]])
     kryo.register(classOf[Counts])
-    kryo.register(classOf[DepthCounts])
+    kryo.register(classOf[coverage.Counts])
     kryo.register(classOf[Count])
     kryo.register(classOf[BottomLeftElem[_]])
     kryo.register(classOf[BottomRow[_]])

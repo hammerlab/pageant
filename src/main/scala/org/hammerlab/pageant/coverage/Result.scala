@@ -1,29 +1,15 @@
-package org.hammerlab.pageant.histogram
+package org.hammerlab.pageant.coverage
 
-import java.io.{ObjectOutputStream, PrintWriter}
+import java.io.PrintWriter
 
 import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.spark.rdd.RDD
-import org.apache.spark.{SparkConf, SparkContext}
-import org.hammerlab.pageant.histogram.DepthMain.{Depth, NumBP, NumLoci}
-import org.hammerlab.pageant.histogram.JointHistogram.{Depths, L, OS}
-import org.hammerlab.pageant.histogram.Result.D2C
+import org.hammerlab.pageant.coverage.Count.NumLoci
+import org.hammerlab.pageant.coverage.Result.D2C
+import org.hammerlab.pageant.histogram.JointHistogram
+import org.hammerlab.pageant.histogram.JointHistogram.Depth
 import org.hammerlab.pageant.rdd.GridCDFRDD
-import org.hammerlab.pageant.utils.Args
-
-import scala.collection.Map
-
-case class FK(c: String, d1: Depth, d2: Depth, on: Long, off: Long)
-object FK {
-  def make(t: ((OS, Depths), L)): FK = {
-    val (on, off) =
-      if (t._1._2(2).get == 1)
-        (t._2, 0L)
-      else
-        (0L, t._2)
-    new FK(t._1._1.get, t._1._2(0).get, t._1._2(1).get, on, off)
-  }
-}
+import org.hammerlab.pageant.utils.RoundNumbers
 
 case class Result(name: String,
                   jh: JointHistogram,
@@ -111,6 +97,43 @@ object Result {
 
   type D2C = ((Depth, Depth), Counts)
 
+  // Divide [0, maxDepth] into N geometrically-evenly-spaced steps (of size maxDepth^(1/100)),
+  // including all sequential integers until those steps are separated by at least 1.
+  def geometricEvenSteps(maxDepth: Int, N: Int = 100): Set[Int] = {
+    import math.{exp, log, max, min}
+    val logMaxDepth = log(maxDepth)
+
+    val steps =
+      (for {
+        i ← 1 until N
+      } yield
+        min(maxDepth, max(i, exp((i - 1) * logMaxDepth / (N - 2)).toInt))
+        ).toSet ++ Set(0)
+
+    println(s"teps: ${steps.toList.sorted.mkString(",")}")
+
+    steps
+  }
+
+  //  0,  1,  2,  3,  4,  5,  6,  7,  8,  9,
+  // 10, 11, 12, 13, 14, 15, 16, 17, 18, 19,
+  // 20, 22, 24, 26, 28,
+  // 30, 32, 34, 36, 38,
+  // 40, 42, 44, 46, 48,
+  // 50, 55,
+  // 60, 65,
+  // 70, 75,
+  // 80, 85,
+  // 90, 95,
+  // repeat * [powers of 100] (sans initial 0)
+  def roundNumberSteps(maxDepth: Int): Set[Int] = {
+    RoundNumbers(
+      (0 until 20) ++ (20 until 50 by 2) ++ (50 until 100 by 5),
+      maxDepth,
+      100
+    ).toSet
+  }
+
   def apply(name: String, jh: JointHistogram, dir: String): Result = {
     val j = jh.jh
     val fks = j.map(FK.make)
@@ -119,18 +142,8 @@ object Result {
 
     val (pdf, cdf, maxD1, maxD2) = GridCDFRDD[Counts, FK](fks, _.d1, _.d2, Counts(_), _ + _, Counts.empty)
 
-    val N = 100
-
-    import math.{max, min, exp, log}
-
-    val logMaxD1 = log(maxD1)
-    val logMaxD2 = log(maxD2)
-
-    val d1Steps = (1 until N).map(i ⇒ min(maxD1, max(i, exp((i - 1) * logMaxD1 / (N - 2)).toInt))).toSet ++ Set(0)
-    val d2Steps = (1 until N).map(i ⇒ min(maxD2, max(i, exp((i - 1) * logMaxD2 / (N - 2)).toInt))).toSet ++ Set(0)
-
-    println(s"d1Steps: ${d1Steps.toList.sorted.mkString(",")}")
-    println(s"d2Steps: ${d2Steps.toList.sorted.mkString(",")}")
+    val d1Steps = roundNumberSteps(maxD1)
+    val d2Steps = roundNumberSteps(maxD2)
 
     val sc = jh.sc
     val stepsBC = sc.broadcast((d1Steps, d2Steps))
@@ -155,76 +168,15 @@ object Result {
     val onBases1 = firstCounts.on.bp1
     val onBases2 = firstCounts.on.bp2
 
-    Result(name, jh, dir, pdf.sortByKey(), cdf.sortByKey(), maxD1, maxD2, filteredCDF, totalBases1, totalBases2, onBases1, onBases2, totalIntervalLoci)
+    Result(
+      name, jh, dir,
+      pdf.sortByKey(), cdf.sortByKey(),
+      maxD1, maxD2,
+      filteredCDF,
+      totalBases1, totalBases2,
+      onBases1, onBases2,
+      totalIntervalLoci
+    )
   }
 }
 
-case class Counts(on: Count, off: Count) {
-  def +(o: Counts): Counts = Counts(on + o.on, off + o.off)
-  @transient lazy val all: Count = on + off
-}
-
-object Counts {
-  def apply(fk: FK): Counts = Counts(
-    Count(fk.on * fk.d1, fk.on * fk.d2, fk.on),
-    Count(fk.off * fk.d1, fk.off * fk.d2, fk.off)
-  )
-  val empty = Counts(Count.empty, Count.empty)
-}
-
-case class Count(bp1: NumBP, bp2: NumBP, n: NumLoci) {
-  def +(o: Count): Count = Count(bp1 + o.bp1, bp2 + o.bp2, n + o.n)
-}
-
-object Count {
-  val empty = Count(0, 0, 0)
-}
-
-object DepthMain {
-
-  type Depth = Int
-  type NumLoci = Long
-  type NumBP = Long
-
-  def main(args: Array[String]): Unit = {
-    val conf = new SparkConf()
-    conf.setAppName("pageant")
-    val sc = new SparkContext(conf)
-
-    val Args(strings, _, bools, arguments) =
-      Args(
-        args,
-        defaults = Map("force" → false),
-        aliases = Map(
-          'n' → "normal",
-          't' → "tumor",
-          'i' → "intervals",
-          'j' → "joint-hist",
-          'f' → "force"
-        )
-      )
-
-    val outPath = arguments(0)
-
-    val force = bools("force")
-    val forceStr = if (force) " (forcing)" else ""
-
-    val jh = strings.get("joint-hist") match {
-      case Some(jhPath) ⇒
-        println(s"Loading JointHistogram: $jhPath$forceStr")
-        JointHistogram.load(sc, jhPath)
-      case _ ⇒
-        val normalPath = strings("normal")
-        val tumorPath = strings("tumor")
-        val intervalPath = strings("intervals")
-
-        println(
-          s"Analyzing ($normalPath, $tumorPath) against $intervalPath and writing to $outPath$forceStr"
-        )
-
-        JointHistogram.fromFiles(sc, Seq(normalPath, tumorPath), Seq(intervalPath))
-    }
-
-    Result("all", jh, outPath).save(force)
-  }
-}

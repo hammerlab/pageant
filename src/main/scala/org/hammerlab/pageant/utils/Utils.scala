@@ -3,9 +3,12 @@ package org.hammerlab.pageant.utils
 import org.bdgenomics.adam.rdd.ADAMContext._
 import org.apache.spark.SparkContext
 import org.apache.spark.rdd.RDD
-import org.hammerlab.pageant.fm.utils.Utils.{toI, rc}
+import org.hammerlab.pageant.fm.utils.Utils.{rc, toI}
 import org.hammerlab.pageant.rdd.OrderedRepartitionRDD._
 import org.hammerlab.pageant.rdd.IfRDD._
+
+import scala.collection.mutable.ArrayBuffer
+import scala.reflect.ClassTag
 
 object Utils {
   def byteToHex(b: Byte) = {
@@ -55,5 +58,13 @@ object Utils {
     if (l < 0) -1
     else if (l > 0) 1
     else 0
+
+  def oneHot[T: ClassTag](t: T, zero: T, i: Int, n: Int): Array[T] = {
+    var arr = ArrayBuffer[T]()
+    (0 until i).foreach(_ ⇒ arr.append(zero))
+    arr.append(t)
+    ((i+1) until n).foreach(_ ⇒ arr.append(zero))
+    arr.toArray
+  }
 
 }

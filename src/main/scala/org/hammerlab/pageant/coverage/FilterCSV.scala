@@ -1,4 +1,4 @@
-package org.hammerlab.pageant.histogram
+package org.hammerlab.pageant.coverage
 
 import org.apache.spark.{SparkConf, SparkContext}
 import org.hammerlab.pageant.utils.Args

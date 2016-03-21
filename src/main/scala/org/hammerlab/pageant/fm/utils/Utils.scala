@@ -4,6 +4,11 @@ object Utils {
   val toI: Map[Char, Byte] = "$ACGTN".zipWithIndex.toMap.map(p => (p._1, p._2.toByte))
   val toC: Map[Byte, Char] = toI.map(_.swap)
 
+  def mergeMaps[T](m1: Map[T, Long], m2: Map[T, Long]): Map[T, Long] = {
+    val keys = m1.keySet ++ m2.keySet
+    keys.map(key ⇒ key → (m1.getOrElse(key, 0L) + m2.getOrElse(key, 0L))).toMap
+  }
+
   val N = 6
 
   def rc(s: String): String = s.map(c => "$TGCAN"(toI(c))).reverse
