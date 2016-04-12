@@ -20,8 +20,7 @@
 
   <properties>
 
-    <!-- https://github.com/ryan-williams/adam/commit/29868ac -->
-    <adam.version>0.19.1-SNAPSHOT</adam.version>
+    <adam.version>2e843de</adam.version>
     <java.version>1.7</java.version>
     <scala.version>2.10.4</scala.version>
     <scala.version.prefix>2.10</scala.version.prefix>

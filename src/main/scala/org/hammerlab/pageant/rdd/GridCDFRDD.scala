@@ -193,6 +193,7 @@ object GridCDFRDD {
     val ts = rdd.map(u ⇒ (rowFn(u), colFn(u)) → tFn(u))
     val (maxR, maxC) = ts.keys.reduce((p1, p2) ⇒ (math.max(p1._1, p2._1), math.max(p1._2, p2._2)))
     val partitioner = GridPartitioner(maxR, maxC)
-    (ts, ts.reduceByKey(partitioner, fn).cdf(fn, zero), maxR, maxC)
+    val pdf = ts.reduceByKey(partitioner, fn)
+    (pdf, pdf.cdf(fn, zero), maxR, maxC)
   }
 }

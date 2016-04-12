@@ -75,6 +75,7 @@ class GridCDFRDDTest4x4 extends GridCDFRDDTest(4) {
 
   testFn(2, 4)
   testFn(4, 2)
+
   /*
 
       Input / PDF:
@@ -101,7 +102,7 @@ class GridCDFRDDTest4x4 extends GridCDFRDDTest(4) {
         66  45 | 27  12
        120  84 | 52  24
 
-     */
+   */
 }
 
 class GridCDFRDDTest10x10 extends GridCDFRDDTest(10) {

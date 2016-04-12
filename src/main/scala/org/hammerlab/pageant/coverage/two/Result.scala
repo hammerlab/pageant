@@ -1,19 +1,19 @@
-package org.hammerlab.pageant.coverage
+package org.hammerlab.pageant.coverage.two
 
 import java.io.PrintWriter
 
 import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.spark.rdd.RDD
-import org.hammerlab.pageant.coverage.Count.NumLoci
-import org.hammerlab.pageant.coverage.Result.D2C
+import org.hammerlab.pageant.coverage.Steps
+import org.hammerlab.pageant.coverage.two.Result.D2C
 import org.hammerlab.pageant.histogram.JointHistogram
-import org.hammerlab.pageant.histogram.JointHistogram.Depth
+import org.hammerlab.pageant.histogram.JointHistogram.{Depth, NumLoci}
 import org.hammerlab.pageant.rdd.GridCDFRDD
 import org.hammerlab.pageant.utils.RoundNumbers
 
-case class Result(name: String,
-                  jh: JointHistogram,
+case class Result(jh: JointHistogram,
                   dir: String,
+                  rawOutput: Boolean,
                   pdf: RDD[D2C],
                   cdf: RDD[D2C],
                   maxD1: Int,
@@ -50,7 +50,8 @@ case class Result(name: String,
       d1, d2,
       on.bp1, on.bp2, on.n,
       on.bp1 * 1.0 / totalBases1, on.bp2 * 1.0 / totalBases2, on.n * 1.0 / totalIntervalLoci,
-      off.bp1, off.bp2, off.n
+      off.bp1, off.bp2, off.n,
+      off.bp1 * 1.0 / totalBases1, off.bp2 * 1.0 / totalBases2, off.n * 1.0 / totalIntervalLoci
     ).mkString(",")
   }
 
@@ -69,10 +70,17 @@ case class Result(name: String,
   }
 
   def save(force: Boolean = false): this.type = {
-    writeRDD(s"$name-pdf", pdf, force)
-    writeRDD(s"$name-cdf", cdf, force)
+    if (rawOutput) {
+      writeRDD(s"pdf", pdf, force)
+      writeRDD(s"cdf", cdf, force)
 
-    writeCSV(s"$name-filtered-cdf.csv", filteredCDF.map(d2cString), force)
+      val jhPath = new Path(dir, s"jh")
+      if (!fs.exists(jhPath)) {
+        jh.write(jhPath)
+      }
+    }
+
+    writeCSV(s"cdf.csv", filteredCDF.map(d2cString), force)
 
     val miscPath = new Path(dir, "misc")
     if (force || !fs.exists(miscPath)) {
@@ -84,11 +92,6 @@ case class Result(name: String,
       pw.close()
     }
 
-    val jhPath = new Path(dir, s"$name-jh")
-    if (!fs.exists(jhPath)) {
-      jh.write(jhPath)
-    }
-
     this
   }
 }
@@ -97,44 +100,7 @@ object Result {
 
   type D2C = ((Depth, Depth), Counts)
 
-  // Divide [0, maxDepth] into N geometrically-evenly-spaced steps (of size maxDepth^(1/100)),
-  // including all sequential integers until those steps are separated by at least 1.
-  def geometricEvenSteps(maxDepth: Int, N: Int = 100): Set[Int] = {
-    import math.{exp, log, max, min}
-    val logMaxDepth = log(maxDepth)
-
-    val steps =
-      (for {
-        i ← 1 until N
-      } yield
-        min(maxDepth, max(i, exp((i - 1) * logMaxDepth / (N - 2)).toInt))
-        ).toSet ++ Set(0)
-
-    println(s"teps: ${steps.toList.sorted.mkString(",")}")
-
-    steps
-  }
-
-  //  0,  1,  2,  3,  4,  5,  6,  7,  8,  9,
-  // 10, 11, 12, 13, 14, 15, 16, 17, 18, 19,
-  // 20, 22, 24, 26, 28,
-  // 30, 32, 34, 36, 38,
-  // 40, 42, 44, 46, 48,
-  // 50, 55,
-  // 60, 65,
-  // 70, 75,
-  // 80, 85,
-  // 90, 95,
-  // repeat * [powers of 100] (sans initial 0)
-  def roundNumberSteps(maxDepth: Int): Set[Int] = {
-    RoundNumbers(
-      (0 until 20) ++ (20 until 50 by 2) ++ (50 until 100 by 5),
-      maxDepth,
-      100
-    ).toSet
-  }
-
-  def apply(name: String, jh: JointHistogram, dir: String): Result = {
+  def apply(jh: JointHistogram, dir: String, rawOutput: Boolean): Result = {
     val j = jh.jh
     val fks = j.map(FK.make)
 
@@ -142,8 +108,8 @@ object Result {
 
     val (pdf, cdf, maxD1, maxD2) = GridCDFRDD[Counts, FK](fks, _.d1, _.d2, Counts(_), _ + _, Counts.empty)
 
-    val d1Steps = roundNumberSteps(maxD1)
-    val d2Steps = roundNumberSteps(maxD2)
+    val d1Steps = Steps.roundNumberSteps(maxD1)
+    val d2Steps = Steps.roundNumberSteps(maxD2)
 
     val sc = jh.sc
     val stepsBC = sc.broadcast((d1Steps, d2Steps))
@@ -169,12 +135,18 @@ object Result {
     val onBases2 = firstCounts.on.bp2
 
     Result(
-      name, jh, dir,
-      pdf.sortByKey(), cdf.sortByKey(),
-      maxD1, maxD2,
+      jh,
+      dir,
+      rawOutput,
+      pdf.sortByKey(),
+      cdf.sortByKey(),
+      maxD1,
+      maxD2,
       filteredCDF,
-      totalBases1, totalBases2,
-      onBases1, onBases2,
+      totalBases1,
+      totalBases2,
+      onBases1,
+      onBases2,
       totalIntervalLoci
     )
   }

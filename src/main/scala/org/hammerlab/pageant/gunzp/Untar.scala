@@ -12,10 +12,10 @@ object Untar {
 
   def main(args: Array[String]): Unit = {
 
-    val inputPath = args(1)
+    val inputPath = args(0)
     val outputPath =
-      if (args.length > 2)
-        args(2)
+      if (args.length > 1)
+        args(1)
       else if (inputPath.endsWith(".tar.gz"))
         inputPath.dropRight(7)
       else if (inputPath.endsWith(".tar"))

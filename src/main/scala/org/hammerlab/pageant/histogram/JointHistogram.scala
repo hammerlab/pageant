@@ -268,6 +268,9 @@ object JointHistogram {
   type DepthMap = RDD[(Pos, Depth)]
   type Depths = Seq[OI]
 
+  type NumBP = Long
+  type NumLoci = Long
+
   type JointHistKey = (OS, Depths)
   type JointHistElem = (JointHistKey, L)
   type JointHist = RDD[JointHistElem]
@@ -311,6 +314,7 @@ object JointHistogram {
           } yield {
             dO
           }
+
         val c: OS = Option(e.getContig)
         val nl: Long = e.getNumLoci
         val key: JointHistKey = (c, depths)

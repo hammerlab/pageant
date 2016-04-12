@@ -1,4 +1,4 @@
-package org.hammerlab.pageant.coverage
+package org.hammerlab.pageant.coverage.one
 
 case class Counts(on: Count, off: Count) {
   def +(o: Counts): Counts = Counts(on + o.on, off + o.off)
@@ -7,8 +7,8 @@ case class Counts(on: Count, off: Count) {
 
 object Counts {
   def apply(fk: FK): Counts = Counts(
-    Count(fk.on * fk.d1, fk.on * fk.d2, fk.on),
-    Count(fk.off * fk.d1, fk.off * fk.d2, fk.off)
+    Count(fk.on * fk.d, fk.on),
+    Count(fk.off * fk.d, fk.off)
   )
   val empty = Counts(Count.empty, Count.empty)
 }

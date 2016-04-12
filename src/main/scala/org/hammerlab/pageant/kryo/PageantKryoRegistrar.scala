@@ -8,7 +8,8 @@ import org.bdgenomics.adam.serialization.ADAMKryoRegistrator
 import org.bdgenomics.formats.avro.AlignmentRecord
 import org.hammerlab.pageant
 import org.hammerlab.pageant.coverage
-import org.hammerlab.pageant.coverage.Count
+import org.hammerlab.pageant.coverage.two
+import org.hammerlab.pageant.coverage.two.Count
 import org.hammerlab.pageant.fm.blocks.{BWTBlock, BWTRun, BWTRunSerializer, FullBWTBlock, FullBWTBlockSerializer, RunLengthBWTBlock, RunLengthBWTBlockSerializer}
 import org.hammerlab.pageant.fm.finder.{PosNeedle, TNeedle}
 import org.hammerlab.pageant.fm.index.{NextStringPos, StringPos}
@@ -33,7 +34,7 @@ class PageantKryoRegistrar extends KryoRegistrator {
     kryo.register(classOf[Array[BWTRun]])
     kryo.register(classOf[Array[Array[BWTRun]]])
     kryo.register(classOf[Counts])
-    kryo.register(classOf[coverage.Counts])
+    kryo.register(classOf[two.Counts])
     kryo.register(classOf[Count])
     kryo.register(classOf[BottomLeftElem[_]])
     kryo.register(classOf[BottomRow[_]])

@@ -1,4 +1,4 @@
-package org.hammerlab.pageant.coverage
+package org.hammerlab.pageant.coverage.two
 
 import org.hammerlab.pageant.histogram.JointHistogram._
 
