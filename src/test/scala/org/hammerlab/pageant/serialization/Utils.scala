@@ -4,6 +4,7 @@ import java.io.{File, FilenameFilter}
 
 import org.apache.commons.io.FilenameUtils
 import org.apache.commons.io.filefilter.PrefixFileFilter
+import org.apache.hadoop.io.compress.{BZip2Codec, CompressionCodec, GzipCodec, SnappyCodec}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.serializer.DirectFileRDDSerializer._
 import org.hammerlab.pageant.serialization.SequenceFileSerializableRDD._
@@ -32,6 +33,8 @@ trait Utils extends SparkSuite with Matchers {
     val fileSizes: Seq[Int] =
       if (origFileSizes.size == 1)
         Array.fill(4)(origFileSizes.head)
+      else if (origFileSizes.size == 2)
+        origFileSizes ++ Array(origFileSizes(1), origFileSizes(1))
       else
         origFileSizes
 
@@ -52,15 +55,25 @@ trait Utils extends SparkSuite with Matchers {
   }
 }
 
-class SequenceFileRDDTest extends Utils {
-  def serializeRDD[T: ClassTag](rdd: RDD[T], path: String): RDD[T] = rdd.serializeToSequenceFile(path)
+class SequenceFileRDDTest(codec: Option[Class[_ <: CompressionCodec]] = None) extends Utils {
+  def serializeRDD[T: ClassTag](rdd: RDD[T], path: String): RDD[T] = rdd.serializeToSequenceFile(path, codec)
   def deserializeRDD[T: ClassTag](path: String): RDD[T] = sc.fromSequenceFile[T](path)
 }
 
-class DirectFileRDDTest(withClasses: Boolean = false) extends Utils {
-  def serializeRDD[T: ClassTag](rdd: RDD[T], path: String): RDD[T] = rdd.saveAsDirectFile(path, withClasses, gzip = false)
-  def deserializeRDD[T: ClassTag](path: String): RDD[T] = sc.directFile[T](path, withClasses, gzip = false)
+object SequenceFileRDDTest {
+  def apply(codec: Class[_ <: CompressionCodec]): SequenceFileRDDTest = new SequenceFileRDDTest(Some(codec))
 }
+
+class SnappySequenceFileRDDTest extends SequenceFileRDDTest(Some(classOf[SnappyCodec]))
+
+class BZippedSequenceFileRDDTest extends SequenceFileRDDTest(Some(classOf[BZip2Codec]))
+
+class DirectFileRDDTest(withClasses: Boolean = false, gzip: Boolean = false) extends Utils {
+  def serializeRDD[T: ClassTag](rdd: RDD[T], path: String): RDD[T] = rdd.saveAsDirectFile(path, withClasses, gzip = gzip)
+  def deserializeRDD[T: ClassTag](path: String): RDD[T] = sc.directFile[T](path, withClasses, gzip = gzip)
+}
+
+class GzippedDirectFileRDDTest(withClasses: Boolean = false) extends DirectFileRDDTest(withClasses, gzip = true)
 
 trait FooRegistrarTest extends KryoSuite {
   self: SparkSuite =>

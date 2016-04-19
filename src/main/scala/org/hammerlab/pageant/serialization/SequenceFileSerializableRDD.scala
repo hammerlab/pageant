@@ -2,6 +2,7 @@ package org.hammerlab.pageant.serialization
 
 import java.nio.ByteBuffer
 
+import org.apache.hadoop.io.compress.CompressionCodec
 import org.apache.hadoop.io.{BytesWritable, NullWritable}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.{SparkContext, SparkEnv}
@@ -9,7 +10,7 @@ import org.apache.spark.{SparkContext, SparkEnv}
 import scala.reflect.ClassTag
 
 class SequenceFileSerializableRDD[T: ClassTag](@transient val rdd: RDD[T]) extends Serializable {
-  def serializeToSequenceFile(path: String): RDD[T] = {
+  def serializeToSequenceFile(path: String, codec: Option[Class[_ <: CompressionCodec]] = None): RDD[T] = {
     rdd.mapPartitions(iter => {
       val serializer = SparkEnv.get.serializer.newInstance()
       iter.map(x =>
@@ -18,7 +19,7 @@ class SequenceFileSerializableRDD[T: ClassTag](@transient val rdd: RDD[T]) exten
           new BytesWritable(serializer.serialize(x).array())
         )
       )
-    }).saveAsSequenceFile(path)
+    }).saveAsSequenceFile(path, codec)
 
     rdd
   }

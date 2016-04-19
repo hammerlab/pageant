@@ -6,8 +6,6 @@ import org.bdgenomics.adam.kryo.AdamWorkAroundKryoRegistrar
 import org.bdgenomics.adam.models.ReferenceRegion
 import org.bdgenomics.adam.serialization.ADAMKryoRegistrator
 import org.bdgenomics.formats.avro.AlignmentRecord
-import org.hammerlab.pageant
-import org.hammerlab.pageant.coverage
 import org.hammerlab.pageant.coverage.two
 import org.hammerlab.pageant.coverage.two.Count
 import org.hammerlab.pageant.fm.blocks.{BWTBlock, BWTRun, BWTRunSerializer, FullBWTBlock, FullBWTBlockSerializer, RunLengthBWTBlock, RunLengthBWTBlockSerializer}
