@@ -23,7 +23,7 @@
     <!-- https://github.com/ryan-williams/adam/commit/29868ac -->
     <adam.version>0.17.0</adam.version>
     <java.version>1.7</java.version>
-    <scala.version>2.10.4</scala.version>
+    <scala.version>2.10.6</scala.version>
     <scala.version.prefix>2.10</scala.version.prefix>
 
     <!-- https://github.com/ryan-williams/spark/commit/901dbd0 -->
