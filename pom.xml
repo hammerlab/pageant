@@ -19,15 +19,11 @@
   <name>Pageant: Paltry Genomic Analysis Toolkit</name>
 
   <properties>
-
-    <!-- https://github.com/ryan-williams/adam/commit/29868ac -->
     <adam.version>0.17.0</adam.version>
     <java.version>1.7</java.version>
     <scala.version>2.10.6</scala.version>
     <scala.version.prefix>2.10</scala.version.prefix>
-
-    <!-- https://github.com/ryan-williams/spark/commit/901dbd0 -->
-    <spark.version>1.4.1</spark.version>
+    <spark.version>1.6.1</spark.version>
     <avro.version>1.7.6</avro.version>
     <scoverage.plugin.version>1.1.1</scoverage.plugin.version>
   </properties>
@@ -66,12 +62,13 @@
         <configuration>
           <reportsDirectory>${project.build.directory}/surefire-reports</reportsDirectory>
           <junitxml>.</junitxml>
-          <filereports>ADAMTestSuite.txt</filereports>
+          <filereports>PageantTestSuite.txt</filereports>
           <!--
               As explained here: http://stackoverflow.com/questions/1660441/java-flag-to-enable-extended-serialization-debugging-info
               The second option allows us better debugging for serialization-based errors.
           -->
           <argLine>-Xmx1024m -Dsun.io.serialization.extendedDebugInfo=true</argLine>
+          <stdout>F</stdout>
         </configuration>
         <executions>
           <execution>
@@ -252,7 +249,7 @@
         <!--Test deps-->
         <dependency>
           <groupId>org.scalatest</groupId>
-          <artifactId>scalatest_2.10</artifactId>
+          <artifactId>scalatest_${scala.version.prefix}</artifactId>
           <version>2.2.2</version>
           <scope>test</scope>
         </dependency>
@@ -311,7 +308,7 @@
     </profile>
     <profile>
       <id>no-tests</id>
-      <dependencies></dependencies>
+      <dependencies/>
     </profile>
   </profiles>
 
@@ -320,19 +317,16 @@
       <groupId>org.bdgenomics.adam</groupId>
       <artifactId>adam-core_2.10</artifactId>
       <version>${adam.version}</version>
-      <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>org.apache.spark</groupId>
       <artifactId>spark-core_${scala.version.prefix}</artifactId>
       <version>${spark.version}</version>
-      <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>org.bdgenomics.bdg-formats</groupId>
       <artifactId>bdg-formats</artifactId>
       <version>0.4.0</version>
-      <scope>provided</scope>
     </dependency>
   </dependencies>
 
