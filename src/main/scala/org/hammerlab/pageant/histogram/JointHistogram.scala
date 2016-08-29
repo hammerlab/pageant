@@ -12,6 +12,7 @@ import org.bdgenomics.formats.avro.AlignmentRecord
 import org.hammerlab.magic.rdd.serde.SequenceFileSerializableRDD._
 import org.hammerlab.pageant.histogram.JointHistogram._
 
+import scala.collection.mutable
 import scala.collection.mutable.{Map => MMap}
 
 case class Record(contigOpt: Option[Contig], depths: Seq[Option[Int]], numLoci: NumLoci)
@@ -432,6 +433,7 @@ object JointHistogram {
     // Not necessarily serialized in the normal course, but reasonable to `collect`.
     kryo.register(classOf[RegressionWeights])
     kryo.register(classOf[Eigen])
+    kryo.register(classOf[mutable.ArraySeq[_]])
   }
 }
 
