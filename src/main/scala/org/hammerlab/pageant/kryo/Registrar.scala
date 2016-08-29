@@ -5,16 +5,20 @@ import org.apache.spark.serializer.KryoRegistrator
 import org.bdgenomics.adam.models.ReferenceRegion
 import org.bdgenomics.adam.serialization.ADAMKryoRegistrator
 import org.bdgenomics.formats.avro.AlignmentRecord
+import org.hammerlab.pageant.bases.{Bases, Bases5, Bases5Serializer, BasesSerializer}
 import org.hammerlab.pageant.histogram.JointHistogram
 
 class Registrar extends KryoRegistrator {
   override def registerClasses(kryo: Kryo): Unit = {
+    kryo.register(classOf[Bases], new BasesSerializer)
+    kryo.register(classOf[Bases5], new Bases5Serializer)
     kryo.register(classOf[Vector[_]])
     kryo.register(classOf[Array[Vector[_]]])
     kryo.register(classOf[scala.collection.mutable.WrappedArray.ofLong])
     kryo.register(classOf[scala.collection.mutable.WrappedArray.ofByte])
     kryo.register(classOf[scala.collection.mutable.WrappedArray.ofChar])
     kryo.register(classOf[Array[Char]])
+    kryo.register(classOf[Array[Bases5]])
 
     // Tuple2[Long, Any], afaict?
     // "J" == Long (obviously). https://github.com/twitter/chill/blob/6d03f6976f33f6e2e16b8e254fead1625720c281/chill-scala/src/main/scala/com/twitter/chill/TupleSerializers.scala#L861
