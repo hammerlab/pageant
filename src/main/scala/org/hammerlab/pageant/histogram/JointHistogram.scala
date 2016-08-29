@@ -10,6 +10,7 @@ import org.bdgenomics.adam.rdd.features.FeatureRDD
 import org.bdgenomics.adam.rich.RichAlignmentRecord
 import org.bdgenomics.formats.avro.AlignmentRecord
 import org.hammerlab.magic.rdd.serde.SequenceFileSerializableRDD._
+import org.hammerlab.pageant.NumLoci
 import org.hammerlab.pageant.histogram.JointHistogram._
 
 import scala.collection.mutable
@@ -266,8 +267,6 @@ object JointHistogram {
   type Depth = I
   type DepthMap = RDD[(Pos, Depth)]
   type Depths = Seq[OI]
-
-  type NumLoci = Long
 
   type JointHistKey = (OS, Depths)
   type JointHistElem = (JointHistKey, L)

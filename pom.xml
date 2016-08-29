@@ -103,6 +103,11 @@
       <artifactId>kryo</artifactId>
       <version>2.21</version>
     </dependency>
+    <dependency>
+      <groupId>org.spire-math</groupId>
+      <artifactId>spire_${scala.version.prefix}</artifactId>
+      <version>0.11.0</version>
+    </dependency>
 
     <!-- Test dep -->
     <dependency>
@@ -113,5 +118,4 @@
       <scope>test</scope>
     </dependency>
   </dependencies>
-
 </project>
