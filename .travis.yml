@@ -12,4 +12,4 @@ cache:
 
 script: mvn scoverage:report -B
 
-after_succes: mvn coveralls:report
+after_success: mvn coveralls:report
