@@ -6,7 +6,7 @@
 
   <groupId>org.hammerlab</groupId>
   <artifactId>pageant</artifactId>
-  <version>1.0-SNAPSHOT</version>
+  <version>1.0.0-SNAPSHOT</version>
 
   <parent>
     <groupId>org.sonatype.oss</groupId>
@@ -19,16 +19,13 @@
   <name>Pageant: Paltry Genomic Analysis Toolkit</name>
 
   <properties>
-
-    <!-- https://github.com/ryan-williams/adam/commit/29868ac -->
-    <adam.version>0.17.0</adam.version>
+    <adam.version>0.20.0</adam.version>
     <java.version>1.7</java.version>
-    <scala.version>2.10.4</scala.version>
+    <scala.version>2.10.6</scala.version>
     <scala.version.prefix>2.10</scala.version.prefix>
-
-    <!-- https://github.com/ryan-williams/spark/commit/901dbd0 -->
-    <spark.version>1.4.1</spark.version>
-    <avro.version>1.7.6</avro.version>
+    <spark.version>1.6.1</spark.version>
+    <formats.version>0.9.0</formats.version>
+    <scoverage.plugin.version>1.1.1</scoverage.plugin.version>
   </properties>
 
   <licenses>
@@ -54,6 +51,7 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
+        <version>2.19.1</version>
         <configuration>
           <skipTests>true</skipTests>
         </configuration>
@@ -62,15 +60,17 @@
       <plugin>
         <groupId>org.scalatest</groupId>
         <artifactId>scalatest-maven-plugin</artifactId>
+        <version>1.0</version>
         <configuration>
           <reportsDirectory>${project.build.directory}/surefire-reports</reportsDirectory>
           <junitxml>.</junitxml>
-          <filereports>ADAMTestSuite.txt</filereports>
+          <filereports>PageantTestSuite.txt</filereports>
           <!--
               As explained here: http://stackoverflow.com/questions/1660441/java-flag-to-enable-extended-serialization-debugging-info
               The second option allows us better debugging for serialization-based errors.
           -->
           <argLine>-Xmx1024m -Dsun.io.serialization.extendedDebugInfo=true</argLine>
+          <stdout>F</stdout>
         </configuration>
         <executions>
           <execution>
@@ -84,7 +84,7 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-shade-plugin</artifactId>
-        <version>2.1</version>
+        <version>2.4.3</version>
         <configuration>
           <transformers>
             <transformer implementation="org.apache.maven.plugins.shade.resource.AppendingTransformer">
@@ -184,30 +184,9 @@
           </javacArgs>
         </configuration>
       </plugin>
-      <plugin>
-        <groupId>org.apache.avro</groupId>
-        <artifactId>avro-maven-plugin</artifactId>
-        <version>${avro.version}</version>
-        <executions>
-          <execution>
-            <id>schemas</id>
-            <phase>generate-sources</phase>
-            <goals>
-              <goal>schema</goal>
-              <goal>protocol</goal>
-              <goal>idl-protocol</goal>
-            </goals>
-            <configuration>
-              <sourceDirectory>${project.basedir}/src/main/resources/avro</sourceDirectory>
-              <stringType>String</stringType>
-            </configuration>
-          </execution>
-        </executions>
-      </plugin>
     </plugins>
 
   </build>
-
 
   <repositories>
     <repository>
@@ -228,17 +207,6 @@
       <id>central</id>
       <url>http://repo1.maven.org/maven2</url>
     </repository>
-    <repository>
-      <!-- Maven repo for Spark 1.4.0-rc4; unused atm in favor of patched version 901dbd0 -->
-      <id>spark-rc</id>
-      <name>Spark RC</name>
-      <url>https://repository.apache.org/content/repositories/orgapachespark-1112</url>
-      <snapshots>
-        <enabled>
-          false
-        </enabled>
-      </snapshots>
-    </repository>
   </repositories>
 
   <profiles>
@@ -251,50 +219,82 @@
         <!--Test deps-->
         <dependency>
           <groupId>org.scalatest</groupId>
-          <artifactId>scalatest_2.10</artifactId>
+          <artifactId>scalatest_${scala.version.prefix}</artifactId>
           <version>2.2.2</version>
           <scope>test</scope>
         </dependency>
         <dependency>
-          <groupId>org.bdgenomics.adam</groupId>
-          <artifactId>adam-core_2.10</artifactId>
-          <version>${adam.version}</version>
-          <type>test-jar</type>
-          <scope>test</scope>
-        </dependency>
-        <dependency>
-          <groupId>org.bdgenomics.bdg-utils</groupId>
-          <artifactId>bdg-utils-misc</artifactId>
-          <version>0.1.1</version>
+          <groupId>org.bdgenomics.utils</groupId>
+          <artifactId>utils-misc_${scala.version.prefix}</artifactId>
+          <version>0.2.4</version>
           <type>test-jar</type>
           <scope>test</scope>
         </dependency>
       </dependencies>
     </profile>
+    <!-- Only build coverage in when we want to run coverage -->
+    <profile>
+      <id>coverage</id>
+
+      <!-- Activate when being built by travis CI. -->
+      <activation>
+        <property>
+          <name>env.TRAVIS</name>
+          <value>true</value>
+        </property>
+      </activation>
+      <build>
+        <plugins>
+          <plugin>
+            <groupId>org.scoverage</groupId>
+            <artifactId>scoverage-maven-plugin</artifactId>
+            <version>${scoverage.plugin.version}</version>
+            <configuration>
+              <scalaVersion>${scala.version}</scalaVersion>
+            </configuration>
+          </plugin>
+          <plugin>
+            <groupId>org.eluder.coveralls</groupId>
+            <artifactId>coveralls-maven-plugin</artifactId>
+            <version>4.2.0</version>
+            <configuration>
+              <sourceDirectories>
+                <sourceDirectory>src/main/scala</sourceDirectory>
+              </sourceDirectories>
+              <coberturaReports>
+                <coberturaReport>${basedir}/target/cobertura.xml</coberturaReport>
+              </coberturaReports>
+            </configuration>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
     <profile>
       <id>no-tests</id>
-      <dependencies></dependencies>
+      <dependencies/>
     </profile>
   </profiles>
 
   <dependencies>
     <dependency>
-      <groupId>org.bdgenomics.adam</groupId>
-      <artifactId>adam-core_2.10</artifactId>
+      <groupId>org.hammerlab</groupId>
+      <artifactId>magic-rdds</artifactId>
+      <version>1.1.0</version>
+    </dependency>
+    <dependency>
+      <groupId>org.hammerlab.adam</groupId>
+      <artifactId>adam-core_${scala.version.prefix}</artifactId>
       <version>${adam.version}</version>
-      <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>org.apache.spark</groupId>
       <artifactId>spark-core_${scala.version.prefix}</artifactId>
       <version>${spark.version}</version>
-      <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>org.bdgenomics.bdg-formats</groupId>
       <artifactId>bdg-formats</artifactId>
-      <version>0.4.0</version>
-      <scope>provided</scope>
+      <version>${formats.version}</version>
     </dependency>
   </dependencies>
 

@@ -1,5 +1,8 @@
 # pageant
-PAltry GEnomic ANalysis Tools
+PArallel GEnomic ANalysis Toolkit
+
+[![Build Status](https://travis-ci.org/hammerlab/pageant.svg?branch=master)](https://travis-ci.org/hammerlab/pageant)
+[![Coverage Status](https://coveralls.io/repos/github/hammerlab/pageant/badge.svg?branch=master)](https://coveralls.io/github/hammerlab/pageant?branch=master)
 
 Currently: one tool, [`ReadDepthHistogram`](https://github.com/hammerlab/pageant/blob/master/src/main/scala/org/hammerlab/pageant/ReadDepthHistogram.scala), for analyzing coverage in a BAM file or files.
 

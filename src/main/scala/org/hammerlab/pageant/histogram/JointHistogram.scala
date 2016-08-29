@@ -1,15 +1,21 @@
-package org.hammerlab.pageant
+package org.hammerlab.pageant.histogram
 
-import org.bdgenomics.adam.projections.{AlignmentRecordField, Projection}
-import org.bdgenomics.adam.rdd.ADAMContext._
+import com.esotericsoftware.kryo.Kryo
+import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.spark.SparkContext
 import org.apache.spark.rdd.RDD
+import org.bdgenomics.adam.projections.{AlignmentRecordField, FeatureField, Projection}
+import org.bdgenomics.adam.rdd.ADAMContext._
+import org.bdgenomics.adam.rdd.features.FeatureRDD
 import org.bdgenomics.adam.rich.RichAlignmentRecord
-import org.bdgenomics.formats.avro.{Feature, AlignmentRecord}
-import org.hammerlab.pageant.JointHistogram.{Depths, OB, D, JointHistKey, OS, OL, S, L, JointHist}
-import org.hammerlab.pageant.avro.{Depth, JointHistogramRecord}
+import org.bdgenomics.formats.avro.AlignmentRecord
+import org.hammerlab.magic.rdd.serde.SequenceFileSerializableRDD._
+import org.hammerlab.pageant.histogram.JointHistogram._
 
+import scala.collection.mutable
 import scala.collection.mutable.{Map => MMap}
+
+case class Record(contigOpt: Option[Contig], depths: Seq[Option[Int]], numLoci: NumLoci)
 
 case class RegressionWeights(slope: Double, intercept: Double, mse: Double, rSquared: Double) {
   override def toString: String = {
@@ -31,13 +37,11 @@ case class JointHistogram(jh: JointHist) {
 
   @transient val sc = jh.context
 
-  val _hists: MMap[(Boolean, Set[Int]), JointHist] = MMap()
-
   def select(depths: Depths, keep: Boolean, idxs: Set[Int]): Depths = {
     for {
       (depth, idx) <- depths.zipWithIndex
     } yield {
-      (if (idxs(idx) == keep) depth else None)
+      if (idxs(idx) == keep) depth else None
     }
   }
 
@@ -47,29 +51,30 @@ case class JointHistogram(jh: JointHist) {
   def keep(depths: Depths, idxs: Int*): Depths = keep(depths, idxs.toSet)
   def keep(depths: Depths, idxs: Set[Int]): Depths =  select(depths, keep = true, idxs)
 
+  val _hists: MMap[(Boolean, Set[Int]), JointHist] = MMap()
   def hist(keepIdxs: Set[Int], sumContigs: Boolean = false): JointHist = {
     _hists.getOrElseUpdate((sumContigs, keepIdxs), {
 
       val ib = sc.broadcast(keepIdxs)
 
-      def keep(r: JointHistKey): JointHistKey = {
+      def dropUnkeptDepths(k: JointHistKey): JointHistKey = {
+        val (cO, depths) = k
         (
-          if (sumContigs) None else r._1,
-          r._2.zipWithIndex.map(p =>
-            if (ib.value(p._2))
-              p._1
-            else
-              None
-          )
+          if (sumContigs) None else cO,
+          for {
+            (dO, idx) <- depths.zipWithIndex
+            if ib.value(idx)
+          } yield dO
         )
       }
 
       (for {
         (k, nl) <- jh
       } yield
-        keep(k) -> nl
-      ).reduceByKey(_ + _).setName((if (sumContigs) "t" else "") + ib.value.toList.sortBy(x => x).mkString(",")).cache()
-
+        dropUnkeptDepths(k) -> nl
+      ).reduceByKey(_ + _)
+       .setName((if (sumContigs) "t" else "") + ib.value.toList.sortBy(x => x).mkString(","))
+       .cache()
     })
   }
 
@@ -164,7 +169,6 @@ case class JointHistogram(jh: JointHist) {
 
       for {
         ((contig, depths), m) <- merged
-        foo = println(s"merged: $m")
         xx = m(s"sqsum-$i1-$i2")
         yy = m(s"sqsum-$i2-$i1")
         xy = m(s"dot-$i1-$i2")
@@ -237,6 +241,7 @@ case class JointHistogram(jh: JointHist) {
     })
   }
 
+  def write(path: Path): JointHistogram = write(path.toString)
   def write(filename: String): JointHistogram = {
     JointHistogram.write(jh, filename)
     this
@@ -262,50 +267,33 @@ object JointHistogram {
   type DepthMap = RDD[(Pos, Depth)]
   type Depths = Seq[OI]
 
+  type NumLoci = Long
+
   type JointHistKey = (OS, Depths)
   type JointHistElem = (JointHistKey, L)
   type JointHist = RDD[JointHistElem]
+
+  object Implicits {
+    implicit def wrapJointHist(jh: JointHist): JointHistogram = JointHistogram(jh)
+  }
 
   def write(l: JointHist, filename: String): Unit = {
     val entries =
       for {
         ((contigOpt, depths), numLoci) <- l
-      } yield {
-        val jhr =
-          JointHistogramRecord.newBuilder()
-            .setNumLoci(numLoci)
-            .setDepths(
-              (for {
-                depth <- depths
-              } yield {
-                val b = Depth.newBuilder()
-                depth.foreach(d => b.setDepth(d))
-                b.build()
-              }).toList
-            )
-          contigOpt.map(jhr.setContig)
-          jhr.build()
-      }
+      } yield
+        Record(contigOpt, depths, numLoci)
 
-    entries.adamParquetSave(filename)
+    entries.saveCompressed(filename)
   }
 
   def load(sc: SparkContext, fn: String): JointHistogram = {
-    val rdd: RDD[JointHistogramRecord] = sc.loadParquet(fn)
+    val rdd: RDD[Record] = sc.fromSequenceFile(fn)
     val jointHist: JointHist =
-      rdd.map(e => {
-        val depths: Seq[OI] =
-          for {
-            depth <- e.getDepths
-            dO = Option(depth).map(_.getDepth.toInt)
-          } yield {
-            dO
-          }
-        val c: OS = Option(e.getContig)
-        val nl: Long = e.getNumLoci
-        val key: JointHistKey = (c, depths)
-        key -> nl
-      })
+      for {
+        Record(contigOpt, depthOpts, numLoci) <- rdd
+      } yield
+        contigOpt -> depthOpts -> numLoci
 
     JointHistogram(jointHist)
   }
@@ -315,81 +303,137 @@ object JointHistogram {
 
   def fromFiles(sc: SparkContext,
                 readFiles: Seq[String] = Nil,
-                featureFiles: Seq[String] = Nil): JointHistogram = {
-    val projectionOpt =
-      Some(
-        Projection(
-          AlignmentRecordField.readMapped,
-          AlignmentRecordField.sequence,
-          AlignmentRecordField.contig,
-          AlignmentRecordField.start,
-          AlignmentRecordField.cigar
-        )
+                featureFiles: Seq[String] = Nil,
+                dedupeFeatureLoci: Boolean = true,
+                bytesPerIntervalPartition: Int = 1 << 16): JointHistogram = {
+
+    val projection =
+      Projection(
+        AlignmentRecordField.readMapped,
+        AlignmentRecordField.sequence,
+        AlignmentRecordField.contigName,
+        AlignmentRecordField.start,
+        AlignmentRecordField.cigar
       )
 
-    val reads = readFiles.map(file => sc.loadAlignments(file, projectionOpt))
-    val features = featureFiles.map(file => sc.loadFeatures(file))
-    JointHistogram.fromReadsAndFeatures(reads, features)
+    val featuresProjection =
+      Projection(
+        FeatureField.contigName,
+        FeatureField.start,
+        FeatureField.end
+      )
+
+    val reads = readFiles.map(file => sc.loadAlignments(file, Some(projection)).rdd)
+
+    val features = featureFiles.map(file => {
+      val fs = FileSystem.get(sc.hadoopConfiguration)
+      val fileLength = fs.getFileStatus(new Path(file)).getLen
+      val numPartitions = (fileLength / bytesPerIntervalPartition).toInt
+      println(s"Loading interval file $file of size $fileLength using $numPartitions")
+      sc.loadFeatures(file, Some(featuresProjection), numPartitions)
+    })
+    JointHistogram.fromReadsAndFeatures(reads, features, dedupeFeatureLoci)
   }
 
-  def readsToDepthMap(reads: RDD[AlignmentRecord]): DepthMap = {
+  def normalize(contigName: Contig): Contig =
+    if (contigName.startsWith("chr"))
+      contigName.drop(3)
+    else
+      contigName
+
+  def readsToDepthMap(reads: RDD[AlignmentRecord]): DepthMap =
     (for {
       read <- reads if read.getReadMapped
-      contig <- Option(read.getContig).toList
-      name <- Option(contig.getContigName).toList
+      contigName <- Option(read.getContigName).toList
       start <- Option(read.getStart).toList
       refLen = RichAlignmentRecord(read).referenceLength
-      i <- (0 until refLen)
-    } yield {
-        ((name, start + i), 1)
-      }).reduceByKey(_ + _)
+      i <- 0 until refLen
+    } yield
+      (normalize(contigName), start + i) -> 1
+    )
+    .reduceByKey(_ + _)
+
+  def featuresToDepthMap(features: FeatureRDD, dedupeLoci: Boolean = true): DepthMap = {
+    val lociCounts =
+      for {
+        feature <- features.rdd
+        contigName <- Option(feature.getContigName).toList
+        start <- Option(feature.getStart).toList
+        end <- Option(feature.getEnd).toList
+        refLen = end - start
+        i <- 0 until refLen.toInt
+      } yield
+        (normalize(contigName), start + i)
+
+    if (dedupeLoci)
+      lociCounts
+        .distinct
+        .map(_ → 1)
+    else
+      lociCounts
+        .map(_ → 1)
+        .reduceByKey(_ + _)
   }
 
-  def featuresToDepthMap(features: RDD[Feature]): DepthMap = {
-    (for {
-      feature <- features
-      contig <- Option(feature.getContig).toList
-      name <- Option(contig.getContigName).toList
-      start <- Option(feature.getStart).toList
-      end <- Option(feature.getEnd).toList
-      refLen = end - start
-      i <- (0 until refLen.toInt)
-    } yield {
-        ((name, start + i), 1)
-      }).reduceByKey(_ + _)
+  def fromReadsAndFeatures(reads: Seq[RDD[AlignmentRecord]] = Nil,
+                           features: Seq[FeatureRDD] = Nil,
+                           dedupeFeatureLoci: Boolean = true): JointHistogram = {
+    fromDepthMaps(reads.map(readsToDepthMap) ++ features.map(featuresToDepthMap(_, dedupeFeatureLoci)))
   }
 
-  def fromReadsAndFeatures(reads: Seq[RDD[AlignmentRecord]] = Nil, features: Seq[RDD[Feature]] = Nil): JointHistogram = {
-    fromDepthMaps(reads.map(readsToDepthMap) ++ features.map(featuresToDepthMap))
-  }
+  def sumSeqs(a: Depths, b: Depths): Depths =
+    a
+      .zip(b)
+      .map {
+        case (Some(e1), e2O) => Some(e1 + e2O.getOrElse(0))
+        case (e1O, Some(e2)) => Some(e2 + e1O.getOrElse(0))
+        case _ => None
+      }
 
-  def sumSeqs(a: Depths, b: Depths): Depths = a.zip(b).map {
-    case (Some(e1), e2O) => Some(e1 + e2O.getOrElse(0))
-    case (e1O, Some(e2)) => Some(e2 + e1O.getOrElse(0))
-    case _ => None
-  }
+  def oneHotOpts(num: Int, idx: Int, value: Int): Depths =
+    (
+      Array.fill(idx)(Some(0)) :+
+      Some(value)
+    ) ++
+      Array.fill(num - idx - 1)(Some(0))
 
   def fromDepthMaps(rdds: Seq[DepthMap]): JointHistogram = {
+    val sc = rdds.head.context
+
     val union: RDD[(Pos, Depths)] =
-      rdds.head.context.union(for {
-        (rdd, idx) <- rdds.zipWithIndex
-      } yield {
+      sc.union(
+        for {
+          (rdd, idx) <- rdds.zipWithIndex
+        } yield {
           for {
             (pos, depth) <- rdd
-            seq = ((0 until idx).toList.map(i => Some(0)) :+ Some(depth)) ++ ((idx + 1) until rdds.length).map(i => Some(0)): Depths
+            seq = oneHotOpts(rdds.length, idx, depth)
           } yield {
             pos -> seq
           }
-        }).reduceByKey(sumSeqs)
+        }
+      )
+      .reduceByKey(sumSeqs)
 
     JointHistogram(
       (for {
         ((contig, _), depths) <- union
         key = (Some(contig), depths): JointHistKey
-      } yield {
+      } yield
         key -> 1L
-      }).reduceByKey(_ + _)
+      )
+      .reduceByKey(_ + _)
     )
+  }
+
+  def register(kryo: Kryo): Unit = {
+    // JointHistogram.hist can broadcast an empty set.
+    kryo.register(Class.forName("scala.collection.immutable.Set$EmptySet$"))
+
+    // Not necessarily serialized in the normal course, but reasonable to `collect`.
+    kryo.register(classOf[RegressionWeights])
+    kryo.register(classOf[Eigen])
+    kryo.register(classOf[mutable.ArraySeq[_]])
   }
 }
 
