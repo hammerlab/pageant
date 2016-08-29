@@ -19,12 +19,12 @@
   <name>Pageant: Paltry Genomic Analysis Toolkit</name>
 
   <properties>
-    <adam.version>0.17.0</adam.version>
+    <adam.version>0.20.0</adam.version>
     <java.version>1.7</java.version>
     <scala.version>2.10.6</scala.version>
     <scala.version.prefix>2.10</scala.version.prefix>
     <spark.version>1.6.1</spark.version>
-    <avro.version>1.7.6</avro.version>
+    <formats.version>0.9.0</formats.version>
     <scoverage.plugin.version>1.1.1</scoverage.plugin.version>
   </properties>
 
@@ -182,30 +182,9 @@
           </javacArgs>
         </configuration>
       </plugin>
-      <plugin>
-        <groupId>org.apache.avro</groupId>
-        <artifactId>avro-maven-plugin</artifactId>
-        <version>${avro.version}</version>
-        <executions>
-          <execution>
-            <id>schemas</id>
-            <phase>generate-sources</phase>
-            <goals>
-              <goal>schema</goal>
-              <goal>protocol</goal>
-              <goal>idl-protocol</goal>
-            </goals>
-            <configuration>
-              <sourceDirectory>${project.basedir}/src/main/resources/avro</sourceDirectory>
-              <stringType>String</stringType>
-            </configuration>
-          </execution>
-        </executions>
-      </plugin>
     </plugins>
 
   </build>
-
 
   <repositories>
     <repository>
@@ -226,17 +205,6 @@
       <id>central</id>
       <url>http://repo1.maven.org/maven2</url>
     </repository>
-    <repository>
-      <!-- Maven repo for Spark 1.4.0-rc4; unused atm in favor of patched version 901dbd0 -->
-      <id>spark-rc</id>
-      <name>Spark RC</name>
-      <url>https://repository.apache.org/content/repositories/orgapachespark-1112</url>
-      <snapshots>
-        <enabled>
-          false
-        </enabled>
-      </snapshots>
-    </repository>
   </repositories>
 
   <profiles>
@@ -254,16 +222,9 @@
           <scope>test</scope>
         </dependency>
         <dependency>
-          <groupId>org.bdgenomics.adam</groupId>
-          <artifactId>adam-core_2.10</artifactId>
-          <version>${adam.version}</version>
-          <type>test-jar</type>
-          <scope>test</scope>
-        </dependency>
-        <dependency>
-          <groupId>org.bdgenomics.bdg-utils</groupId>
-          <artifactId>bdg-utils-misc</artifactId>
-          <version>0.1.1</version>
+          <groupId>org.bdgenomics.utils</groupId>
+          <artifactId>utils-misc_${scala.version.prefix}</artifactId>
+          <version>0.2.4</version>
           <type>test-jar</type>
           <scope>test</scope>
         </dependency>
@@ -314,8 +275,13 @@
 
   <dependencies>
     <dependency>
-      <groupId>org.bdgenomics.adam</groupId>
-      <artifactId>adam-core_2.10</artifactId>
+      <groupId>org.hammerlab</groupId>
+      <artifactId>magic-rdds</artifactId>
+      <version>1.1.0</version>
+    </dependency>
+    <dependency>
+      <groupId>org.hammerlab.adam</groupId>
+      <artifactId>adam-core_${scala.version.prefix}</artifactId>
       <version>${adam.version}</version>
     </dependency>
     <dependency>
@@ -326,7 +292,7 @@
     <dependency>
       <groupId>org.bdgenomics.bdg-formats</groupId>
       <artifactId>bdg-formats</artifactId>
-      <version>0.4.0</version>
+      <version>${formats.version}</version>
     </dependency>
   </dependencies>
 

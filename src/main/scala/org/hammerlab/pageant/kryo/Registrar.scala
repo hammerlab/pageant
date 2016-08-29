@@ -5,6 +5,7 @@ import org.apache.spark.serializer.KryoRegistrator
 import org.bdgenomics.adam.models.ReferenceRegion
 import org.bdgenomics.adam.serialization.ADAMKryoRegistrator
 import org.bdgenomics.formats.avro.AlignmentRecord
+import org.hammerlab.pageant.histogram.JointHistogram
 
 class Registrar extends KryoRegistrator {
   override def registerClasses(kryo: Kryo): Unit = {
@@ -21,6 +22,8 @@ class Registrar extends KryoRegistrator {
     kryo.register(Class.forName("scala.Tuple2$mcIZ$sp"))
 
     new ADAMKryoRegistrator().registerClasses(kryo)
+
+    JointHistogram.register(kryo)
 
     kryo.register(classOf[Array[String]])
     kryo.register(classOf[Array[Int]])
