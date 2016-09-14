@@ -4,83 +4,28 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
-  <groupId>org.hammerlab</groupId>
   <artifactId>pageant</artifactId>
   <version>1.0.0-SNAPSHOT</version>
 
   <parent>
-    <groupId>org.sonatype.oss</groupId>
-    <artifactId>oss-parent</artifactId>
-    <version>7</version>
+    <groupId>org.hammerlab</groupId>
+    <artifactId>scala-parent-pom</artifactId>
+    <version>1.0.3</version>
     <relativePath />
   </parent>
 
   <packaging>jar</packaging>
-  <name>Pageant: Paltry Genomic Analysis Toolkit</name>
+  <name>Pageant: Parallel Genomic Analysis Toolkit</name>
 
   <properties>
+    <github.repo>hammerlab/pageant</github.repo>
     <adam.version>0.20.0</adam.version>
-    <java.version>1.7</java.version>
-    <scala.version>2.10.6</scala.version>
-    <scala.version.prefix>2.10</scala.version.prefix>
     <spark.version>1.6.1</spark.version>
     <formats.version>0.9.0</formats.version>
-    <scoverage.plugin.version>1.1.1</scoverage.plugin.version>
   </properties>
 
-  <licenses>
-    <license>
-      <name>Apache License</name>
-      <url>https://raw.github.com/hammerlab/guacamole/master/LICENSE</url>
-      <distribution>repo</distribution>
-    </license>
-  </licenses>
-
-  <scm>
-    <connection>scm:git:git@github.com:hammerlab/pageant.git</connection>
-    <developerConnection>scm:git:git@github.com:hammerlab/pageant.git</developerConnection>
-    <url>scm:git:git@github.com:hammerlab/pageant.git</url>
-    <tag>HEAD</tag>
-  </scm>
-
   <build>
-    <outputDirectory>target/scala-${scala.version}/classes</outputDirectory>
-    <testOutputDirectory>target/scala-${scala.version}/test-classes</testOutputDirectory>
     <plugins>
-      <!-- disable surefire -->
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-surefire-plugin</artifactId>
-        <version>2.19.1</version>
-        <configuration>
-          <skipTests>true</skipTests>
-        </configuration>
-      </plugin>
-      <!-- enable scalatest -->
-      <plugin>
-        <groupId>org.scalatest</groupId>
-        <artifactId>scalatest-maven-plugin</artifactId>
-        <version>1.0</version>
-        <configuration>
-          <reportsDirectory>${project.build.directory}/surefire-reports</reportsDirectory>
-          <junitxml>.</junitxml>
-          <filereports>PageantTestSuite.txt</filereports>
-          <!--
-              As explained here: http://stackoverflow.com/questions/1660441/java-flag-to-enable-extended-serialization-debugging-info
-              The second option allows us better debugging for serialization-based errors.
-          -->
-          <argLine>-Xmx1024m -Dsun.io.serialization.extendedDebugInfo=true</argLine>
-          <stdout>F</stdout>
-        </configuration>
-        <executions>
-          <execution>
-            <id>test</id>
-            <goals>
-              <goal>test</goal>
-            </goals>
-          </execution>
-        </executions>
-      </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-shade-plugin</artifactId>
@@ -129,157 +74,14 @@
           </execution>
         </executions>
       </plugin>
-      <plugin>
-        <groupId>net.alchim31.maven</groupId>
-        <artifactId>scala-maven-plugin</artifactId>
-        <version>3.1.5</version>
-        <executions>
-          <execution>
-            <id>scala-compile-first</id>
-            <phase>process-resources</phase>
-            <goals>
-              <goal>add-source</goal>
-              <goal>compile</goal>
-            </goals>
-            <configuration>
-              <args>
-                <arg>-g:vars</arg>
-              </args>
-            </configuration>
-          </execution>
-          <execution>
-            <id>scala-test-compile-first</id>
-            <phase>process-test-resources</phase>
-            <goals>
-              <goal>testCompile</goal>
-            </goals>
-          </execution>
-          <execution>
-            <id>attach-scaladocs</id>
-            <phase>verify</phase>
-            <goals>
-              <goal>doc-jar</goal>
-            </goals>
-          </execution>
-        </executions>
-        <configuration>
-          <scalaVersion>${scala.version}</scalaVersion>
-          <recompileMode>incremental</recompileMode>
-          <useZincServer>true</useZincServer>
-          <args>
-            <arg>-unchecked</arg>
-            <arg>-optimise</arg>
-            <arg>-deprecation</arg>
-          </args>
-          <jvmArgs>
-            <jvmArg>-Xms64m</jvmArg>
-            <jvmArg>-Xms1024m</jvmArg>
-            <jvmArg>-Xmx1024m</jvmArg>
-          </jvmArgs>
-          <javacArgs>
-            <javacArg>-source</javacArg>
-            <javacArg>${java.version}</javacArg>
-            <javacArg>-target</javacArg>
-            <javacArg>${java.version}</javacArg>
-          </javacArgs>
-        </configuration>
-      </plugin>
     </plugins>
-
   </build>
-
-  <repositories>
-    <repository>
-      <id>sonatype-nexus-snapshots</id>
-      <name>Sonatype Nexus Snapshots</name>
-      <url>https://oss.sonatype.org/content/repositories/snapshots</url>
-      <releases>
-        <enabled>false</enabled>
-      </releases>
-      <snapshots>
-        <enabled>true</enabled>
-      </snapshots>
-    </repository>
-    <repository>
-      <snapshots>
-        <enabled>false</enabled>
-      </snapshots>
-      <id>central</id>
-      <url>http://repo1.maven.org/maven2</url>
-    </repository>
-  </repositories>
-
-  <profiles>
-    <profile>
-      <id>default</id>
-      <activation>
-        <activeByDefault>true</activeByDefault>
-      </activation>
-      <dependencies>
-        <!--Test deps-->
-        <dependency>
-          <groupId>org.scalatest</groupId>
-          <artifactId>scalatest_${scala.version.prefix}</artifactId>
-          <version>2.2.2</version>
-          <scope>test</scope>
-        </dependency>
-        <dependency>
-          <groupId>org.bdgenomics.utils</groupId>
-          <artifactId>utils-misc_${scala.version.prefix}</artifactId>
-          <version>0.2.4</version>
-          <type>test-jar</type>
-          <scope>test</scope>
-        </dependency>
-      </dependencies>
-    </profile>
-    <!-- Only build coverage in when we want to run coverage -->
-    <profile>
-      <id>coverage</id>
-
-      <!-- Activate when being built by travis CI. -->
-      <activation>
-        <property>
-          <name>env.TRAVIS</name>
-          <value>true</value>
-        </property>
-      </activation>
-      <build>
-        <plugins>
-          <plugin>
-            <groupId>org.scoverage</groupId>
-            <artifactId>scoverage-maven-plugin</artifactId>
-            <version>${scoverage.plugin.version}</version>
-            <configuration>
-              <scalaVersion>${scala.version}</scalaVersion>
-            </configuration>
-          </plugin>
-          <plugin>
-            <groupId>org.eluder.coveralls</groupId>
-            <artifactId>coveralls-maven-plugin</artifactId>
-            <version>4.2.0</version>
-            <configuration>
-              <sourceDirectories>
-                <sourceDirectory>src/main/scala</sourceDirectory>
-              </sourceDirectories>
-              <coberturaReports>
-                <coberturaReport>${basedir}/target/cobertura.xml</coberturaReport>
-              </coberturaReports>
-            </configuration>
-          </plugin>
-        </plugins>
-      </build>
-    </profile>
-    <profile>
-      <id>no-tests</id>
-      <dependencies/>
-    </profile>
-  </profiles>
 
   <dependencies>
     <dependency>
       <groupId>org.hammerlab</groupId>
-      <artifactId>magic-rdds</artifactId>
-      <version>1.1.0</version>
+      <artifactId>magic-rdds_${scala.version.prefix}</artifactId>
+      <version>1.2.1</version>
     </dependency>
     <dependency>
       <groupId>org.hammerlab.adam</groupId>
@@ -300,6 +102,15 @@
       <groupId>com.esotericsoftware.kryo</groupId>
       <artifactId>kryo</artifactId>
       <version>2.21</version>
+    </dependency>
+
+    <!-- Test dep -->
+    <dependency>
+      <groupId>org.bdgenomics.utils</groupId>
+      <artifactId>utils-misc_${scala.version.prefix}</artifactId>
+      <version>0.2.4</version>
+      <type>test-jar</type>
+      <scope>test</scope>
     </dependency>
   </dependencies>
 
