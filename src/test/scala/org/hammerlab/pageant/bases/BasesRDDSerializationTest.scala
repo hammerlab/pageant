@@ -1,6 +1,6 @@
 package org.hammerlab.pageant.bases
 
-import org.hammerlab.magic.test.rdd.SequenceFileRDDTest
+import org.hammerlab.pageant.utils.SequenceFileRDDTest
 
 import scala.util.Random
 

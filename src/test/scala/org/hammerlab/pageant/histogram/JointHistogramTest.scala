@@ -1,8 +1,9 @@
 package org.hammerlab.pageant.histogram
 
-import org.bdgenomics.adam.models.{SequenceDictionary, SequenceRecord}
-import org.bdgenomics.adam.rdd.features.FeatureRDD
-import org.bdgenomics.formats.avro.{AlignmentRecord, Feature}
+import htsjdk.samtools.{ Cigar, TextCigarCodec }
+import org.bdgenomics.adam.models.{ SequenceDictionary, SequenceRecord }
+import org.bdgenomics.adam.rdd.feature.FeatureRDD
+import org.bdgenomics.formats.avro.{ AlignmentRecord, Feature }
 import org.hammerlab.pageant.histogram.JointHistogram.Contig
 import org.hammerlab.pageant.utils.PageantSuite
 
@@ -137,6 +138,7 @@ class JointHistogramTest
       .setContigName("1")
       .setSequence(sequence)
       .setStart(start)
+      .setEnd(start + TextCigarCodec.decode(cigar).getReferenceLength)
       .setCigar(cigar)
       .setReadMapped(true)
       .build()

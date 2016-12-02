@@ -1,20 +1,19 @@
 package org.hammerlab.pageant.histogram
 
 import com.esotericsoftware.kryo.Kryo
-import org.apache.hadoop.fs.{FileSystem, Path}
+import org.apache.hadoop.fs.{ FileSystem, Path }
 import org.apache.spark.SparkContext
 import org.apache.spark.rdd.RDD
-import org.bdgenomics.adam.projections.{AlignmentRecordField, FeatureField, Projection}
+import org.bdgenomics.adam.projections.{ AlignmentRecordField, FeatureField, Projection }
 import org.bdgenomics.adam.rdd.ADAMContext._
-import org.bdgenomics.adam.rdd.features.FeatureRDD
-import org.bdgenomics.adam.rich.RichAlignmentRecord
+import org.bdgenomics.adam.rdd.feature.FeatureRDD
 import org.bdgenomics.formats.avro.AlignmentRecord
 import org.hammerlab.magic.rdd.serde.SequenceFileSerializableRDD._
 import org.hammerlab.pageant.NumLoci
 import org.hammerlab.pageant.histogram.JointHistogram._
 
 import scala.collection.mutable
-import scala.collection.mutable.{Map => MMap}
+import scala.collection.mutable.{ Map => MMap }
 
 case class Record(contigOpt: Option[Contig], depths: Seq[Option[Int]], numLoci: NumLoci)
 
@@ -83,7 +82,7 @@ case class JointHistogram(jh: JointHist) {
     lazy val tl: Map[(OB, OS), L] =
       (for {
         ((gO, cO), nl) <- pc
-        c <- cO
+        _ <- cO
       } yield
         (gO, None: OS) -> nl
       ).groupBy(_._1).mapValues(_.values.sum)
@@ -297,9 +296,6 @@ object JointHistogram {
     JointHistogram(jointHist)
   }
 
-  def j2s(m: java.util.Map[String, java.lang.Long]): Map[String, Long] = m.toMap.mapValues(Long2long)
-  def s2j(m: Map[String, Long]): java.util.Map[String, java.lang.Long] = mapToJavaMap(m.mapValues(long2Long))
-
   def fromFiles(sc: SparkContext,
                 readFiles: Seq[String] = Nil,
                 featureFiles: Seq[String] = Nil,
@@ -329,7 +325,7 @@ object JointHistogram {
       val fileLength = fs.getFileStatus(new Path(file)).getLen
       val numPartitions = (fileLength / bytesPerIntervalPartition).toInt
       println(s"Loading interval file $file of size $fileLength using $numPartitions")
-      sc.loadFeatures(file, Some(featuresProjection), numPartitions)
+      sc.loadFeatures(file, Some(featuresProjection), Some(numPartitions))
     })
     JointHistogram.fromReadsAndFeatures(reads, features, dedupeFeatureLoci)
   }
@@ -345,7 +341,8 @@ object JointHistogram {
       read <- reads if read.getReadMapped
       contigName <- Option(read.getContigName).toList
       start <- Option(read.getStart).toList
-      refLen = RichAlignmentRecord(read).referenceLength
+      end <- Option(read.getEnd).toList
+      refLen = (end - start).toInt
       i <- 0 until refLen
     } yield
       (normalize(contigName), start + i) -> 1

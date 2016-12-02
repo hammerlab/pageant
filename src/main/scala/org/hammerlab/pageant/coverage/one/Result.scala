@@ -2,13 +2,13 @@ package org.hammerlab.pageant.coverage.one
 
 import java.io.PrintWriter
 
-import org.apache.hadoop.fs.{FileSystem, Path}
+import org.apache.hadoop.fs.{ FileSystem, Path }
 import org.apache.spark.rdd.RDD
-import org.hammerlab.magic.math.Steps
-import org.hammerlab.pageant.{NumBP, NumLoci}
+import org.hammerlab.math.Steps
 import org.hammerlab.pageant.coverage.one.Result.DC
 import org.hammerlab.pageant.histogram.JointHistogram
 import org.hammerlab.pageant.histogram.JointHistogram._
+import org.hammerlab.pageant.{ NumBP, NumLoci }
 
 case class Result(jh: JointHistogram,
                   dir: String,

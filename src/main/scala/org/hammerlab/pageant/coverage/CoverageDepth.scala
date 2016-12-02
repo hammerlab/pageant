@@ -44,15 +44,20 @@ object CoverageDepth {
 //          println(s"Loading JointHistogram: $jhPath$forceStr")
 //          JointHistogram.load(sc, jhPath)
         case (_, Some(readsPath)) =>
-          val intervalPath = strings("intervals")
+          val intervalPathOpt = strings.get("intervals")
 
-          println(s"Analyzing $readsPath against $intervalPath and writing to $outPath$forceStr")
+          val intervalPathStr =
+            intervalPathOpt
+              .map(intervalPath => s"against $intervalPath ")
+              .getOrElse("")
+
+          println(s"Analyzing $readsPath ${intervalPathStr}and writing to $outPath$forceStr")
 
           val jh =
             JointHistogram.fromFiles(
               sc,
               Seq(readsPath),
-              Seq(intervalPath),
+              intervalPathOpt.toList,
               bytesPerIntervalPartition = longs("interval-partition-bytes").toInt
             )
 
