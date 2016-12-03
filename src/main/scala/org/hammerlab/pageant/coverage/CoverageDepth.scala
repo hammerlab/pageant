@@ -94,9 +94,9 @@ object CoverageDepth extends SparkCommand[Arguments] {
 
     args.readsPaths match {
       case Array(readsPath) ⇒
-        one.Result(jh, outPath, args.verbose).save(force)
+        one.Result(jh, args.verbose).save(outPath, force)
       case Array(reads1Path, reads2Path) ⇒
-        two.Result(jh, outPath, args.verbose).save(force)
+        two.Result(jh, args.verbose).save(outPath, force)
     }
   }
 }

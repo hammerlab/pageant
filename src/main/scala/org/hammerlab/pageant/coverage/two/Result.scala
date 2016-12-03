@@ -13,7 +13,6 @@ import org.hammerlab.pageant.histogram.JointHistogram
 import org.hammerlab.pageant.histogram.JointHistogram.Depth
 
 case class Result(jh: JointHistogram,
-                  dir: String,
                   rawOutput: Boolean,
                   pdf: RDD[D2C],
                   cdf: RDD[D2C],
@@ -29,7 +28,7 @@ case class Result(jh: JointHistogram,
   @transient lazy val sc = jh.sc
   @transient lazy val fs = FileSystem.get(sc.hadoopConfiguration)
 
-  def writeCSV(fn: String, strs: Iterable[String], force: Boolean): Unit = {
+  def writeCSV(dir: String, fn: String, strs: Iterable[String], force: Boolean): Unit = {
     val path = new Path(dir, fn)
     if (!force && fs.exists(path)) {
       println(s"Skipping $path, already exists")
@@ -40,8 +39,8 @@ case class Result(jh: JointHistogram,
     }
   }
 
-  def writeCSV(fn: String, v: Vector[(Depth, NumLoci)], force: Boolean): Unit = {
-    writeCSV(fn, v.map(t => s"${t._1},${t._2}"), force)
+  def writeCSV(dir: String, fn: String, v: Vector[(Depth, NumLoci)], force: Boolean): Unit = {
+    writeCSV(dir, fn, v.map(t => s"${t._1},${t._2}"), force)
   }
 
   def d2cString(t: D2C): String = {
@@ -56,7 +55,7 @@ case class Result(jh: JointHistogram,
     ).mkString(",")
   }
 
-  def writeRDD(fn: String, rdd: RDD[D2C], force: Boolean): Unit = {
+  def writeRDD(dir: String, fn: String, rdd: RDD[D2C], force: Boolean): Unit = {
     val path = new Path(dir, fn)
     (fs.exists(path), force) match {
       case (true, true) ⇒
@@ -70,10 +69,10 @@ case class Result(jh: JointHistogram,
     }
   }
 
-  def save(force: Boolean = false): this.type = {
+  def save(dir: String, force: Boolean = false): this.type = {
     if (rawOutput) {
-      writeRDD(s"pdf", pdf, force)
-      writeRDD(s"cdf", cdf, force)
+      writeRDD(dir, s"pdf", pdf, force)
+      writeRDD(dir, s"cdf", cdf, force)
 
       val jhPath = new Path(dir, s"jh")
       if (!fs.exists(jhPath)) {
@@ -81,7 +80,7 @@ case class Result(jh: JointHistogram,
       }
     }
 
-    writeCSV(s"cdf.csv", filteredCDF.map(d2cString), force)
+    writeCSV(dir, s"cdf.csv", filteredCDF.map(d2cString), force)
 
     val miscPath = new Path(dir, "misc")
     if (force || !fs.exists(miscPath)) {
@@ -101,7 +100,7 @@ object Result {
 
   type D2C = ((Depth, Depth), Counts)
 
-  def apply(jh: JointHistogram, dir: String, rawOutput: Boolean): Result = {
+  def apply(jh: JointHistogram, rawOutput: Boolean): Result = {
     val j = jh.jh
     val fks = j.map(FK.make)
 
@@ -145,7 +144,6 @@ object Result {
 
     Result(
       jh,
-      dir,
       rawOutput,
       pdf.sortByKey(),
       cdf.sortByKey(),
