@@ -1,10 +1,10 @@
 package org.hammerlab.pageant.histogram
 
-import htsjdk.samtools.{ Cigar, TextCigarCodec }
+import htsjdk.samtools.TextCigarCodec
 import org.bdgenomics.adam.models.{ SequenceDictionary, SequenceRecord }
 import org.bdgenomics.adam.rdd.feature.FeatureRDD
 import org.bdgenomics.formats.avro.{ AlignmentRecord, Feature }
-import org.hammerlab.pageant.histogram.JointHistogram.Contig
+import org.hammerlab.genomics.reference.ContigName
 import org.hammerlab.pageant.utils.PageantSuite
 
 class JointHistogramTest
@@ -16,7 +16,7 @@ class JointHistogramTest
       SequenceRecord("chr11", 2000000L)
     )
 
-  def read(start: Long, end: Long, cigar: Option[String] = None, contigName: Contig = "chr2"): AlignmentRecord =
+  def read(start: Long, end: Long, cigar: Option[String] = None, contigName: ContigName = "chr2"): AlignmentRecord =
     AlignmentRecord
       .newBuilder()
       .setContigName(contigName)
@@ -26,7 +26,7 @@ class JointHistogramTest
       .setCigar(cigar.getOrElse("%dM".format(end - start)))
       .build()
 
-  def feature(start: Long, end: Long, contigName: Contig = "chr2"): Feature =
+  def feature(start: Long, end: Long, contigName: ContigName = "chr2"): Feature =
     Feature
       .newBuilder()
       .setContigName(contigName)

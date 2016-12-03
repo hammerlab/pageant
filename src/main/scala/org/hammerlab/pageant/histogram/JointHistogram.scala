@@ -1,21 +1,21 @@
 package org.hammerlab.pageant.histogram
 
 import com.esotericsoftware.kryo.Kryo
-import org.apache.hadoop.fs.{ FileSystem, Path }
+import org.apache.hadoop.fs.Path
 import org.apache.spark.SparkContext
 import org.apache.spark.rdd.RDD
 import org.bdgenomics.adam.projections.{ AlignmentRecordField, FeatureField, Projection }
 import org.bdgenomics.adam.rdd.ADAMContext._
 import org.bdgenomics.adam.rdd.feature.FeatureRDD
 import org.bdgenomics.formats.avro.AlignmentRecord
+import org.hammerlab.genomics.reference.{ ContigName, Locus, NumLoci }
 import org.hammerlab.magic.rdd.serde.SequenceFileSerializableRDD._
-import org.hammerlab.pageant.NumLoci
 import org.hammerlab.pageant.histogram.JointHistogram._
 
 import scala.collection.mutable
-import scala.collection.mutable.{ Map => MMap }
+import scala.collection.mutable.{ Map ⇒ MMap }
 
-case class Record(contigOpt: Option[Contig], depths: Seq[Option[Int]], numLoci: NumLoci)
+case class Record(contigOpt: Option[ContigName], depths: Seq[Option[Int]], numLoci: NumLoci)
 
 case class RegressionWeights(slope: Double, intercept: Double, mse: Double, rSquared: Double) {
   override def toString: String = {
@@ -260,9 +260,7 @@ object JointHistogram {
   type OS = Option[S]
   type OI = Option[I]
 
-  type Contig = S
-  type Locus = L
-  type Pos = (Contig, Locus)
+  type Pos = (ContigName, Locus)
   type Depth = I
   type DepthMap = RDD[(Pos, Depth)]
   type Depths = Seq[OI]
@@ -320,17 +318,22 @@ object JointHistogram {
 
     val reads = readFiles.map(file => sc.loadAlignments(file, Some(projection)).rdd)
 
-    val features = featureFiles.map(file => {
-      val fs = FileSystem.get(sc.hadoopConfiguration)
-      val fileLength = fs.getFileStatus(new Path(file)).getLen
-      val numPartitions = (fileLength / bytesPerIntervalPartition).toInt
-      println(s"Loading interval file $file of size $fileLength using $numPartitions")
-      sc.loadFeatures(file, Some(featuresProjection), Some(numPartitions))
-    })
+    val features =
+      for {
+        file ← featureFiles
+        path = new Path(file)
+        fs = path.getFileSystem(sc.hadoopConfiguration)
+        fileLength = fs.getFileStatus(path).getLen
+        numPartitions = (fileLength / bytesPerIntervalPartition).toInt
+      } yield {
+        println(s"Loading interval file $file of size $fileLength using $numPartitions")
+        sc.loadFeatures(file, Some(featuresProjection), Some(numPartitions))
+      }
+
     JointHistogram.fromReadsAndFeatures(reads, features, dedupeFeatureLoci)
   }
 
-  def normalize(contigName: Contig): Contig =
+  def normalize(contigName: ContigName): ContigName =
     if (contigName.startsWith("chr"))
       contigName.drop(3)
     else
@@ -374,7 +377,10 @@ object JointHistogram {
   def fromReadsAndFeatures(reads: Seq[RDD[AlignmentRecord]] = Nil,
                            features: Seq[FeatureRDD] = Nil,
                            dedupeFeatureLoci: Boolean = true): JointHistogram = {
-    fromDepthMaps(reads.map(readsToDepthMap) ++ features.map(featuresToDepthMap(_, dedupeFeatureLoci)))
+    fromDepthMaps(
+      reads.map(readsToDepthMap) ++
+        features.map(featuresToDepthMap(_, dedupeFeatureLoci))
+    )
   }
 
   def sumSeqs(a: Depths, b: Depths): Depths =
