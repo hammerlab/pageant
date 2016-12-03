@@ -16,9 +16,15 @@ libraryDependencies ++= Seq(
   "org.hammerlab.adam" %% "adam-core" % "0.20.3",
   "com.github.samtools" % "htsjdk" % "2.6.1" exclude("org.xerial.snappy", "snappy-java"),
   "org.hammerlab" %% "magic-rdds" % "1.3.1",
-  "org.hammerlab" %% "genomic-loci" % "1.4.3-SNAPSHOT"
+  "org.hammerlab" %% "genomic-loci" % "1.4.3"
 )
 
 testDeps ++= Seq(
   libraries.value('spark_tests)
 )
+
+assemblyMergeStrategy in assembly := {
+  // Two org.bdgenomics deps include the same log4j.properties.
+  case PathList("log4j.properties") => MergeStrategy.first
+  case x => (assemblyMergeStrategy in assembly).value(x)
+}

@@ -28,8 +28,8 @@ class Arguments
   var force: Boolean = false
 
   @Args4JOption(
-    name = "--force",
-    aliases = Array("-f"),
+    name = "--joint-histogram",
+    aliases = Array("-jh"),
     usage = "Force recomputation of joint-histogram even if one already exists on disk",
     handler = classOf[StringOptionHandler]
   )
@@ -59,8 +59,10 @@ class Arguments
 
 object CoverageDepth extends SparkCommand[Arguments] {
 
+  override def defaultRegistrar: String = "org.hammerlab.pageant.kryo.Registrar"
+
   override def name: String = "coverage-depth"
-  override def description: String = ""
+  override def description: String = "Given one or two sets of reads, and an optional set of intervals, compute a joint histogram over the reads' coverage of the genome, on and off the provided intervals."
 
   override def run(args: Arguments, sc: SparkContext): Unit = {
     val outPath = args.outPath
@@ -72,8 +74,8 @@ object CoverageDepth extends SparkCommand[Arguments] {
 
     val intervalPathStr =
       intervalPathOpt
-      .map(intervalPath => s"against $intervalPath ")
-      .getOrElse("")
+        .map(intervalPath => s"against $intervalPath ")
+        .getOrElse("")
 
     val jh =
       args.jointHistogramPathOpt match {
@@ -94,9 +96,9 @@ object CoverageDepth extends SparkCommand[Arguments] {
 
     args.readsPaths match {
       case Array(readsPath) ⇒
-        one.Result(jh, args.verbose).save(outPath, force)
+        one.Result(jh).save(outPath, force = force, writeFullDistributions = args.verbose)
       case Array(reads1Path, reads2Path) ⇒
-        two.Result(jh, args.verbose).save(outPath, force)
+        two.Result(jh).save(outPath, force = force, writeFullDistributions = args.verbose)
     }
   }
 }

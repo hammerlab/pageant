@@ -2,71 +2,39 @@ package org.hammerlab.pageant.coverage.one
 
 import java.io.PrintWriter
 
-import org.apache.hadoop.fs.{ FileSystem, Path }
+import org.apache.hadoop.fs.Path
 import org.apache.spark.rdd.RDD
 import org.hammerlab.genomics.reference.NumLoci
 import org.hammerlab.math.Steps
-import org.hammerlab.pageant.NumBP
+import org.hammerlab.pageant.coverage.ReadSetStats
 import org.hammerlab.pageant.coverage.one.Result.DC
 import org.hammerlab.pageant.histogram.JointHistogram
 import org.hammerlab.pageant.histogram.JointHistogram._
 
+/**
+ * Statistics about one set of reads' coverage of a set of intervals.
+ *
+ * @param jh joint-histogram of read coverage vs. interval coverage (the latter being 1 or 0 everywhere).
+ * @param pdf ([[Depth]], [[Count]]) tuples indicating on-target and off-target coverage at all observed depths.
+ * @param cdf CDF of the PDF above; tuples represent numbers of on- and off-target loci with depth *at least* a given
+ *            number.
+ * @param readsStats summary depth/coverage stats about the reads-set.
+ * @param filteredCDF summary CDF, filtered to a few logarithmically-spaced round-numbers.
+ * @param totalIntervalLoci total number of on-target loci.
+ */
 case class Result(jh: JointHistogram,
-                  rawOutput: Boolean,
                   pdf: RDD[DC],
                   cdf: RDD[DC],
-                  maxDepth: Depth,
+                  readsStats: ReadSetStats,
                   filteredCDF: Array[DC],
-                  totalBases: NumBP,
-                  onBases: NumBP,
                   totalIntervalLoci: NumLoci) {
 
-  @transient lazy val sc = jh.sc
-  @transient lazy val fs = FileSystem.get(sc.hadoopConfiguration)
+  @transient lazy val ReadSetStats(maxDepth, totalBases, onBases) = readsStats
 
-  def dcString(t: DC): String = {
-    val (depth, counts) = t
-    val Counts(on, off) = counts
-    List(
-      depth,
-      on.bp, on.n,
-      on.bp * 1.0 / totalBases, on.n * 1.0 / totalIntervalLoci,
-      off.bp, off.n,
-      off.bp * 1.0 / totalBases, off.n * 1.0 / totalIntervalLoci
-    ).mkString(",")
-  }
+  def save(dir: String, force: Boolean = false, writeFullDistributions: Boolean = false): this.type = {
+    val fs = new Path(dir).getFileSystem(jh)
 
-  def writeRDD(dir: String, basename: String, rdd: RDD[DC], force: Boolean): Unit = {
-    val path = new Path(dir, basename)
-    (fs.exists(path), force) match {
-      case (true, true) ⇒
-        println(s"Removing $path")
-        fs.delete(path, true)
-        rdd.map(dcString).saveAsTextFile(path.toString)
-      case (true, false) ⇒
-        println(s"Skipping $path, already exists")
-      case _ ⇒
-        rdd.map(dcString).saveAsTextFile(path.toString)
-    }
-  }
-
-  def writeCSV(dir: String, fn: String, strs: Iterable[String], force: Boolean): Unit = {
-    val path = new Path(dir, fn)
-    if (!force && fs.exists(path)) {
-      println(s"Skipping $path, already exists")
-    } else {
-      val os = fs.create(path)
-      os.writeBytes(strs.mkString("", "\n", "\n"))
-      os.close()
-    }
-  }
-
-  def writeCSV(dir: String, fn: String, v: Vector[(Depth, NumLoci)], force: Boolean): Unit = {
-    writeCSV(dir, fn, v.map(t => s"${t._1},${t._2}"), force)
-  }
-
-  def save(dir: String, force: Boolean = false): this.type = {
-    if (rawOutput) {
+    if (writeFullDistributions) {
       writeRDD(dir, s"pdf", pdf, force)
       writeRDD(dir, s"cdf", cdf, force)
 
@@ -90,14 +58,57 @@ case class Result(jh: JointHistogram,
 
     this
   }
+
+  private def dcString(t: DC): String = {
+    val (depth, counts) = t
+    val Counts(on, off) = counts
+    List(
+      depth,
+      on.bp, on.n,
+      on.bp * 1.0 / totalBases, on.n * 1.0 / totalIntervalLoci,
+      off.bp, off.n,
+      off.bp * 1.0 / totalBases, off.n * 1.0 / totalIntervalLoci
+    ).mkString(",")
+  }
+
+  private def writeRDD(dir: String, basename: String, rdd: RDD[DC], force: Boolean): Unit = {
+    val path = new Path(dir, basename)
+    val fs = path.getFileSystem(jh)
+    (fs.exists(path), force) match {
+      case (true, true) ⇒
+        println(s"Removing $path")
+        fs.delete(path, true)
+        rdd.map(dcString).saveAsTextFile(path.toString)
+      case (true, false) ⇒
+        println(s"Skipping $path, already exists")
+      case _ ⇒
+        rdd.map(dcString).saveAsTextFile(path.toString)
+    }
+  }
+
+  private def writeCSV(dir: String, fn: String, strs: Iterable[String], force: Boolean): Unit = {
+    val path = new Path(dir, fn)
+    val fs = path.getFileSystem(jh)
+    if (!force && fs.exists(path)) {
+      println(s"Skipping $path, already exists")
+    } else {
+      val os = fs.create(path)
+      os.writeBytes(strs.mkString("", "\n", "\n"))
+      os.close()
+    }
+  }
+
+  private def writeCSV(dir: String, fn: String, v: Vector[(Depth, NumLoci)], force: Boolean): Unit = {
+    writeCSV(dir, fn, v.map(t => s"${t._1},${t._2}"), force)
+  }
 }
 
 object Result {
   type DC = (Depth, Counts)
 
-  def apply(jh: JointHistogram, rawOutput: Boolean): Result = {
+  def apply(jh: JointHistogram): Result = {
     val j = jh.jh
-    val fks = j.map(FK.make)
+    val fks = j.map(Key.make)
 
     val totalIntervalLoci = j.filter(_._1._2(1).get == 1).values.sum.toLong
 
@@ -141,24 +152,20 @@ object Result {
         depth → count
       }).collect.sortBy(_._1)
 
-    val firstElem = filteredCDF.take(1)(0)
-    if (firstElem._1 != 0) {
-      throw new Exception(s"Bad first elem: $firstElem")
+    val (firstDepth, firstCounts) = filteredCDF.take(1)(0)
+    if (firstDepth != 0) {
+      throw new Exception(s"Bad first firstDepth: $firstDepth (count: $firstCounts)")
     }
 
-    val firstCounts = firstElem._2
     val totalBases = firstCounts.all.bp
     val onBases = firstCounts.on.bp
 
     Result(
       jh,
-      rawOutput,
       pdf.sortByKey(),
       cdf.sortByKey(),
-      maxDepth,
+      ReadSetStats(maxDepth, totalBases, onBases),
       filteredCDF,
-      totalBases,
-      onBases,
       totalIntervalLoci
     )
   }

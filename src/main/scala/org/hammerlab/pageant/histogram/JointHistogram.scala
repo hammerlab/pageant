@@ -1,6 +1,7 @@
 package org.hammerlab.pageant.histogram
 
 import com.esotericsoftware.kryo.Kryo
+import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.Path
 import org.apache.spark.SparkContext
 import org.apache.spark.rdd.RDD
@@ -263,7 +264,7 @@ object JointHistogram {
   type Pos = (ContigName, Locus)
   type Depth = I
   type DepthMap = RDD[(Pos, Depth)]
-  type Depths = Seq[OI]
+  type Depths = Seq[Option[Depth]]
 
   type JointHistKey = (OS, Depths)
   type JointHistElem = (JointHistKey, L)
@@ -437,5 +438,8 @@ object JointHistogram {
     kryo.register(classOf[Eigen])
     kryo.register(classOf[mutable.ArraySeq[_]])
   }
+
+  implicit def toSparkContext(jh: JointHistogram): SparkContext = jh.sc
+  implicit def toHadoopConfiguration(jh: JointHistogram): Configuration = jh.sc.hadoopConfiguration
 }
 

@@ -6,7 +6,7 @@ case class Counts(on: Count, off: Count) {
 }
 
 object Counts {
-  def apply(fk: FK): Counts = Counts(
+  def apply(fk: Key): Counts = Counts(
     Count(fk.on * fk.d, fk.on),
     Count(fk.off * fk.d, fk.off)
   )

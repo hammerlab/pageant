@@ -14,9 +14,10 @@ object Counts extends Monoid[Counts] {
   // Identity.
   override def id: Counts = Counts(Count.empty, Count.empty)
 
-  def apply(fk: FK): Counts = Counts(
-    Count(fk.on * fk.d1, fk.on * fk.d2, fk.on),
-    Count(fk.off * fk.d1, fk.off * fk.d2, fk.off)
-  )
+  def apply(fk: Key): Counts =
+    Counts(
+      on = Count(fk.numLociOn * fk.depth1, fk.numLociOn * fk.depth2, fk.numLociOn),
+      off = Count(fk.numLociOff * fk.depth1, fk.numLociOff * fk.depth2, fk.numLociOff)
+    )
 }
 
