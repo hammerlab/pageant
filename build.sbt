@@ -1,6 +1,8 @@
 name := "pageant"
 version := "1.0.0-SNAPSHOT"
 
+sparkVersion := "2.0.2"
+
 providedDeps ++= Seq(
   libraries.value('spark),
   libraries.value('hadoop)
