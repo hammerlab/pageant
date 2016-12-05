@@ -33,3 +33,5 @@ assemblyMergeStrategy in assembly := {
   case PathList("log4j.properties") => MergeStrategy.first
   case x => (assemblyMergeStrategy in assembly).value(x)
 }
+
+excludeFilter in Test := NothingFilter
