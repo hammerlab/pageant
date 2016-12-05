@@ -4,12 +4,14 @@ import java.io.PrintWriter
 
 import org.apache.hadoop.fs.Path
 import org.apache.spark.rdd.RDD
+import org.hammerlab.csv.ProductsToCSV._
 import org.hammerlab.genomics.reference.NumLoci
 import org.hammerlab.math.Steps
 import org.hammerlab.pageant.coverage.ReadSetStats
 import org.hammerlab.pageant.coverage.one.Result.DC
 import org.hammerlab.pageant.histogram.JointHistogram
 import org.hammerlab.pageant.histogram.JointHistogram._
+import org.hammerlab.pageant.utils.{ WriteLines, WriteRDD }
 
 /**
  * Statistics about one set of reads' coverage of a set of intervals.
@@ -31,12 +33,14 @@ case class Result(jh: JointHistogram,
 
   @transient lazy val ReadSetStats(maxDepth, totalBases, onBases) = readsStats
 
+  def toCSVRow(depthCounts: DC): CSVRow = CSVRow(depthCounts, totalBases, totalIntervalLoci)
+
   def save(dir: String, force: Boolean = false, writeFullDistributions: Boolean = false): this.type = {
     val fs = new Path(dir).getFileSystem(jh)
 
     if (writeFullDistributions) {
-      writeRDD(dir, s"pdf", pdf, force)
-      writeRDD(dir, s"cdf", cdf, force)
+      WriteRDD(dir, s"pdf", pdf.map(toCSVRow), force, jh)
+      WriteRDD(dir, s"cdf", cdf.map(toCSVRow), force, jh)
 
       val jhPath = new Path(dir, s"jh")
       if (!fs.exists(jhPath)) {
@@ -44,62 +48,19 @@ case class Result(jh: JointHistogram,
       }
     }
 
-    writeCSV(dir, s"cdf.csv", filteredCDF.map(dcString), force)
+    WriteLines(dir, s"cdf.csv", filteredCDF.map(CSVRow(_, totalBases, totalIntervalLoci)).toCSV(), force, jh)
 
     val miscPath = new Path(dir, "misc")
     if (force || !fs.exists(miscPath)) {
       val pw = new PrintWriter(fs.create(miscPath))
-      pw.println(s"$maxDepth")
-      pw.println(s"$totalBases")
-      pw.println(s"$onBases")
-      pw.println(s"$totalIntervalLoci")
+      pw.println(s"Max depth: $maxDepth")
+      pw.println(s"Total sequenced bases: $totalBases")
+      pw.println(s"Total on-target bases: $onBases")
+      pw.println(s"Total on-target loci: $totalIntervalLoci")
       pw.close()
     }
 
     this
-  }
-
-  private def dcString(t: DC): String = {
-    val (depth, counts) = t
-    val Counts(on, off) = counts
-    List(
-      depth,
-      on.bp, on.n,
-      on.bp * 1.0 / totalBases, on.n * 1.0 / totalIntervalLoci,
-      off.bp, off.n,
-      off.bp * 1.0 / totalBases, off.n * 1.0 / totalIntervalLoci
-    ).mkString(",")
-  }
-
-  private def writeRDD(dir: String, basename: String, rdd: RDD[DC], force: Boolean): Unit = {
-    val path = new Path(dir, basename)
-    val fs = path.getFileSystem(jh)
-    (fs.exists(path), force) match {
-      case (true, true) ⇒
-        println(s"Removing $path")
-        fs.delete(path, true)
-        rdd.map(dcString).saveAsTextFile(path.toString)
-      case (true, false) ⇒
-        println(s"Skipping $path, already exists")
-      case _ ⇒
-        rdd.map(dcString).saveAsTextFile(path.toString)
-    }
-  }
-
-  private def writeCSV(dir: String, fn: String, strs: Iterable[String], force: Boolean): Unit = {
-    val path = new Path(dir, fn)
-    val fs = path.getFileSystem(jh)
-    if (!force && fs.exists(path)) {
-      println(s"Skipping $path, already exists")
-    } else {
-      val os = fs.create(path)
-      os.writeBytes(strs.mkString("", "\n", "\n"))
-      os.close()
-    }
-  }
-
-  private def writeCSV(dir: String, fn: String, v: Vector[(Depth, NumLoci)], force: Boolean): Unit = {
-    writeCSV(dir, fn, v.map(t => s"${t._1},${t._2}"), force)
   }
 }
 
@@ -119,10 +80,11 @@ object Result {
     val partitionSums =
       pdf
         .values
-        .mapPartitionsWithIndex((idx, iter) => {
-          val sum = iter.foldLeft(Counts.empty)(_ + _)
-          Iterator(sum)
-        })
+        .mapPartitions(iter =>
+          Iterator(
+            iter.foldLeft(Counts.empty)(_ + _)
+          )
+        )
         .collect
         .drop(1)
         .scanRight(Counts.empty)(_ + _)

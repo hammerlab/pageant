@@ -2,8 +2,10 @@ package org.hammerlab.pageant.coverage.two
 
 import java.io.PrintWriter
 
-import org.apache.hadoop.fs.{ FileSystem, Path }
+import org.apache.hadoop.fs.Path
 import org.apache.spark.rdd.RDD
+import org.hammerlab.csv.ProductsToCSV._
+import org.hammerlab.csv.CSVRowI
 import org.hammerlab.genomics.reference.NumLoci
 import org.hammerlab.magic.rdd.grid.PartialSumGridRDD
 import org.hammerlab.math.Steps.roundNumbers
@@ -11,6 +13,7 @@ import org.hammerlab.pageant.coverage.ReadSetStats
 import org.hammerlab.pageant.coverage.two.Result.D2C
 import org.hammerlab.pageant.histogram.JointHistogram
 import org.hammerlab.pageant.histogram.JointHistogram.Depth
+import org.hammerlab.pageant.utils.{ WriteLines, WriteRDD }
 
 /**
  * Statistics about one set of reads' coverage of a set of intervals.
@@ -32,16 +35,17 @@ case class Result(jh: JointHistogram,
                   filteredCDF: Array[D2C],
                   totalIntervalLoci: NumLoci) {
 
-  @transient lazy val sc = jh.sc
-  @transient lazy val fs = FileSystem.get(sc.hadoopConfiguration)
-
   @transient lazy val ReadSetStats(maxDepth1, totalBases1, onBases1) = sample1Stats
   @transient lazy val ReadSetStats(maxDepth2, totalBases2, onBases2) = sample2Stats
 
+  implicit def toCSVRow(d2c: D2C): CSVRow = CSVRow(d2c, totalBases1, totalBases2, totalIntervalLoci)
+
   def save(dir: String, force: Boolean = false, writeFullDistributions: Boolean = false): this.type = {
+    val fs = new Path(dir).getFileSystem(jh)
+
     if (writeFullDistributions) {
-      writeRDD(dir, s"pdf", pdf, force)
-      writeRDD(dir, s"cdf", cdf, force)
+      WriteRDD(dir, s"pdf", pdf.map(toCSVRow), force, jh)
+      WriteRDD(dir, s"cdf", cdf.map(toCSVRow), force, jh)
 
       val jhPath = new Path(dir, s"jh")
       if (!fs.exists(jhPath)) {
@@ -49,60 +53,21 @@ case class Result(jh: JointHistogram,
       }
     }
 
-    writeCSV(dir, s"cdf.csv", filteredCDF.map(d2cString), force)
+    val entries = filteredCDF.map(toCSVRow)
+
+    WriteLines(dir, s"cdf.csv", entries.toCSV(), force, jh)
 
     val miscPath = new Path(dir, "misc")
     if (force || !fs.exists(miscPath)) {
       val pw = new PrintWriter(fs.create(miscPath))
-      pw.println(s"$maxDepth1,$maxDepth2")
-      pw.println(s"$totalBases1,$totalBases2")
-      pw.println(s"$onBases1,$onBases2")
-      pw.println(s"$totalIntervalLoci")
+      pw.println(s"Max depths: $maxDepth1,$maxDepth2")
+      pw.println(s"Total sequenced bases: $totalBases1,$totalBases2")
+      pw.println(s"Total on-target bases: $onBases1,$onBases2")
+      pw.println(s"Total on-target loci: $totalIntervalLoci")
       pw.close()
     }
 
     this
-  }
-
-  private def writeCSV(dir: String, fn: String, strs: Iterable[String], force: Boolean): Unit = {
-    val path = new Path(dir, fn)
-    if (!force && fs.exists(path)) {
-      println(s"Skipping $path, already exists")
-    } else {
-      val os = fs.create(path)
-      os.writeBytes(strs.mkString("", "\n", "\n"))
-      os.close()
-    }
-  }
-
-  private def writeCSV(dir: String, fn: String, v: Vector[(Depth, NumLoci)], force: Boolean): Unit = {
-    writeCSV(dir, fn, v.map(t => s"${t._1},${t._2}"), force)
-  }
-
-  private def d2cString(t: D2C): String = {
-    val ((d1, d2), counts) = t
-    val Counts(on, off) = counts
-    List(
-      d1, d2,
-      on.bp1, on.bp2, on.n,
-      on.bp1 * 1.0 / totalBases1, on.bp2 * 1.0 / totalBases2, on.n * 1.0 / totalIntervalLoci,
-      off.bp1, off.bp2, off.n,
-      off.bp1 * 1.0 / totalBases1, off.bp2 * 1.0 / totalBases2, off.n * 1.0 / totalIntervalLoci
-    ).mkString(",")
-  }
-
-  private def writeRDD(dir: String, fn: String, rdd: RDD[D2C], force: Boolean): Unit = {
-    val path = new Path(dir, fn)
-    (fs.exists(path), force) match {
-      case (true, true) ⇒
-        println(s"Removing $path")
-        fs.delete(path, true)
-        rdd.map(d2cString).saveAsTextFile(path.toString)
-      case (true, false) ⇒
-        println(s"Skipping $path, already exists")
-      case _ ⇒
-        rdd.map(d2cString).saveAsTextFile(path.toString)
-    }
   }
 }
 
