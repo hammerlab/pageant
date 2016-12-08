@@ -1,12 +1,12 @@
 package org.hammerlab.pageant.coverage
 
+import org.apache.hadoop.fs.Path
 import org.apache.spark.SparkContext
-import org.hammerlab.args4s.StringOptionHandler
 import org.hammerlab.commands.{ Args, SparkCommand }
 import org.hammerlab.genomics.loci.args.LociArgs
 import org.hammerlab.pageant.histogram.JointHistogram
 import org.kohsuke.args4j.spi.StringArrayOptionHandler
-import org.kohsuke.args4j.{ Argument, Option => Args4JOption }
+import org.kohsuke.args4j.{ Argument, Option ⇒ Args4JOption }
 
 class Arguments
   extends Args
@@ -28,12 +28,11 @@ class Arguments
   var force: Boolean = false
 
   @Args4JOption(
-    name = "--joint-histogram",
+    name = "--persist-joint-histogram",
     aliases = Array("-jh"),
-    usage = "Force recomputation of joint-histogram even if one already exists on disk",
-    handler = classOf[StringOptionHandler]
+    usage = "When set, save the computed joint-histogram; if one already exists, skip reading it, recompute it, and overwrite it"
   )
-  var jointHistogramPathOpt: Option[String] = None
+  var writeJointHistogram: Boolean = false
 
   @Args4JOption(
     name = "--reads",
@@ -50,11 +49,11 @@ class Arguments
   var intervalPartitionBytes: Int = 1 << 20
 
   @Args4JOption(
-    name = "--verbose",
+    name = "--persist-distributions",
     aliases = Array("-v"),
-    usage = "When set, output full PDF and CDF of coverage-depth histogram"
+    usage = "When set, persist full PDF and CDF of coverage-depth histogram"
   )
-  var verbose: Boolean = false
+  var writeFullDistributions: Boolean = false
 }
 
 object CoverageDepth extends SparkCommand[Arguments] {
@@ -77,28 +76,48 @@ object CoverageDepth extends SparkCommand[Arguments] {
         .map(intervalPath => s"against $intervalPath ")
         .getOrElse("")
 
+    val jointHistogramPath = getJointHistogramPath(args.outPath)
+
+    val jointHistogramPathExists =
+      jointHistogramPath
+        .getFileSystem(sc.hadoopConfiguration)
+        .exists(jointHistogramPath)
+
+    val writeJointHistogram = args.writeJointHistogram
+
     val jh =
-      args.jointHistogramPathOpt match {
-        case Some(jointHistogramPath) =>
-          println(s"Loading JointHistogram: $jointHistogramPath")
-          JointHistogram.load(sc, jointHistogramPath)
-        case None =>
-          println(
-            s"Analyzing ${args.readsPaths.mkString("(", ", ", ")")} ${intervalPathStr}and writing to $outPath$forceStr"
-          )
-          JointHistogram.fromFiles(
-            sc,
-            args.readsPaths,
-            intervalPathOpt.toList,
-            bytesPerIntervalPartition = args.intervalPartitionBytes
-          )
+      if (!writeJointHistogram && jointHistogramPathExists) {
+        println(s"Loading JointHistogram: $jointHistogramPath")
+        JointHistogram.load(sc, jointHistogramPath)
+      } else {
+        println(
+          s"Analyzing ${args.readsPaths.mkString("(", ", ", ")")} ${intervalPathStr}and writing to $outPath$forceStr"
+        )
+        JointHistogram.fromFiles(
+          sc,
+          args.readsPaths,
+          intervalPathOpt.toList,
+          bytesPerIntervalPartition = args.intervalPartitionBytes
+        )
       }
 
     args.readsPaths match {
       case Array(readsPath) ⇒
-        one.Result(jh).save(outPath, force = force, writeFullDistributions = args.verbose)
+        one.Result(jh).save(
+          outPath,
+          force = force,
+          writeFullDistributions = args.writeFullDistributions,
+          writeJointHistogram = writeJointHistogram
+        )
       case Array(reads1Path, reads2Path) ⇒
-        two.Result(jh).save(outPath, force = force, writeFullDistributions = args.verbose)
+        two.Result(jh).save(
+          outPath,
+          force = force,
+          writeFullDistributions = args.writeFullDistributions,
+          writeJointHistogram = writeJointHistogram
+        )
     }
   }
+
+  def getJointHistogramPath(dir: String): Path = new Path(dir, "jh")
 }

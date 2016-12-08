@@ -79,6 +79,27 @@ case class JointHistogram(jh: JointHist) {
     })
   }
 
+  /*
+   * For a sample representing features, return the number of loci with coverage represented in this joint-distribution
+   * that are "on" and "off" of that feature-set.
+   */
+  def coveredLociCounts(idx: Int): (NumLoci, NumLoci) = {
+    val totalLociMap =
+    (for {
+        ((_, depths), numLoci) ← jh
+        depth = depths(idx).get
+      } yield
+        depth → numLoci
+    )
+    .reduceByKey(_ + _)
+    .collectAsMap()
+
+    val totalOnLoci: Long = totalLociMap.getOrElse(1, 0)
+    val totalOffLoci: Long = totalLociMap.getOrElse(0, 0)
+
+    (totalOnLoci, totalOffLoci)
+  }
+
   def printPerContigs(pc: Map[(OB, OS), L], includesTotals: Boolean = false) = {
     lazy val tl: Map[(OB, OS), L] =
       (for {
@@ -284,8 +305,11 @@ object JointHistogram {
     entries.saveCompressed(filename)
   }
 
-  def load(sc: SparkContext, fn: String): JointHistogram = {
-    val rdd: RDD[Record] = sc.fromSequenceFile(fn)
+  def load(sc: SparkContext, fn: String): JointHistogram =
+    load(sc, new Path(fn))
+
+  def load(sc: SparkContext, path: Path): JointHistogram = {
+    val rdd: RDD[Record] = sc.fromSequenceFile(path)
     val jointHist: JointHist =
       for {
         Record(contigOpt, depthOpts, numLoci) <- rdd

@@ -18,18 +18,21 @@ case class CSVRow(depth: Depth,
   extends CSVRowI
 
 object CSVRow {
-  def apply(depthCounts: DC, totalBases: NumBP, totalIntervalLoci: NumLoci): CSVRow = {
+  def apply(depthCounts: DC,
+            totalBases: NumBP,
+            totalOnLoci: NumLoci,
+            totalOffLoci: NumLoci): CSVRow = {
     val (depth, Counts(on, off)) = depthCounts
     CSVRow(
       depth,
       on.bp,
       on.n,
       on.bp * 1.0 / totalBases,
-      on.n * 1.0 / totalIntervalLoci,
+      on.n * 1.0 / totalOnLoci,
       off.bp,
       off.n,
       off.bp * 1.0 / totalBases,
-      off.n * 1.0 / totalIntervalLoci
+      off.n * 1.0 / totalOffLoci
     )
   }
 }

@@ -4,10 +4,9 @@ import com.esotericsoftware.kryo.Kryo
 import org.apache.spark.serializer.KryoRegistrator
 import org.bdgenomics.adam.serialization.ADAMKryoRegistrator
 import org.hammerlab.magic.rdd.grid.PartialSumGridRDD
-import org.hammerlab.pageant.bases.{Bases, Bases5, Bases5Serializer, BasesSerializer}
-import org.hammerlab.pageant.coverage.two
-import org.hammerlab.pageant.coverage.two.Count
-import org.hammerlab.pageant.histogram.JointHistogram
+import org.hammerlab.pageant.bases.{ Bases, Bases5, Bases5Serializer, BasesSerializer }
+import org.hammerlab.pageant.coverage.{ one, two }
+import org.hammerlab.pageant.histogram.{ JointHistogram, Record }
 
 class Registrar extends KryoRegistrator {
   override def registerClasses(kryo: Kryo): Unit = {
@@ -15,8 +14,14 @@ class Registrar extends KryoRegistrator {
     kryo.register(classOf[Bases5], new Bases5Serializer)
     kryo.register(classOf[Array[Bases5]])
 
+    kryo.register(classOf[Record])
+
+    kryo.register(classOf[one.Counts])
+    kryo.register(classOf[Array[one.Counts]])
+    kryo.register(classOf[one.Count])
+
     kryo.register(classOf[two.Counts])
-    kryo.register(classOf[Count])
+    kryo.register(classOf[two.Count])
 
     kryo.register(classOf[Vector[_]])
     kryo.register(classOf[Array[Vector[_]]])

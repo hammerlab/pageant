@@ -19,7 +19,7 @@ libraryDependencies ++= Seq(
   libraries.value('string_utils),
   "org.hammerlab.adam" %% "adam-core" % "0.20.3",
   "com.github.samtools" % "htsjdk" % "2.6.1" exclude("org.xerial.snappy", "snappy-java"),
-  "org.hammerlab" %% "magic-rdds" % "1.3.1",
+  "org.hammerlab" %% "magic-rdds" % "1.3.2",
   "org.hammerlab" %% "genomic-loci" % "1.4.4"
 )
 

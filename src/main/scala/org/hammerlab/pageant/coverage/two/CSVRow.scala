@@ -24,7 +24,11 @@ case class CSVRow(depth1: Depth,
 
 object CSVRow {
 
-  def apply(entry: D2C, totalBases1: NumBP, totalBases2: NumBP, totalIntervalLoci: NumLoci): CSVRow = {
+  def apply(entry: D2C,
+            totalBases1: NumBP,
+            totalBases2: NumBP,
+            totalOnLoci: NumLoci,
+            totalOffLoci: NumLoci): CSVRow = {
     val ((depth1, depth2), Counts(on, off)) = entry
     CSVRow(
       depth1,
@@ -34,13 +38,13 @@ object CSVRow {
       on.n,
       on.bp1 * 1.0 / totalBases1,
       on.bp2 * 1.0 / totalBases2,
-      on.n * 1.0 / totalIntervalLoci,
+      on.n * 1.0 / totalOnLoci,
       off.bp1,
       off.bp2,
       off.n,
       off.bp1 * 1.0 / totalBases1,
       off.bp2 * 1.0 / totalBases2,
-      off.n * 1.0 / totalIntervalLoci
+      off.n * 1.0 / totalOffLoci
     )
   }
 }

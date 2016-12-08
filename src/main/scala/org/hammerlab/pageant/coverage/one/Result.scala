@@ -6,7 +6,9 @@ import org.apache.hadoop.fs.Path
 import org.apache.spark.rdd.RDD
 import org.hammerlab.csv.ProductsToCSV._
 import org.hammerlab.genomics.reference.NumLoci
-import org.hammerlab.math.Steps
+import org.hammerlab.magic.rdd.scan.ScanRightByKeyRDD._
+import org.hammerlab.math.Steps.roundNumbers
+import org.hammerlab.pageant.coverage.CoverageDepth.getJointHistogramPath
 import org.hammerlab.pageant.coverage.ReadSetStats
 import org.hammerlab.pageant.coverage.one.Result.DC
 import org.hammerlab.pageant.histogram.JointHistogram
@@ -22,41 +24,53 @@ import org.hammerlab.pageant.utils.{ WriteLines, WriteRDD }
  *            number.
  * @param readsStats summary depth/coverage stats about the reads-set.
  * @param filteredCDF summary CDF, filtered to a few logarithmically-spaced round-numbers.
- * @param totalIntervalLoci total number of on-target loci.
+ * @param totalOnLoci total number of on-target loci.
+ * @param totalOffLoci total number of off-target loci observed to have non-zero coverage.
  */
 case class Result(jh: JointHistogram,
                   pdf: RDD[DC],
                   cdf: RDD[DC],
                   readsStats: ReadSetStats,
                   filteredCDF: Array[DC],
-                  totalIntervalLoci: NumLoci) {
+                  totalOnLoci: NumLoci,
+                  totalOffLoci: NumLoci) {
 
   @transient lazy val ReadSetStats(maxDepth, totalBases, onBases) = readsStats
 
-  def toCSVRow(depthCounts: DC): CSVRow = CSVRow(depthCounts, totalBases, totalIntervalLoci)
+  def toCSVRow(depthCounts: DC): CSVRow =
+    CSVRow(depthCounts, totalBases, totalOnLoci, totalOffLoci)
 
-  def save(dir: String, force: Boolean = false, writeFullDistributions: Boolean = false): this.type = {
+  def save(dir: String,
+           force: Boolean = false,
+           writeFullDistributions: Boolean = false,
+           writeJointHistogram: Boolean = false): this.type = {
+
     val fs = new Path(dir).getFileSystem(jh)
 
     if (writeFullDistributions) {
       WriteRDD(dir, s"pdf", pdf.map(toCSVRow), force, jh)
       WriteRDD(dir, s"cdf", cdf.map(toCSVRow), force, jh)
-
-      val jhPath = new Path(dir, s"jh")
-      if (!fs.exists(jhPath)) {
-        jh.write(jhPath)
-      }
     }
 
-    WriteLines(dir, s"cdf.csv", filteredCDF.map(CSVRow(_, totalBases, totalIntervalLoci)).toCSV(), force, jh)
+    if (writeJointHistogram) {
+      val jhPath = getJointHistogramPath(dir)
+
+      if (fs.exists(jhPath)) {
+        fs.delete(jhPath, true)
+      }
+
+      jh.write(jhPath)
+    }
+
+    WriteLines(dir, s"cdf.csv", filteredCDF.map(CSVRow(_, totalBases, totalOnLoci, totalOffLoci)).toCSV(), force, jh)
 
     val miscPath = new Path(dir, "misc")
     if (force || !fs.exists(miscPath)) {
       val pw = new PrintWriter(fs.create(miscPath))
       pw.println(s"Max depth: $maxDepth")
-      pw.println(s"Total sequenced bases: $totalBases")
+      pw.println(s"Total mapped bases: $totalBases")
       pw.println(s"Total on-target bases: $onBases")
-      pw.println(s"Total on-target loci: $totalIntervalLoci")
+      pw.println(s"Total on-target loci: $totalOnLoci")
       pw.close()
     }
 
@@ -69,39 +83,23 @@ object Result {
 
   def apply(jh: JointHistogram): Result = {
     val j = jh.jh
-    val fks = j.map(Key.make)
+    val keys = j.map(Key.make)
 
-    val totalIntervalLoci = j.filter(_._1._2(1).get == 1).values.sum.toLong
+    val (totalOnLoci, totalOffLoci) = jh.coveredLociCounts(idx = 1)
 
-    val pdf = fks.map(fk => fk.d -> Counts(fk)).reduceByKey(_ + _)
+    val pdf =
+      keys
+        .map(key => key.depth -> Counts(key))
+        .reduceByKey(_ + _)
+        .sortByKey()
 
     val sc = jh.sc
 
-    val partitionSums =
-      pdf
-        .values
-        .mapPartitions(iter =>
-          Iterator(
-            iter.foldLeft(Counts.empty)(_ + _)
-          )
-        )
-        .collect
-        .drop(1)
-        .scanRight(Counts.empty)(_ + _)
-
-    val partitionSumsRDD = sc.parallelize(partitionSums, partitionSums.length)
-
-    val cdf = pdf.zipPartitions(partitionSumsRDD)((iter, sumIter) => {
-      val sum = sumIter.next()
-      for {
-        (depth, counts) <- iter
-      } yield
-        depth -> (counts + sum)
-    })
+    val cdf = pdf.scanRightByKey(Counts.empty)(_ + _)
 
     val maxDepth = pdf.keys.reduce(math.max)
 
-    val depthSteps = Steps.roundNumbers(maxDepth)
+    val depthSteps = roundNumbers(maxDepth)
 
     val stepsBC = sc.broadcast(depthSteps)
 
@@ -110,9 +108,11 @@ object Result {
         (depth, count) ← cdf
         depthFilter = stepsBC.value
         if depthFilter(depth)
-      } yield {
+      } yield
         depth → count
-      }).collect.sortBy(_._1)
+      )
+      .collect
+      .sortBy(_._1)
 
     val (firstDepth, firstCounts) = filteredCDF.take(1)(0)
     if (firstDepth != 0) {
@@ -128,7 +128,8 @@ object Result {
       cdf.sortByKey(),
       ReadSetStats(maxDepth, totalBases, onBases),
       filteredCDF,
-      totalIntervalLoci
+      totalOnLoci,
+      totalOffLoci
     )
   }
 }

@@ -5,11 +5,11 @@ import java.io.PrintWriter
 import org.apache.hadoop.fs.Path
 import org.apache.spark.rdd.RDD
 import org.hammerlab.csv.ProductsToCSV._
-import org.hammerlab.csv.CSVRowI
 import org.hammerlab.genomics.reference.NumLoci
 import org.hammerlab.magic.rdd.grid.PartialSumGridRDD
 import org.hammerlab.math.Steps.roundNumbers
 import org.hammerlab.pageant.coverage.ReadSetStats
+import org.hammerlab.pageant.coverage.CoverageDepth.getJointHistogramPath
 import org.hammerlab.pageant.coverage.two.Result.D2C
 import org.hammerlab.pageant.histogram.JointHistogram
 import org.hammerlab.pageant.histogram.JointHistogram.Depth
@@ -25,7 +25,8 @@ import org.hammerlab.pageant.utils.{ WriteLines, WriteRDD }
  * @param sample1Stats summary depth/coverage stats about the first reads-set.
  * @param sample2Stats summary depth/coverage stats about the second reads-set.
  * @param filteredCDF summary CDF, filtered to a few logarithmically-spaced round-numbers.
- * @param totalIntervalLoci total number of on-target loci.
+ * @param totalOnLoci total number of on-target loci.
+ * @param totalOffLoci total number of off-target loci observed to have non-zero coverage.
  */
 case class Result(jh: JointHistogram,
                   pdf: RDD[D2C],
@@ -33,24 +34,34 @@ case class Result(jh: JointHistogram,
                   sample1Stats: ReadSetStats,
                   sample2Stats: ReadSetStats,
                   filteredCDF: Array[D2C],
-                  totalIntervalLoci: NumLoci) {
+                  totalOnLoci: NumLoci,
+                  totalOffLoci: NumLoci) {
 
   @transient lazy val ReadSetStats(maxDepth1, totalBases1, onBases1) = sample1Stats
   @transient lazy val ReadSetStats(maxDepth2, totalBases2, onBases2) = sample2Stats
 
-  implicit def toCSVRow(d2c: D2C): CSVRow = CSVRow(d2c, totalBases1, totalBases2, totalIntervalLoci)
+  implicit def toCSVRow(d2c: D2C): CSVRow = CSVRow(d2c, totalBases1, totalBases2, totalOnLoci, totalOffLoci)
 
-  def save(dir: String, force: Boolean = false, writeFullDistributions: Boolean = false): this.type = {
+  def save(dir: String,
+           force: Boolean = false,
+           writeFullDistributions: Boolean = false,
+           writeJointHistogram: Boolean = false): this.type = {
+
     val fs = new Path(dir).getFileSystem(jh)
 
     if (writeFullDistributions) {
       WriteRDD(dir, s"pdf", pdf.map(toCSVRow), force, jh)
       WriteRDD(dir, s"cdf", cdf.map(toCSVRow), force, jh)
+    }
 
-      val jhPath = new Path(dir, s"jh")
-      if (!fs.exists(jhPath)) {
-        jh.write(jhPath)
+    if (writeJointHistogram) {
+      val jhPath = getJointHistogramPath(dir)
+
+      if (fs.exists(jhPath)) {
+        fs.delete(jhPath, true)
       }
+
+      jh.write(jhPath)
     }
 
     val entries = filteredCDF.map(toCSVRow)
@@ -61,9 +72,9 @@ case class Result(jh: JointHistogram,
     if (force || !fs.exists(miscPath)) {
       val pw = new PrintWriter(fs.create(miscPath))
       pw.println(s"Max depths: $maxDepth1,$maxDepth2")
-      pw.println(s"Total sequenced bases: $totalBases1,$totalBases2")
+      pw.println(s"Total mapped bases: $totalBases1,$totalBases2")
       pw.println(s"Total on-target bases: $onBases1,$onBases2")
-      pw.println(s"Total on-target loci: $totalIntervalLoci")
+      pw.println(s"Total on-target loci: $totalOnLoci")
       pw.close()
     }
 
@@ -79,7 +90,7 @@ object Result {
     val j = jh.jh
     val fks = j.map(Key.make)
 
-    val totalIntervalLoci = j.filter(_._1._2(2).get == 1).values.sum.toLong
+    val (totalOnLoci, totalOffLoci) = jh.coveredLociCounts(idx = 2)
 
     val keyedCounts =
       for {
@@ -124,7 +135,8 @@ object Result {
       ReadSetStats(maxD1, totalBases1, onBases1),
       ReadSetStats(maxD2, totalBases2, onBases2),
       filteredCDF,
-      totalIntervalLoci
+      totalOnLoci,
+      totalOffLoci
     )
   }
 }
