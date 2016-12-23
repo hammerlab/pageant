@@ -16,7 +16,7 @@ class JointHistogramTest
       SequenceRecord("chr11", 2000000L)
     )
 
-  def read(start: Long, end: Long, cigar: Option[String] = None, contigName: ContigName = "chr2"): AlignmentRecord =
+  def read(start: Long, end: Long, cigar: Option[String] = None, contigName: ContigName = "2"): AlignmentRecord =
     AlignmentRecord
       .newBuilder()
       .setContigName(contigName)
@@ -47,7 +47,7 @@ class JointHistogramTest
 
     val j = JointHistogram.fromReadsAndFeatures(List(reads1, reads2), List(features))
 
-    j.jh.collectAsMap().toMap should be(
+    j.jh.collectAsMap().toMap === (
       Map(
         (Some("2"), List(Some(1), Some(0), Some(1))) ->   3,
         (Some("2"), List(Some(1), Some(0), Some(0))) ->  10,
@@ -57,42 +57,42 @@ class JointHistogramTest
       )
     )
 
-    j.totalLoci should be(
+    j.totalLoci === (
       Map(
         Some("2") -> 120L,
         None -> 120L
       )
     )
 
-    j.sums.get(0, 1).collectAsMap().toMap should be(
+    j.sums.get(0, 1).collectAsMap().toMap === (
       Map(
         (Some("2"), List(None, None, Some(1))) -> 3.0,
         (Some("2"), List(None, None, Some(0))) -> 10.0
       )
     )
 
-    j.sqsums.get(0, 1).collectAsMap().toMap should be(
+    j.sqsums.get(0, 1).collectAsMap().toMap === (
       Map(
         (Some("2"), List(None, None, Some(1))) -> 3.0,
         (Some("2"), List(None, None, Some(0))) -> 10.0
       )
     )
 
-    j.dots.get(0, 1).collectAsMap().toMap should be(
+    j.dots.get(0, 1).collectAsMap().toMap === (
       Map(
         (Some("2"), List(None, None, Some(1))) -> 0.0,
         (Some("2"), List(None, None, Some(0))) -> 0.0
       )
     )
 
-    j.ns.get(0, 1).collectAsMap().toMap should be(
+    j.ns.get(0, 1).collectAsMap().toMap === (
       Map(
         (Some("2"), List(None, None, Some(1))) -> 10.0,
         (Some("2"), List(None, None, Some(0))) -> 110.0
       )
     )
 
-    j.weights(0, 1).collectAsMap().toMap should be(
+    j.weights(0, 1).collectAsMap().toMap === (
       Map(
         Some("2") ->
           List(None, None, Some(1)) ->
@@ -119,7 +119,7 @@ class JointHistogramTest
       )
     )
 
-    j.eigens(0, 1).collectAsMap().toMap should be(
+    j.eigens(0, 1).collectAsMap().toMap === (
       Map(
         (Some("2"), List(None, None, Some(1))) -> (
           Eigen(0.33333333333333337, (0.7071067811865477, -0.7071067811865475), 0.7142857142857143),
@@ -168,10 +168,10 @@ class JointHistogramTest
       JointHistogram
         .readsToDepthMap(reads)
         .collect()
-        .map(p => (p._1._2, p._2))
+        .map(p => (p._1.locus.toLong, p._2))
         .sortBy(_._1)
 
-    l should be(
+    l === (
       Array(
         (1,1),
         (2,2),

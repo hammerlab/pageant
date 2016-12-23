@@ -1,16 +1,16 @@
-package org.hammerlab.pageant.coverage.two
+package org.hammerlab.pageant.coverage.two_sample
 
 import java.io.PrintWriter
 
 import org.apache.hadoop.fs.Path
 import org.apache.spark.rdd.RDD
 import org.hammerlab.csv.ProductsToCSV._
-import org.hammerlab.genomics.reference.NumLoci
+import org.hammerlab.genomics.reference.{ ContigLengths, NumLoci }
 import org.hammerlab.magic.rdd.grid.PartialSumGridRDD
 import org.hammerlab.math.Steps.roundNumbers
 import org.hammerlab.pageant.coverage.ReadSetStats
 import org.hammerlab.pageant.coverage.CoverageDepth.getJointHistogramPath
-import org.hammerlab.pageant.coverage.two.Result.D2C
+import org.hammerlab.pageant.coverage.two_sample.Result.D2C
 import org.hammerlab.pageant.histogram.JointHistogram
 import org.hammerlab.pageant.histogram.JointHistogram.Depth
 import org.hammerlab.pageant.utils.{ WriteLines, WriteRDD }
@@ -86,17 +86,17 @@ object Result {
 
   type D2C = ((Depth, Depth), Counts)
 
-  def apply(jh: JointHistogram): Result = {
+  def apply(jh: JointHistogram, contigLengths: ContigLengths, hasIntervals: Boolean): Result = {
     val j = jh.jh
-    val fks = j.map(Key.make)
+    val keys = j.map(Key(_))
 
     val (totalOnLoci, totalOffLoci) = jh.coveredLociCounts(idx = 2)
 
     val keyedCounts =
       for {
-        fk <- fks
+        key <- keys
       } yield
-        fk.depth1 -> fk.depth2 -> Counts(fk)
+        key.depth1 -> key.depth2 -> Counts(key)
 
     implicit val countsMonoid = Counts
 

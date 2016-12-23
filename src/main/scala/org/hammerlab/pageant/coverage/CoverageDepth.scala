@@ -3,14 +3,15 @@ package org.hammerlab.pageant.coverage
 import org.apache.hadoop.fs.Path
 import org.apache.spark.SparkContext
 import org.hammerlab.commands.{ Args, SparkCommand }
-import org.hammerlab.genomics.loci.args.LociArgs
+import org.hammerlab.genomics.readsets
+import org.hammerlab.genomics.readsets.ReadSets
+import org.hammerlab.pageant.coverage.one_sample.with_intervals.Result
 import org.hammerlab.pageant.histogram.JointHistogram
-import org.kohsuke.args4j.spi.StringArrayOptionHandler
 import org.kohsuke.args4j.{ Argument, Option ⇒ Args4JOption }
 
 class Arguments
   extends Args
-    with LociArgs {
+    with readsets.args.Arguments {
 
   @Argument(
     index = 0,
@@ -35,13 +36,6 @@ class Arguments
   var writeJointHistogram: Boolean = false
 
   @Args4JOption(
-    name = "--reads",
-    handler = classOf[StringArrayOptionHandler],
-    usage = "Paths to BAM files"
-  )
-  var readsPaths: Array[String] = Array()
-
-  @Args4JOption(
     name = "--interval-partition-bytes",
     aliases = Array("-b"),
     usage = "Number of bytes per chunk of input interval-file"
@@ -64,6 +58,11 @@ object CoverageDepth extends SparkCommand[Arguments] {
   override def description: String = "Given one or two sets of reads, and an optional set of intervals, compute a joint histogram over the reads' coverage of the genome, on and off the provided intervals."
 
   override def run(args: Arguments, sc: SparkContext): Unit = {
+
+    val (readsets, loci) = ReadSets(sc, args)
+
+    val contigLengths = readsets.contigLengths
+
     val outPath = args.outPath
 
     val force = args.force
@@ -91,26 +90,26 @@ object CoverageDepth extends SparkCommand[Arguments] {
         JointHistogram.load(sc, jointHistogramPath)
       } else {
         println(
-          s"Analyzing ${args.readsPaths.mkString("(", ", ", ")")} ${intervalPathStr}and writing to $outPath$forceStr"
+          s"Analyzing ${args.paths.mkString("(", ", ", ")")} ${intervalPathStr}and writing to $outPath$forceStr"
         )
         JointHistogram.fromFiles(
           sc,
-          args.readsPaths,
+          args.paths,
           intervalPathOpt.toList,
           bytesPerIntervalPartition = args.intervalPartitionBytes
         )
       }
 
-    args.readsPaths match {
+    args.paths match {
       case Array(readsPath) ⇒
-        one.Result(jh).save(
+        Result(jh, contigLengths, intervalPathOpt.isDefined).save(
           outPath,
           force = force,
           writeFullDistributions = args.writeFullDistributions,
           writeJointHistogram = writeJointHistogram
         )
       case Array(reads1Path, reads2Path) ⇒
-        two.Result(jh).save(
+        two_sample.Result(jh, contigLengths, intervalPathOpt.isDefined).save(
           outPath,
           force = force,
           writeFullDistributions = args.writeFullDistributions,

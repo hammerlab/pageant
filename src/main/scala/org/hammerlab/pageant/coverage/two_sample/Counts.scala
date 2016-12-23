@@ -1,4 +1,4 @@
-package org.hammerlab.pageant.coverage.two
+package org.hammerlab.pageant.coverage.two_sample
 
 import spire.algebra.Monoid
 

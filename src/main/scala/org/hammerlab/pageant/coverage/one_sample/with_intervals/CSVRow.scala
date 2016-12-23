@@ -1,10 +1,10 @@
-package org.hammerlab.pageant.coverage.one
+package org.hammerlab.pageant.coverage.one_sample.with_intervals
 
+import org.hammerlab.csv.CSVRowI
 import org.hammerlab.genomics.reference.NumLoci
 import org.hammerlab.pageant.NumBP
-import org.hammerlab.pageant.coverage.one.Result.DC
+import org.hammerlab.pageant.coverage.one_sample.with_intervals.Result.DC
 import org.hammerlab.pageant.histogram.JointHistogram.Depth
-import org.hammerlab.csv.CSVRowI
 
 case class CSVRow(depth: Depth,
                   onBP: NumBP,

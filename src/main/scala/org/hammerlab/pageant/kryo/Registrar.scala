@@ -5,7 +5,8 @@ import org.apache.spark.serializer.KryoRegistrator
 import org.bdgenomics.adam.serialization.ADAMKryoRegistrator
 import org.hammerlab.magic.rdd.grid.PartialSumGridRDD
 import org.hammerlab.pageant.bases.{ Bases, Bases5, Bases5Serializer, BasesSerializer }
-import org.hammerlab.pageant.coverage.{ one, two }
+import org.hammerlab.pageant.coverage.one_sample.with_intervals.Counts
+import org.hammerlab.pageant.coverage.{ one_sample, two_sample }
 import org.hammerlab.pageant.histogram.{ JointHistogram, Record }
 
 class Registrar extends KryoRegistrator {
@@ -16,12 +17,12 @@ class Registrar extends KryoRegistrator {
 
     kryo.register(classOf[Record])
 
-    kryo.register(classOf[one.Counts])
-    kryo.register(classOf[Array[one.Counts]])
-    kryo.register(classOf[one.Count])
+    kryo.register(classOf[Counts])
+    kryo.register(classOf[Array[Counts]])
+    kryo.register(classOf[one_sample.Count])
 
-    kryo.register(classOf[two.Counts])
-    kryo.register(classOf[two.Count])
+    kryo.register(classOf[two_sample.Counts])
+    kryo.register(classOf[two_sample.Count])
 
     kryo.register(classOf[Vector[_]])
     kryo.register(classOf[Array[Vector[_]]])

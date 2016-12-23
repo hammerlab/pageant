@@ -1,4 +1,4 @@
-package org.hammerlab.pageant.coverage.one
+package org.hammerlab.pageant.coverage.one_sample
 
 import org.hammerlab.genomics.reference.NumLoci
 import org.hammerlab.pageant.NumBP

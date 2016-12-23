@@ -1,4 +1,6 @@
-package org.hammerlab.pageant.coverage.one
+package org.hammerlab.pageant.coverage.one_sample.with_intervals
+
+import org.hammerlab.pageant.coverage.one_sample.Count
 
 case class Counts(on: Count, off: Count) {
   def +(o: Counts): Counts = Counts(on + o.on, off + o.off)

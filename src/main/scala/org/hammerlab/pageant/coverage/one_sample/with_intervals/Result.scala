@@ -1,16 +1,16 @@
-package org.hammerlab.pageant.coverage.one
+package org.hammerlab.pageant.coverage.one_sample.with_intervals
 
 import java.io.PrintWriter
 
 import org.apache.hadoop.fs.Path
 import org.apache.spark.rdd.RDD
 import org.hammerlab.csv.ProductsToCSV._
-import org.hammerlab.genomics.reference.NumLoci
+import org.hammerlab.genomics.reference.{ ContigLengths, NumLoci }
 import org.hammerlab.magic.rdd.scan.ScanRightByKeyRDD._
 import org.hammerlab.math.Steps.roundNumbers
 import org.hammerlab.pageant.coverage.CoverageDepth.getJointHistogramPath
 import org.hammerlab.pageant.coverage.ReadSetStats
-import org.hammerlab.pageant.coverage.one.Result.DC
+import org.hammerlab.pageant.coverage.one_sample.with_intervals.Result.DC
 import org.hammerlab.pageant.histogram.JointHistogram
 import org.hammerlab.pageant.histogram.JointHistogram._
 import org.hammerlab.pageant.utils.{ WriteLines, WriteRDD }
@@ -81,9 +81,9 @@ case class Result(jh: JointHistogram,
 object Result {
   type DC = (Depth, Counts)
 
-  def apply(jh: JointHistogram): Result = {
+  def apply(jh: JointHistogram, contigLengths: ContigLengths, hasIntervals: Boolean): Result = {
     val j = jh.jh
-    val keys = j.map(Key.make)
+    val keys = j.map(Key(_))
 
     val (totalOnLoci, totalOffLoci) = jh.coveredLociCounts(idx = 1)
 

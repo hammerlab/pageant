@@ -9,7 +9,7 @@ import org.bdgenomics.adam.projections.{ AlignmentRecordField, FeatureField, Pro
 import org.bdgenomics.adam.rdd.ADAMContext._
 import org.bdgenomics.adam.rdd.feature.FeatureRDD
 import org.bdgenomics.formats.avro.AlignmentRecord
-import org.hammerlab.genomics.reference.{ ContigName, Locus, NumLoci }
+import org.hammerlab.genomics.reference.{ ContigName, Locus, NumLoci, Position ⇒ Pos }
 import org.hammerlab.magic.rdd.serde.SequenceFileSerializableRDD._
 import org.hammerlab.pageant.histogram.JointHistogram._
 
@@ -19,9 +19,8 @@ import scala.collection.mutable.{ Map ⇒ MMap }
 case class Record(contigOpt: Option[ContigName], depths: Seq[Option[Int]], numLoci: NumLoci)
 
 case class RegressionWeights(slope: Double, intercept: Double, mse: Double, rSquared: Double) {
-  override def toString: String = {
+  override def toString: String =
     "(%.3f %.3f, %.3f, %.3f)".format(slope, intercept, mse, rSquared)
-  }
 }
 
 case class Stats(xx: Double, yy: Double, xy: Double, sx: Double, sy: Double, n: Double)
@@ -29,22 +28,23 @@ case class Stats(xx: Double, yy: Double, xy: Double, sx: Double, sy: Double, n: 
 case class Covariance(vx: Double, vy: Double, vxy: Double)
 
 case class Eigen(value: Double, vector: (Double, Double), varianceExplained: Double) {
-  override def toString: String = {
+  override def toString: String =
     "%.3f (%.3f, %.3f) (%.3f)".format(value, vector._1, vector._2, varianceExplained)
-  }
 }
 
 case class JointHistogram(jh: JointHist) {
 
   @transient val sc = jh.context
 
-  def select(depths: Depths, keep: Boolean, idxs: Set[Int]): Depths = {
+  def select(depths: Depths, keep: Boolean, idxs: Set[Int]): Depths =
     for {
       (depth, idx) <- depths.zipWithIndex
-    } yield {
-      if (idxs(idx) == keep) depth else None
-    }
-  }
+    } yield
+      if (idxs(idx) == keep)
+        depth
+      else
+        None
+
 
   def drop(depths: Depths, idxs: Int*): Depths = drop(depths, idxs.toSet)
   def drop(depths: Depths, idxs: Set[Int]): Depths = select(depths, keep = false, idxs)
@@ -53,31 +53,47 @@ case class JointHistogram(jh: JointHist) {
   def keep(depths: Depths, idxs: Set[Int]): Depths =  select(depths, keep = true, idxs)
 
   val _hists: MMap[(Boolean, Set[Int]), JointHist] = MMap()
-  def hist(keepIdxs: Set[Int], sumContigs: Boolean = false): JointHist = {
-    _hists.getOrElseUpdate((sumContigs, keepIdxs), {
+  def hist(keepIdxs: Set[Int], sumContigs: Boolean = false): JointHist =
+    _hists.getOrElseUpdate(
+      (sumContigs, keepIdxs),
+      {
 
-      val ib = sc.broadcast(keepIdxs)
+        val ib = sc.broadcast(keepIdxs)
 
-      def dropUnkeptDepths(k: JointHistKey): JointHistKey = {
-        val (cO, depths) = k
-        (
-          if (sumContigs) None else cO,
-          for {
-            (dO, idx) <- depths.zipWithIndex
-            if ib.value(idx)
-          } yield dO
+        def dropUnkeptDepths(cO: OCN, depths: Depths): JointHistKey =
+          (
+            if (sumContigs)
+              None
+            else
+              cO,
+            for {
+              (dO, idx) <- depths.zipWithIndex
+              if ib.value(idx)
+            } yield
+              dO
+          )
+
+        (for {
+          ((cO, depths), nl) <- jh
+        } yield
+          dropUnkeptDepths(cO, depths) -> nl
         )
+        .reduceByKey(_ + _)
+        .setName(
+          (
+            if (sumContigs)
+              "total:"
+            else
+              ""
+          ) +
+            keepIdxs
+              .toVector
+              .sorted
+              .mkString(",")
+        )
+        .cache()
       }
-
-      (for {
-        (k, nl) <- jh
-      } yield
-        dropUnkeptDepths(k) -> nl
-      ).reduceByKey(_ + _)
-       .setName((if (sumContigs) "t" else "") + ib.value.toList.sortBy(x => x).mkString(","))
-       .cache()
-    })
-  }
+    )
 
   /*
    * For a sample representing features, return the number of loci with coverage represented in this joint-distribution
@@ -94,19 +110,19 @@ case class JointHistogram(jh: JointHist) {
     .reduceByKey(_ + _)
     .collectAsMap()
 
-    val totalOnLoci: Long = totalLociMap.getOrElse(1, 0)
-    val totalOffLoci: Long = totalLociMap.getOrElse(0, 0)
+    val totalOnLoci: NumLoci = totalLociMap.getOrElse(1, 0L: NumLoci)
+    val totalOffLoci: NumLoci = totalLociMap.getOrElse(0, 0L: NumLoci)
 
     (totalOnLoci, totalOffLoci)
   }
 
-  def printPerContigs(pc: Map[(OB, OS), L], includesTotals: Boolean = false) = {
-    lazy val tl: Map[(OB, OS), L] =
+  def printPerContigs(pc: Map[(OB, OCN), L], includesTotals: Boolean = false) = {
+    lazy val tl: Map[(OB, OCN), L] =
       (for {
         ((gO, cO), nl) <- pc
         _ <- cO
       } yield
-        (gO, None: OS) -> nl
+        (gO, None: OCN) -> nl
       ).groupBy(_._1).mapValues(_.values.sum)
 
     val pct =
@@ -143,7 +159,7 @@ case class JointHistogram(jh: JointHist) {
 
   def ppc = printPerContigs _
 
-  lazy val totalLoci: Map[OS, L] = for {
+  lazy val totalLoci: Map[OCN, NumLoci] = for {
     ((contig, _), nl) <- (hist(Set()) ++ hist(Set(), sumContigs = true)).collect().toMap
   } yield {
     contig -> nl
@@ -279,16 +295,15 @@ object JointHistogram {
   type S = String
   type OB = Option[B]
   type OL = Option[L]
-  type OS = Option[S]
+  type OCN = Option[ContigName]
   type OI = Option[I]
 
-  type Pos = (ContigName, Locus)
   type Depth = I
   type DepthMap = RDD[(Pos, Depth)]
   type Depths = Seq[Option[Depth]]
 
-  type JointHistKey = (OS, Depths)
-  type JointHistElem = (JointHistKey, L)
+  type JointHistKey = (OCN, Depths)
+  type JointHistElem = (JointHistKey, NumLoci)
   type JointHist = RDD[JointHistElem]
 
   object Implicits {
@@ -358,12 +373,6 @@ object JointHistogram {
     JointHistogram.fromReadsAndFeatures(reads, features, dedupeFeatureLoci)
   }
 
-  def normalize(contigName: ContigName): ContigName =
-    if (contigName.startsWith("chr"))
-      contigName.drop(3)
-    else
-      contigName
-
   def readsToDepthMap(reads: RDD[AlignmentRecord]): DepthMap =
     (for {
       read <- reads if read.getReadMapped
@@ -373,12 +382,12 @@ object JointHistogram {
       refLen = (end - start).toInt
       i <- 0 until refLen
     } yield
-      (normalize(contigName), start + i) -> 1
+      Pos(contigName, start + i) -> 1
     )
     .reduceByKey(_ + _)
 
   def featuresToDepthMap(features: FeatureRDD, dedupeLoci: Boolean = true): DepthMap = {
-    val lociCounts =
+    val lociCounts: RDD[Pos] =
       for {
         feature <- features.rdd
         contigName <- Option(feature.getContigName).toList
@@ -387,7 +396,7 @@ object JointHistogram {
         refLen = end - start
         i <- 0 until refLen.toInt
       } yield
-        (normalize(contigName), start + i)
+        Pos(contigName, start + i)
 
     if (dedupeLoci)
       lociCounts
@@ -444,10 +453,10 @@ object JointHistogram {
 
     JointHistogram(
       (for {
-        ((contig, _), depths) <- union
+        (Pos(contig, _), depths) <- union
         key = (Some(contig), depths): JointHistKey
       } yield
-        key -> 1L
+        key -> (1L: NumLoci)
       )
       .reduceByKey(_ + _)
     )

@@ -6,23 +6,21 @@ sparkVersion := "2.0.2"
 addSparkDeps
 
 libraryDependencies ++= Seq(
-  libraries.value('args4j),
-  libraries.value('args4s),
-  libraries.value('bdg_utils_cli),
-  libraries.value('bdg_formats),
-  libraries.value('spire),
-  libraries.value('spark_commands),
-  libraries.value('string_utils),
-  libraries.value('adam_core),
-  libraries.value('htsjdk),
-  libraries.value('magic_rdds),
-  libraries.value('loci)
+  libs.value('adam_core),
+  libs.value('args4j),
+  libs.value('args4s),
+  libs.value('bdg_formats),
+  libs.value('bdg_utils_cli),
+  libs.value('htsjdk),
+  libs.value('loci),
+  libs.value('magic_rdds),
+  libs.value('readsets),
+  libs.value('reference),
+  libs.value('spark_commands),
+  libs.value('spire),
+  libs.value('string_utils)
 )
 
-assemblyMergeStrategy in assembly := {
-  // Two org.bdgenomics deps include the same log4j.properties.
-  case PathList("log4j.properties") => MergeStrategy.first
-  case x => (assemblyMergeStrategy in assembly).value(x)
-}
+takeFirstLog4JProperties
 
 excludeFilter in Test := NothingFilter
