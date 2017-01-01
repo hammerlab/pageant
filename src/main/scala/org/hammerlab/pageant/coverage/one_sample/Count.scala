@@ -8,5 +8,5 @@ case class Count(bp: NumBP, n: NumLoci) {
 }
 
 object Count {
-  val empty = Count(0, 0)
+  val empty = Count(0, NumLoci(0))
 }

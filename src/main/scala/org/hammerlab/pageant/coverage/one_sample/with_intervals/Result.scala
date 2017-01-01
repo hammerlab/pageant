@@ -14,6 +14,7 @@ import org.hammerlab.pageant.coverage.one_sample.with_intervals.Result.DC
 import org.hammerlab.pageant.histogram.JointHistogram
 import org.hammerlab.pageant.histogram.JointHistogram._
 import org.hammerlab.pageant.utils.{ WriteLines, WriteRDD }
+import math.max
 
 /**
  * Statistics about one set of reads' coverage of a set of intervals.
@@ -89,7 +90,7 @@ object Result {
 
     val pdf =
       keys
-        .map(key => key.depth -> Counts(key))
+        .map(key ⇒ key.depth → Counts(key))
         .reduceByKey(_ + _)
         .sortByKey()
 
@@ -97,7 +98,7 @@ object Result {
 
     val cdf = pdf.scanRightByKey(Counts.empty)(_ + _)
 
-    val maxDepth = pdf.keys.reduce(math.max)
+    val maxDepth = pdf.keys.reduce(max)
 
     val depthSteps = roundNumbers(maxDepth)
 

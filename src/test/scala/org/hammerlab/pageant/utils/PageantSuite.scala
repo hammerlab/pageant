@@ -1,8 +1,10 @@
 package org.hammerlab.pageant.utils
 
 import org.hammerlab.pageant.kryo.Registrar
-import org.hammerlab.spark.test.suite.KryoSerializerSuite
+import org.hammerlab.spark.test.suite.KryoSparkSuite
+import org.scalactic.ConversionCheckedTripleEquals
 
 class PageantSuite
-  extends KryoSerializerSuite(classOf[Registrar])
+  extends KryoSparkSuite(classOf[Registrar])
+    with ConversionCheckedTripleEquals
 

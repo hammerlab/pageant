@@ -14,9 +14,9 @@ object Key {
       case Seq(Some(depth1), Some(depth2), Some(intervalDepth)) ⇒
         val (numLociOn, numLociOff) =
           if (depths(2).get == 1)
-            (numLoci, 0L: NumLoci)
+            (numLoci, NumLoci(0))
           else
-            (0L: NumLoci, numLoci)
+            (NumLoci(0), numLoci)
 
         new Key(depth1, depth2, numLociOn, numLociOff)
 

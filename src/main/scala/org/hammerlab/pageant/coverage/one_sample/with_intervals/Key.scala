@@ -11,9 +11,9 @@ object Key {
 
     val (on, off) =
       if (depths(1).get == 1)
-        (count, 0L: NumLoci)
+        (count, NumLoci(0))
       else
-        (0L: NumLoci, count)
+        (NumLoci(0), count)
 
     new Key(depths(0).get, on, off)
   }

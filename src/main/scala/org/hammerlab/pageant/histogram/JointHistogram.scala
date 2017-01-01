@@ -9,6 +9,7 @@ import org.bdgenomics.adam.projections.{ AlignmentRecordField, FeatureField, Pro
 import org.bdgenomics.adam.rdd.ADAMContext._
 import org.bdgenomics.adam.rdd.feature.FeatureRDD
 import org.bdgenomics.formats.avro.AlignmentRecord
+import org.hammerlab.genomics.reference
 import org.hammerlab.genomics.reference.{ ContigName, Locus, NumLoci, Position ⇒ Pos }
 import org.hammerlab.magic.rdd.serde.SequenceFileSerializableRDD._
 import org.hammerlab.pageant.histogram.JointHistogram._
@@ -45,6 +46,7 @@ case class JointHistogram(jh: JointHist) {
       else
         None
 
+  import JointHistogram.depthsOrd
 
   def drop(depths: Depths, idxs: Int*): Depths = drop(depths, idxs.toSet)
   def drop(depths: Depths, idxs: Set[Int]): Depths = select(depths, keep = false, idxs)
@@ -76,7 +78,7 @@ case class JointHistogram(jh: JointHist) {
         (for {
           ((cO, depths), nl) <- jh
         } yield
-          dropUnkeptDepths(cO, depths) -> nl
+          dropUnkeptDepths(cO, depths) → nl
         )
         .reduceByKey(_ + _)
         .setName(
@@ -122,14 +124,16 @@ case class JointHistogram(jh: JointHist) {
         ((gO, cO), nl) <- pc
         _ <- cO
       } yield
-        (gO, None: OCN) -> nl
-      ).groupBy(_._1).mapValues(_.values.sum)
+        (gO, None: OCN) → nl
+      )
+      .groupBy(_._1)
+      .mapValues(_.values.sum)
 
     val pct =
       if (includesTotals)
         pc
       else
-        pc ++ tl.map(p => (p._1, None) -> p._2)
+        pc ++ tl.map(p => (p._1, None) → p._2)
 
     val cs = pct.map(_._1._2).toList.distinct
     val ts = cs.map(c => {
@@ -159,11 +163,11 @@ case class JointHistogram(jh: JointHist) {
 
   def ppc = printPerContigs _
 
-  lazy val totalLoci: Map[OCN, NumLoci] = for {
-    ((contig, _), nl) <- (hist(Set()) ++ hist(Set(), sumContigs = true)).collect().toMap
-  } yield {
-    contig -> nl
-  }
+  @transient lazy val totalLoci: Map[OCN, NumLoci] =
+    for {
+      ((contig, _), nl) <- (hist(Set()) ++ hist(Set(), sumContigs = true)).collect().toMap
+    } yield
+      contig → nl
 
   case class Comp2(name: String, fn: (Int, Int, Long) => Double) {
     val _cache: MMap[(Int, Int), RDD[(JointHistKey, Double)]] = MMap()
@@ -174,16 +178,16 @@ case class JointHistogram(jh: JointHist) {
           d1 <- depths(i1)
           d2 <- depths(i2)
         } yield
-          (contig, drop(depths, i1, i2)) -> fn(d1, d2, nl)
+          contig → drop(depths, i1, i2) → fn(d1, d2, nl)
         ).reduceByKey(_ + _)
       )
 
     def getMap(i1: Int, i2: Int): RDD[(JointHistKey, Map[String, Double])] =
       for {
         (key, v) <- get(i1, i2)
-      } yield {
-        key -> Map(s"$name-$i1-$i2" -> v)
-      }
+      } yield
+        key → Map(s"$name-$i1-$i2" → v)
+
   }
 
   val sums = Comp2("sum", (d1, _, nl) => d1 * nl)
@@ -192,74 +196,81 @@ case class JointHistogram(jh: JointHist) {
   val ns = Comp2("n", (_, _, nl) => nl)
 
   val _stats: MMap[(Int, Int), RDD[(JointHistKey, Stats)]] = MMap()
-  def stats(i1: Int, i2: Int): RDD[(JointHistKey, Stats)] = {
-    _stats.getOrElseUpdate((i1, i2), {
+  def stats(i1: Int, i2: Int): RDD[(JointHistKey, Stats)] =
+    _stats.getOrElseUpdate(
+      (i1, i2),
+      {
 
-      val merged =
-        (
-          sums.getMap(i1, i2) ++
-            sums.getMap(i2, i1) ++
-            dots.getMap(i1, i2) ++
-            sqsums.getMap(i1, i2) ++
-            sqsums.getMap(i2, i1) ++
-            ns.getMap(i1, i2)
-          ).reduceByKey(_ ++ _)
+        val merged =
+          (
+            sums.getMap(i1, i2) ++
+              sums.getMap(i2, i1) ++
+              dots.getMap(i1, i2) ++
+              sqsums.getMap(i1, i2) ++
+              sqsums.getMap(i2, i1) ++
+              ns.getMap(i1, i2)
+            ).reduceByKey(_ ++ _)
 
-      for {
-        ((contig, depths), m) <- merged
-        xx = m(s"sqsum-$i1-$i2")
-        yy = m(s"sqsum-$i2-$i1")
-        xy = m(s"dot-$i1-$i2")
-        sx = m(s"sum-$i1-$i2")
-        sy = m(s"sum-$i2-$i1")
-        n = m(s"n-$i1-$i2")
-      } yield {
-        (contig, depths) -> Stats(xx, yy, xy, sx, sy, n)
+        for {
+          ((contig, depths), m) <- merged
+          xx = m(s"sqsum-$i1-$i2")
+          yy = m(s"sqsum-$i2-$i1")
+          xy = m(s"dot-$i1-$i2")
+          sx = m(s"sum-$i1-$i2")
+          sy = m(s"sum-$i2-$i1")
+          n = m(s"n-$i1-$i2")
+        } yield
+          contig → depths → Stats(xx, yy, xy, sx, sy, n)
       }
-    })
-  }
-
+    )
 
   val _weights: MMap[(Int, Int), RDD[(JointHistKey, (RegressionWeights, RegressionWeights))]] = MMap()
-  def weights(i1: Int, i2: Int): RDD[(JointHistKey, (RegressionWeights, RegressionWeights))] = {
-    _weights.getOrElseUpdate((i1, i2), {
-      for {
-        ((contig, depths), Stats(xx, yy, xy, sx, sy, n)) <- stats(i1, i2)
-      } yield {
-        def weights(xx: D, yy: D, sx: D, sy: D): RegressionWeights = {
-          val den = n * xx - sx * sx
-          val m = (n * xy - sx * sy) * 1.0 / den
-          val b = (sy * xx - sx * xy) * 1.0 / den
-          val err = yy + m * m * xx + b * b * n - 2 * m * xy - 2 * b * sy + 2 * b * m * sx
-          val num = sx * sy - n * xy
-          val rSquared = num * 1.0 / (sx * sx - n * xx) * num / (sy * sy - n * yy)
-          RegressionWeights(m, b, err, rSquared)
-        }
+  def weights(i1: Int, i2: Int): RDD[(JointHistKey, (RegressionWeights, RegressionWeights))] =
+    _weights.getOrElseUpdate(
+      (i1, i2),
+      {
+        for {
+          ((contig, depths), Stats(xx, yy, xy, sx, sy, n)) <- stats(i1, i2)
+        } yield {
+          def weights(xx: D, yy: D, sx: D, sy: D): RegressionWeights = {
+            val den = n * xx - sx * sx
+            val m = (n * xy - sx * sy) * 1.0 / den
+            val b = (sy * xx - sx * xy) * 1.0 / den
+            val err = yy + m * m * xx + b * b * n - 2 * m * xy - 2 * b * sy + 2 * b * m * sx
+            val num = sx * sy - n * xy
+            val rSquared = num * 1.0 / (sx * sx - n * xx) * num / (sy * sy - n * yy)
+            RegressionWeights(m, b, err, rSquared)
+          }
 
-        (contig, depths) -> (weights(xx, yy, sx, sy), weights(yy, xx, sy, sx))
+          contig →
+            depths →
+              (weights(xx, yy, sx, sy), weights(yy, xx, sy, sx))
+        }
       }
-    })
-  }
+    )
 
   val _cov: MMap[(Int, Int), RDD[(JointHistKey, Covariance)]] = MMap()
-  def cov(i1: Int, i2: Int): RDD[(JointHistKey, Covariance)] = {
-    _cov.getOrElseUpdate((i1, i2), {
-      for {
-        ((contig, depths), Stats(xx, yy, xy, sx, sy, n)) <- stats(i1, i2)
-      } yield {
-        (contig, depths) ->
-          Covariance(
-            (xx - sx*sx/n) / (n - 1),
-            (yy - sy*sy/n) / (n - 1),
-            (xy - sx*sy/n) / (n - 1)
-          )
+  def cov(i1: Int, i2: Int): RDD[(JointHistKey, Covariance)] =
+    _cov.getOrElseUpdate(
+      (i1, i2),
+      {
+        for {
+          ((contig, depths), Stats(xx, yy, xy, sx, sy, n)) <- stats(i1, i2)
+        } yield
+          contig →
+            depths →
+              Covariance(
+                (xx - sx*sx/n) / (n - 1),
+                (yy - sy*sy/n) / (n - 1),
+                (xy - sx*sy/n) / (n - 1)
+              )
       }
-    })
-  }
+    )
 
   val _eigens: MMap[(Int, Int), RDD[(JointHistKey, (Eigen, Eigen))]] = MMap()
-  def eigens(i1: Int, i2: Int): RDD[(JointHistKey, (Eigen, Eigen))] = {
-    _eigens.getOrElseUpdate((i1, i2), {
+  def eigens(i1: Int, i2: Int): RDD[(JointHistKey, (Eigen, Eigen))] =
+    _eigens.getOrElseUpdate(
+      (i1, i2),
       for {
         ((contig, depths), Covariance(vx, vy, vxy)) <- cov(i1, i2)
       } yield {
@@ -274,16 +285,15 @@ case class JointHistogram(jh: JointHist) {
 
         val d2 = math.sqrt((e2-vy)*(e2-vy) + vxy*vxy)
         val v2 = ((e2 - vy) / d2, vxy / d2)
-        (contig, depths) -> (Eigen(e1, v1, e1 / (e1 + e2)), Eigen(e2, v2, e2 / (e1 + e2)))
-      }
-    })
-  }
 
-  def write(path: Path): JointHistogram = write(path.toString)
-  def write(filename: String): JointHistogram = {
-    JointHistogram.write(jh, filename)
-    this
-  }
+        contig →
+          depths →
+            (Eigen(e1, v1, e1 / (e1 + e2)), Eigen(e2, v2, e2 / (e1 + e2)))
+      }
+    )
+
+  def write(path: Path): Unit = write(path.toString)
+  def write(filename: String): Unit = JointHistogram.write(jh, filename)
 }
 
 object JointHistogram {
@@ -306,9 +316,10 @@ object JointHistogram {
   type JointHistElem = (JointHistKey, NumLoci)
   type JointHist = RDD[JointHistElem]
 
-  object Implicits {
-    implicit def wrapJointHist(jh: JointHist): JointHistogram = JointHistogram(jh)
-  }
+  implicit val depthsOrd: Ordering[Depths] =
+    Ordering.by[Depths, Iterable[Option[Depth]]](_.toIterable)(Ordering.Iterable[Option[Depth]])
+
+  implicit val jointHistKeyOrd = Ordering.Tuple2[OCN, Depths]
 
   def write(l: JointHist, filename: String): Unit = {
     val entries =
@@ -329,7 +340,7 @@ object JointHistogram {
       for {
         Record(contigOpt, depthOpts, numLoci) <- rdd
       } yield
-        contigOpt -> depthOpts -> numLoci
+        contigOpt → depthOpts → numLoci
 
     JointHistogram(jointHist)
   }
@@ -373,8 +384,8 @@ object JointHistogram {
     JointHistogram.fromReadsAndFeatures(reads, features, dedupeFeatureLoci)
   }
 
-  def readsToDepthMap(reads: RDD[AlignmentRecord]): DepthMap =
-    (for {
+  def readsToDepthMap(reads: RDD[AlignmentRecord]): DepthMap = {
+    val rdd = (for {
       read <- reads if read.getReadMapped
       contigName <- Option(read.getContigName).toList
       start <- Option(read.getStart).toList
@@ -382,9 +393,11 @@ object JointHistogram {
       refLen = (end - start).toInt
       i <- 0 until refLen
     } yield
-      Pos(contigName, start + i) -> 1
+      Pos(contigName, start + i) → 1
     )
-    .reduceByKey(_ + _)
+
+    rdd.reduceByKey(_ + _)
+  }
 
   def featuresToDepthMap(features: FeatureRDD, dedupeLoci: Boolean = true): DepthMap = {
     val lociCounts: RDD[Pos] =
@@ -438,28 +451,25 @@ object JointHistogram {
 
     val union: RDD[(Pos, Depths)] =
       sc.union(
-        for {
-          (rdd, idx) <- rdds.zipWithIndex
-        } yield {
+        for { (rdd, idx) ← rdds.zipWithIndex } yield
           for {
-            (pos, depth) <- rdd
+            (pos, depth) ← rdd
             seq = oneHotOpts(rdds.length, idx, depth)
-          } yield {
-            pos -> seq
-          }
-        }
+          } yield
+            pos → seq
       )
       .reduceByKey(sumSeqs)
 
-    JointHistogram(
-      (for {
-        (Pos(contig, _), depths) <- union
+    val rawCounts =
+      for {
+        (Pos(contig, _), depths) ← union
         key = (Some(contig), depths): JointHistKey
       } yield
-        key -> (1L: NumLoci)
-      )
-      .reduceByKey(_ + _)
-    )
+        key → NumLoci(1)
+
+    val counts = rawCounts.reduceByKey(_ + _)
+
+    JointHistogram(counts)
   }
 
   def register(kryo: Kryo): Unit = {
@@ -470,6 +480,8 @@ object JointHistogram {
     kryo.register(classOf[RegressionWeights])
     kryo.register(classOf[Eigen])
     kryo.register(classOf[mutable.ArraySeq[_]])
+
+    new reference.Registrar().registerClasses(kryo)
   }
 
   implicit def toSparkContext(jh: JointHistogram): SparkContext = jh.sc

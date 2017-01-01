@@ -5,7 +5,7 @@ sparkVersion := "2.0.2"
 
 addSparkDeps
 
-libraryDependencies ++= Seq(
+deps ++= Seq(
   libs.value('adam_core),
   libs.value('args4j),
   libs.value('args4s),
@@ -15,11 +15,12 @@ libraryDependencies ++= Seq(
   libs.value('loci),
   libs.value('magic_rdds),
   libs.value('readsets),
-  libs.value('reference),
   libs.value('spark_commands),
   libs.value('spire),
   libs.value('string_utils)
 )
+
+compileAndTestDeps += libs.value('reference)
 
 takeFirstLog4JProperties
 
