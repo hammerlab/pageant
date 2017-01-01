@@ -1,5 +1,6 @@
-package org.hammerlab.pageant.coverage.two_sample
+package org.hammerlab.pageant.coverage.two_sample.with_intervals
 
+import org.hammerlab.pageant.coverage.two_sample.Count
 import spire.algebra.Monoid
 
 case class Counts(on: Count, off: Count) {

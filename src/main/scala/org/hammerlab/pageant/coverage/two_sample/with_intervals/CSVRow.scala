@@ -1,10 +1,10 @@
-package org.hammerlab.pageant.coverage.two_sample
+package org.hammerlab.pageant.coverage.two_sample.with_intervals
 
+import org.hammerlab.csv.CSVRowI
 import org.hammerlab.genomics.reference.NumLoci
 import org.hammerlab.pageant.NumBP
-import org.hammerlab.pageant.coverage.two_sample.Result.D2C
+import Result.D2C
 import org.hammerlab.pageant.histogram.JointHistogram.Depth
-import org.hammerlab.csv.CSVRowI
 
 case class CSVRow(depth1: Depth,
                   depth2: Depth,

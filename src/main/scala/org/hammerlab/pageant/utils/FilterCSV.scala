@@ -1,7 +1,6 @@
-package org.hammerlab.pageant.coverage
+package org.hammerlab.pageant.utils
 
-import org.apache.spark.{SparkConf, SparkContext}
-import org.hammerlab.pageant.utils.Args
+import org.apache.spark.{ SparkConf, SparkContext }
 
 object FilterCSV {
 

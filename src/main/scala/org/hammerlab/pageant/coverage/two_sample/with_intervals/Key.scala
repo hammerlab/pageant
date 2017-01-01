@@ -1,4 +1,4 @@
-package org.hammerlab.pageant.coverage.two_sample
+package org.hammerlab.pageant.coverage.two_sample.with_intervals
 
 import org.hammerlab.genomics.reference.{ ContigName, NumLoci }
 import org.hammerlab.pageant.histogram.JointHistogram._

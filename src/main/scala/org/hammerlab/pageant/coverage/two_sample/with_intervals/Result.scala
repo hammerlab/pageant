@@ -1,4 +1,4 @@
-package org.hammerlab.pageant.coverage.two_sample
+package org.hammerlab.pageant.coverage.two_sample.with_intervals
 
 import java.io.PrintWriter
 
@@ -8,9 +8,9 @@ import org.hammerlab.csv.ProductsToCSV._
 import org.hammerlab.genomics.reference.{ ContigLengths, NumLoci }
 import org.hammerlab.magic.rdd.grid.PartialSumGridRDD
 import org.hammerlab.math.Steps.roundNumbers
-import org.hammerlab.pageant.coverage.ReadSetStats
 import org.hammerlab.pageant.coverage.CoverageDepth.getJointHistogramPath
-import org.hammerlab.pageant.coverage.two_sample.Result.D2C
+import org.hammerlab.pageant.coverage.one_sample.with_intervals.ReadSetStats
+import org.hammerlab.pageant.coverage.two_sample.with_intervals.Result.D2C
 import org.hammerlab.pageant.histogram.JointHistogram
 import org.hammerlab.pageant.histogram.JointHistogram.Depth
 import org.hammerlab.pageant.utils.{ WriteLines, WriteRDD }
@@ -19,7 +19,7 @@ import org.hammerlab.pageant.utils.{ WriteLines, WriteRDD }
  * Statistics about one set of reads' coverage of a set of intervals.
  *
  * @param jh joint-histogram of read coverage vs. interval coverage (the latter being 1 or 0 everywhere).
- * @param pdf ([[Depth]], [[Count]]) tuples indicating on-target and off-target coverage at all observed depths.
+ * @param pdf (([[Depth]], [[Depth]], [[Counts]]) tuples indicating on-target and off-target coverage at all observed depths.
  * @param cdf CDF of the PDF above; tuples represent numbers of on- and off-target loci with depth *at least* a given
  *            number.
  * @param sample1Stats summary depth/coverage stats about the first reads-set.
@@ -94,9 +94,9 @@ object Result {
 
     val keyedCounts =
       for {
-        key <- keys
+        key ← keys
       } yield
-        key.depth1 -> key.depth2 -> Counts(key)
+        key.depth1 → key.depth2 → Counts(key)
 
     implicit val countsMonoid = Counts
 
@@ -105,8 +105,7 @@ object Result {
     val d1Steps = roundNumbers(maxD1)
     val d2Steps = roundNumbers(maxD2)
 
-    val sc = jh.sc
-    val stepsBC = sc.broadcast((d1Steps, d2Steps))
+    val stepsBC = jh.sc.broadcast((d1Steps, d2Steps))
 
     val filteredCDF =
       (for {

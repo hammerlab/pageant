@@ -1,6 +1,7 @@
 package org.hammerlab.pageant.coverage.one_sample.with_intervals
 
 import org.hammerlab.pageant.coverage.one_sample.Count
+import spire.algebra.Monoid
 
 case class Counts(on: Count, off: Count) {
   def +(o: Counts): Counts = Counts(on + o.on, off + o.off)
@@ -8,10 +9,13 @@ case class Counts(on: Count, off: Count) {
 }
 
 object Counts {
-  def apply(key: Key): Counts = Counts(
-    Count(key.numLociOn * key.depth, key.numLociOn),
-    Count(key.numLociOff * key.depth, key.numLociOff)
-  )
   val empty = Counts(Count.empty, Count.empty)
+
+  implicit val monoid =
+    new Monoid[Counts]
+      with Serializable {
+      override def id: Counts = empty
+      override def op(x: Counts, y: Counts): Counts = x + y
+    }
 }
 

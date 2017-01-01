@@ -1,4 +1,4 @@
-package org.hammerlab.pageant.coverage
+package org.hammerlab.pageant.coverage.one_sample.with_intervals
 
 import org.hammerlab.pageant.NumBP
 import org.hammerlab.pageant.histogram.JointHistogram.Depth

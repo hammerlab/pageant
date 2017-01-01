@@ -6,8 +6,9 @@ import org.hammerlab.args4s.StringOptionHandler
 import org.hammerlab.commands.{ Args, SparkCommand }
 import org.hammerlab.genomics.readsets
 import org.hammerlab.genomics.readsets.ReadSets
-import org.hammerlab.pageant.coverage.one_sample.with_intervals.Result
+import org.hammerlab.pageant.coverage.two_sample.with_intervals
 import org.hammerlab.pageant.histogram.JointHistogram
+import org.hammerlab.pageant.histogram.JointHistogram.fromFiles
 import org.kohsuke.args4j.{ Option ⇒ Args4JOption }
 
 class Arguments
@@ -68,7 +69,7 @@ object CoverageDepth extends SparkCommand[Arguments] {
 
   override def run(args: Arguments, sc: SparkContext): Unit = {
 
-    val (readsets, loci) = ReadSets(sc, args)
+    val (readsets, _) = ReadSets(sc, args)
 
     val contigLengths = readsets.contigLengths
 
@@ -101,7 +102,7 @@ object CoverageDepth extends SparkCommand[Arguments] {
         println(
           s"Analyzing ${args.paths.mkString("(", ", ", ")")} ${intervalsPathStr}and writing to $outPath$forceStr"
         )
-        JointHistogram.fromFiles(
+        fromFiles(
           sc,
           args.paths,
           intervalsFileOpt.toList,
@@ -109,24 +110,30 @@ object CoverageDepth extends SparkCommand[Arguments] {
         )
       }
 
-    args.paths match {
-      case Array(readsPath) ⇒
-        Result(jh, contigLengths, intervalsFileOpt.isDefined).save(
+    args.paths.length match {
+      case 1 ⇒
+        (if(intervalsFileOpt.isDefined)
+          one_sample.with_intervals.ResultBuilder
+        else
+          one_sample.without_intervals.ResultBuilder
+        )
+        .make(jh)
+        .save(
           outPath,
           force = force,
           writeFullDistributions = args.writeFullDistributions,
           writeJointHistogram = writeJointHistogram
         )
-      case Array(reads1Path, reads2Path) ⇒
-        two_sample.Result(jh, contigLengths, intervalsFileOpt.isDefined).save(
+      case 2 ⇒
+        with_intervals.Result(jh, contigLengths, intervalsFileOpt.isDefined).save(
           outPath,
           force = force,
           writeFullDistributions = args.writeFullDistributions,
           writeJointHistogram = writeJointHistogram
         )
-      case _ ⇒
+      case num ⇒
         throw new IllegalArgumentException(
-          s"Maximum of two reads-sets allowed; found ${args.paths.length}: ${args.paths.mkString(",")}"
+          s"Maximum of two reads-sets allowed; found $num: ${args.paths.mkString(",")}"
         )
     }
   }
