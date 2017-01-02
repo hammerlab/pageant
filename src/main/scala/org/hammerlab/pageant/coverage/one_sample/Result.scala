@@ -13,7 +13,7 @@ import spire.algebra.Monoid
 import scala.reflect.ClassTag
 import scala.reflect.runtime.universe.TypeTag
 
-abstract class Result[C: Monoid, CR <: Product : TypeTag : ClassTag] {
+abstract class Result[C: Monoid, CR <: Product : TypeTag : ClassTag] extends Serializable {
 
   def jh: JointHistogram
   def pdf: PDF[C]

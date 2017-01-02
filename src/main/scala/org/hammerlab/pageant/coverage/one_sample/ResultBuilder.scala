@@ -1,6 +1,7 @@
 package org.hammerlab.pageant.coverage.one_sample
 
 import org.apache.spark.rdd.RDD
+import org.hammerlab.genomics.reference.NumLoci
 import org.hammerlab.math.Steps.roundNumbers
 import org.hammerlab.pageant.coverage.Key
 import org.hammerlab.pageant.histogram.JointHistogram
@@ -18,9 +19,10 @@ abstract class ResultBuilder[K <: Key[C, Depth] : ClassTag : IsKey, C: Monoid : 
            cdf: CDF[C],
            filteredCDF: Array[(Depth, C)],
            maxDepth: Depth,
-           firstCounts: C): Result
+           firstCounts: C,
+           totalReferenceLoci: NumLoci): Result
 
-  def make(jh: JointHistogram): Result = {
+  def make(jh: JointHistogram, totalReferenceLoci: NumLoci): Result = {
     val ik = implicitly[IsKey[K]]
 
     val j = jh.jh
@@ -57,10 +59,10 @@ abstract class ResultBuilder[K <: Key[C, Depth] : ClassTag : IsKey, C: Monoid : 
       .sortBy(_._1)
 
     val (firstDepth, firstCounts) = filteredCDF.take(1)(0)
-    if (firstDepth != 0) {
+    if (firstDepth > 1) {
       throw new Exception(s"Bad first firstDepth: $firstDepth (count: $firstCounts)")
     }
 
-    make(jh, pdf, cdf, filteredCDF, maxDepth, firstCounts)
+    make(jh, pdf, cdf, filteredCDF, maxDepth, firstCounts, totalReferenceLoci)
   }
 }

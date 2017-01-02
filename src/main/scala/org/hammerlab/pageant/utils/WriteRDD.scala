@@ -11,7 +11,7 @@ object WriteRDD {
   def apply[T <: Product : TypeTag](dir: String, fn: String, rdd: RDD[T], force: Boolean, conf: Configuration): Unit = {
     val path = new Path(dir, fn)
     val fs = path.getFileSystem(conf)
-    val csvLines = rdd.mapPartitions(_.toCSV())
+    val csvLines = rdd.mapPartitions(_.toCSV(includeHeaderLine = false))
     (fs.exists(path), force) match {
       case (true, true) ⇒
         println(s"Removing $path")

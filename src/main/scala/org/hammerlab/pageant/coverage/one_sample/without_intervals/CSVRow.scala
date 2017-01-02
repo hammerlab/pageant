@@ -8,17 +8,24 @@ import org.hammerlab.pageant.histogram.JointHistogram.Depth
 
 case class CSVRow(depth: Depth,
                   numBP: NumBP,
-                  numLoci: NumLoci)
+                  numLoci: NumLoci,
+                  fracBP: Double,
+                  fracCoveredLoci: Double,
+                  fracTotalLoci: Double)
 
 object CSVRow {
   def apply(depthCounts: DC,
             totalBases: NumBP,
+            totalCoveredLoci: NumLoci,
             totalLoci: NumLoci): CSVRow = {
     val (depth, Count(numBP, numLoci)) = depthCounts
     CSVRow(
       depth,
       numBP,
-      numLoci
+      numLoci,
+      numBP * 1.0 / totalBases,
+      numLoci * 1.0 / totalCoveredLoci,
+      numLoci * 1.0 / totalLoci
     )
   }
 }

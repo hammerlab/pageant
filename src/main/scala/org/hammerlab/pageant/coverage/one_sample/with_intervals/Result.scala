@@ -30,8 +30,8 @@ case class Result(jh: JointHistogram,
                   totalOffLoci: NumLoci)
   extends one_sample.Result[Counts, CSVRow] {
 
-  @transient lazy val ReadSetStats(maxDepth, totalBases, onBases) = readsStats
-
+  @transient lazy val ReadSetStats(maxDepth, _, onBases) = readsStats
+  @transient lazy val totalBases = readsStats.totalBases
   override def toCSVRow(depthCounts: DC): CSVRow =
     CSVRow(depthCounts, totalBases, totalOnLoci, totalOffLoci)
 

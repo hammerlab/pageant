@@ -29,14 +29,14 @@ class CoverageDepthTest extends PageantSuite {
       Args4j[Arguments](
         Array(
           "-v",
-          "--out", "foo",
+          "--out", outDir,
           File("r1.sam").path
         )
       )
 
     CoverageDepth.run(args, sc)
 
-//    outDir should dirMatch("coverage.golden")
+    outDir should dirMatch("coverage.golden")
   }
 
   test("two samples with intervals") {

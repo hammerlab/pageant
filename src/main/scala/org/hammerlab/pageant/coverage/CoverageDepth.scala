@@ -72,6 +72,7 @@ object CoverageDepth extends SparkCommand[Arguments] {
     val (readsets, _) = ReadSets(sc, args)
 
     val contigLengths = readsets.contigLengths
+    val totalReferenceLoci = contigLengths.totalLength
 
     val outPath = args.outPath
 
@@ -117,7 +118,7 @@ object CoverageDepth extends SparkCommand[Arguments] {
         else
           one_sample.without_intervals.ResultBuilder
         )
-        .make(jh)
+        .make(jh, totalReferenceLoci)
         .save(
           outPath,
           force = force,

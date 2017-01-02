@@ -7,4 +7,4 @@ abstract class PDF[T: Monoid]
   def cdf: CDF[T]
 }
 
-class CDF[T]
+class CDF[T] extends Serializable

@@ -20,7 +20,7 @@ import org.hammerlab.pageant.histogram.JointHistogram.Depth
  * @param maxDepth     maximum locus-coverage depth
  * @param totalBases   total number of sequenced bases
  * @param filteredCDF  summary CDF, filtered to a few logarithmically-spaced round-numbers.
- * @param totalLoci  total number of loci.
+ * @param totalCoveredLoci  total number of loci.
  */
 case class Result(jh: JointHistogram,
                   pdf: PDF[Count],
@@ -28,14 +28,16 @@ case class Result(jh: JointHistogram,
                   maxDepth: Depth,
                   totalBases: NumBP,
                   filteredCDF: Array[DC],
-                  totalLoci: NumLoci)
+                  totalCoveredLoci: NumLoci,
+                  totalReferenceLoci: NumLoci)
   extends one_sample.Result[Count, CSVRow] {
 
-  override def toCSVRow(depthCounts: DC): CSVRow = CSVRow(depthCounts, totalBases, totalLoci)
+  override def toCSVRow(depthCounts: DC): CSVRow = CSVRow(depthCounts, totalBases, totalCoveredLoci, totalReferenceLoci)
 
   override def writeMisc(pw: PrintWriter): Unit = {
     pw.println(s"Max depth: $maxDepth")
     pw.println(s"Total mapped bases: $totalBases")
-    pw.println(s"Total loci: $totalLoci")
+    pw.println(s"Total covered loci: $totalCoveredLoci")
+    pw.println(s"Total reference loci: $totalReferenceLoci")
   }
 }

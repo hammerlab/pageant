@@ -1,5 +1,6 @@
 package org.hammerlab.pageant.coverage.one_sample.without_intervals
 
+import org.hammerlab.genomics.reference.NumLoci
 import org.hammerlab.pageant.coverage.one_sample.{ CDF, Count, PDF }
 import org.hammerlab.pageant.coverage.one_sample
 import org.hammerlab.pageant.histogram.JointHistogram
@@ -13,6 +14,7 @@ object ResultBuilder extends one_sample.ResultBuilder[Key, Count, Result] {
                     cdf: CDF[Count],
                     filteredCDF: Array[(Depth, Count)],
                     maxDepth: Depth,
-                    firstCounts: Count): Result =
-    Result(jh, pdf, cdf, maxDepth, firstCounts.bp, filteredCDF, firstCounts.n)
+                    firstCounts: Count,
+                    totalReferenceLoci: NumLoci): Result =
+    Result(jh, pdf, cdf, maxDepth, firstCounts.bp, filteredCDF, firstCounts.n, totalReferenceLoci)
 }
