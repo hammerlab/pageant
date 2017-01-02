@@ -1,6 +1,6 @@
 package org.hammerlab.pageant.coverage.one_sample.with_intervals
 
-import org.hammerlab.pageant.coverage.one_sample.{ CDF, PDF }
+import org.hammerlab.pageant.coverage.one_sample.{ CDF, Count, PDF }
 import org.hammerlab.pageant.coverage.one_sample
 import org.hammerlab.pageant.histogram.JointHistogram
 import org.hammerlab.pageant.histogram.JointHistogram._
@@ -16,19 +16,16 @@ object ResultBuilder extends one_sample.ResultBuilder[Key, Counts, Result] {
                     maxDepth: Depth,
                     firstCounts: Counts): Result = {
 
-    val totalBases = firstCounts.all.bp
-    val onBases = firstCounts.on.bp
-
-    val (totalOnLoci, totalOffLoci) = jh.coveredLociCounts(idx = 1)
+    val Counts(Count(onBases, onLoci), Count(offBases, offLoci)) = firstCounts
 
     Result(
       jh,
-      pdf.rdd.sortByKey(),
-      cdf.rdd.sortByKey(),
-      ReadSetStats(maxDepth, totalBases, onBases),
+      pdf,
+      cdf,
+      ReadSetStats(maxDepth, offBases, onBases),
       filteredCDF,
-      totalOnLoci,
-      totalOffLoci
+      onLoci,
+      offLoci
     )
   }
 }

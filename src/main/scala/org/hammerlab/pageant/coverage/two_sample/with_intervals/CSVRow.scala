@@ -1,6 +1,5 @@
 package org.hammerlab.pageant.coverage.two_sample.with_intervals
 
-import org.hammerlab.csv.CSVRowI
 import org.hammerlab.genomics.reference.NumLoci
 import org.hammerlab.pageant.NumBP
 import Result.D2C
@@ -20,7 +19,6 @@ case class CSVRow(depth1: Depth,
                   fracBPOff1: Double,
                   fracBPOff2: Double,
                   fracLociOff: Double)
-  extends CSVRowI
 
 object CSVRow {
 

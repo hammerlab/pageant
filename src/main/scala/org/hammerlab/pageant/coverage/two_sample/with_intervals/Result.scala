@@ -4,7 +4,7 @@ import java.io.PrintWriter
 
 import org.apache.hadoop.fs.Path
 import org.apache.spark.rdd.RDD
-import org.hammerlab.csv.ProductsToCSV._
+import org.hammerlab.csv._
 import org.hammerlab.genomics.reference.{ ContigLengths, NumLoci }
 import org.hammerlab.magic.rdd.grid.PartialSumGridRDD
 import org.hammerlab.math.Steps.roundNumbers

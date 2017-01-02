@@ -6,7 +6,7 @@ import org.hammerlab.test.matchers.files.DirMatcher.dirMatch
 import org.hammerlab.test.resources.File
 
 class CoverageDepthTest extends PageantSuite {
-  test("one sample") {
+  test("one sample with intervals") {
     val outDir = tmpDir()
     val args =
       Args4j[Arguments](
@@ -20,10 +20,26 @@ class CoverageDepthTest extends PageantSuite {
 
     CoverageDepth.run(args, sc)
 
-    outDir should dirMatch("coverage.golden")
+    outDir should dirMatch("coverage.intervals.golden")
   }
 
-  test("two samples") {
+  test("one sample without intervals") {
+    val outDir = tmpDir()
+    val args =
+      Args4j[Arguments](
+        Array(
+          "-v",
+          "--out", "foo",
+          File("r1.sam").path
+        )
+      )
+
+    CoverageDepth.run(args, sc)
+
+//    outDir should dirMatch("coverage.golden")
+  }
+
+  test("two samples with intervals") {
     val outDir = tmpDir()
     val args =
       Args4j[Arguments](
@@ -37,6 +53,6 @@ class CoverageDepthTest extends PageantSuite {
 
     CoverageDepth.run(args, sc)
 
-    outDir should dirMatch("coverage.golden2")
+    outDir should dirMatch("coverage.intervals.golden2")
   }
 }

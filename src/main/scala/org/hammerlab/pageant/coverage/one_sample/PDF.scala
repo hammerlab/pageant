@@ -8,18 +8,18 @@ import org.hammerlab.magic.rdd.scan.ScanRightByKeyRDD._
 
 import scala.reflect.ClassTag
 
-abstract class PDF[T: Monoid: ClassTag] extends coverage.PDF[T] {
-  def rdd: RDD[(Depth, T)]
-  val m = implicitly[Monoid[T]]
-  override def cdf: CDF[T] = new CDF(rdd.scanRightByKey(m.id)(m.op))
+abstract class PDF[C: Monoid: ClassTag] extends coverage.PDF[C] {
+  def rdd: RDD[(Depth, C)]
+  val m = implicitly[Monoid[C]]
+  override def cdf: CDF[C] = new CDF(rdd.scanRightByKey(m.id)(m.op))
 }
 
 object PDF {
-  implicit def unwrapPDF[T: Monoid](pdf: PDF[T]): RDD[(Depth, T)] = pdf.rdd
+  implicit def unwrapPDF[C: Monoid](pdf: PDF[C]): RDD[(Depth, C)] = pdf.rdd
 }
 
-class CDF[T: Monoid](val rdd: RDD[(Depth, T)]) extends coverage.CDF[T]
+class CDF[C: Monoid](val rdd: RDD[(Depth, C)]) extends coverage.CDF[C]
 
 object CDF {
-  implicit def unwrapCDF[T: Monoid](cdf: CDF[T]): RDD[(Depth, T)] = cdf.rdd
+  implicit def unwrapCDF[C: Monoid](cdf: CDF[C]): RDD[(Depth, C)] = cdf.rdd
 }
