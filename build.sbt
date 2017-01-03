@@ -3,6 +3,7 @@ version := "1.0.0-SNAPSHOT"
 
 sparkVersion := "2.0.2"
 
+scala211Only
 addSparkDeps
 
 deps ++= Seq(
