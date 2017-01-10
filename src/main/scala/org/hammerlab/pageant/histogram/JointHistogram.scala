@@ -453,10 +453,10 @@ object JointHistogram {
       sc.union(
         for { (rdd, idx) ← rdds.zipWithIndex } yield
           for {
-            (pos, depth) ← rdd
+            (Pos(contig, locus), depth) ← rdd
             seq = oneHotOpts(rdds.length, idx, depth)
           } yield
-            pos → seq
+            Pos(if (contig.name.startsWith("chr")) contig.name.drop(3) else contig, locus) → seq
       )
       .reduceByKey(sumSeqs)
 
