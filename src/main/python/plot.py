@@ -1,20 +1,6 @@
-# Get this figure: fig = py.get_figure("https://plot.ly/~ryan.blake.williams/27/")
-# Get this figure's data: data = py.get_figure("https://plot.ly/~ryan.blake.williams/27/").get_data()
-# Add data to this figure: py.plot(Data([Scatter(x=[1, 2], y=[2, 3])]), filename ="GA4534 (copy)", fileopt="extend")
-# Get y data of first trace: y1 = py.get_figure("https://plot.ly/~ryan.blake.williams/27/").get_data()[0]["y"]
-
-# Get figure documentation: https://plot.ly/python/get-requests/
-# Add data documentation: https://plot.ly/python/file-options/
-
-# If you're using unicode in your file, you may need to specify the encoding.
-# You can reproduce this figure in Python with the following code!
-
-# Learn about API authentication here: https://plot.ly/python/getting-started
-# Find your api_key here: https://plot.ly/settings/api
 
 import plotly.plotly as py
 from plotly.graph_objs import *
-#py.sign_in('username', 'api_key')
 
 import sys
 
@@ -23,31 +9,48 @@ print("dir: " + in_dir)
 
 in_file = "%s/cdf.csv" % in_dir
 
-xs = []
-ys = []
-zs = []
+vals = {}
+xs = {}
+ys = {}
+xKeys = {}
+yKeys = {}
 with open(in_file, 'r') as fd:
     for line in fd.readlines()[1:]:
         cols = line.strip().split(',')
-        xs.append(int(cols[0]))
-        ys.append(int(cols[1]))
-        zs.append(float(cols[7]))
+        x = int(cols[0])
+        y = int(cols[1])
+        z = float(cols[7])
+
+        xKeys[x] = True
+        yKeys[y] = True
+
+        if x not in vals:
+            vals[x] = {}
+
+        vals[x][y] = z
+
+xKeys = list(sorted(xKeys.keys()))
+yKeys = list(sorted(yKeys.keys()))
+zs = []
+for x in xKeys:
+    row = [ ]
+    for y in yKeys:
+        row.append(vals[x][y] if x in vals and y in vals[x] else 0)
+    zs.append(row)
 
 trace1 = {
-    "x": xs,
-    "y": ys,
+    "x": xKeys,
+    "y": yKeys,
     "z": zs,
     "colorbar": {"title": "Fraction of target loci covered"},
     "name": "Col5",
-    "type": "heatmap",
+    "type": "surface",
     "uid": "024769",
-    #"xsrc": "ryan.blake.williams:24:JE6DIO3T4CMM1OIPIGBXKGBFGDDX0TR2",
-    #"ysrc": "ryan.blake.williams:24:O6KEY9AQXYA872567DKMTJN7D42470D0",
     "zmax": 1,
     "zmin": 0
-    #"zsrc": "ryan.blake.williams:24:YL3LX4NJ6IFTX8JQDU2FZO8UAZOQRSY8"
 }
 data = Data([trace1])
+
 layout = {
     "autosize": False,
     "height": 400,
@@ -58,17 +61,49 @@ layout = {
         "b": 60,
         "l": 60
     },
+    "scene": {
+        "aspectratio": {
+            "x": 1,
+            "y": 1,
+            "z": 1
+        },
+        "camera": {
+            "center": {
+                "x": 0,
+                "y": 0,
+                "z": 0
+            },
+            "eye": {
+                "x": 1.29488370702,
+                "y": 0.430927434957,
+                "z": 1.68079675485
+            },
+            "up": {
+                "x": 0,
+                "y": 0,
+                "z": 1
+            }
+        },
+        "xaxis": {
+            "autorange": True,
+            "type": "log"
+        },
+        "yaxis": {
+            "autorange": True,
+            "type": "log"
+        }
+    },
     "title": "",
     "width": 600,
     "xaxis": {
         "autorange": False,
-        "range": [-0.301029995664, 3.0],
+        "range": [-0.301029995664, 3],
         "title": "Tumor depth",
         "type": "log"
     },
     "yaxis": {
         "autorange": False,
-        "range": [-0.301029995664, 3.0],
+        "range": [-0.301029995664, 3],
         "title": "Normal depth",
         "type": "log"
     }
