@@ -26,8 +26,11 @@
 	path = guacamole
 	url = https://github.com/hammerlab/guacamole.git
 [submodule "genomic-readsets"]
-	path = genomic-readsets
+	path = readsets
 	url = https://github.com/hammerlab/genomic-readsets.git
 [submodule "utils"]
 	path = utils
 	url = https://github.com/hammerlab/genomic-utils.git
+[submodule "reads"]
+	path = reads
+	url = https://github.com/hammerlab/genomic-reads.git
