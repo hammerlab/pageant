@@ -1,0 +1,33 @@
+[submodule "test-utils"]
+	path = test-utils
+	url = https://github.com/hammerlab/test-utils.git
+[submodule "spark-tests"]
+	path = spark-tests
+	url = https://github.com/hammerlab/spark-tests.git
+[submodule "sbt-parent"]
+	path = sbt-parent
+	url = https://github.com/hammerlab/sbt-parent.git
+[submodule "reference"]
+	path = reference
+	url = https://github.com/hammerlab/genomic-reference.git
+[submodule "loci"]
+	path = loci
+	url = https://github.com/hammerlab/genomic-loci.git
+[submodule "magic-rdds"]
+	path = magic-rdds
+	url = https://github.com/hammerlab/magic-rdds.git
+[submodule "adam-core"]
+	path = adam-core
+	url = https://github.com/hammerlab/adam.git
+[submodule "pageant"]
+	path = pageant
+	url = https://github.com/hammerlab/pageant.git
+[submodule "guacamole"]
+	path = guacamole
+	url = https://github.com/hammerlab/guacamole.git
+[submodule "genomic-readsets"]
+	path = genomic-readsets
+	url = https://github.com/hammerlab/genomic-readsets.git
+[submodule "utils"]
+	path = utils
+	url = https://github.com/hammerlab/genomic-utils.git
