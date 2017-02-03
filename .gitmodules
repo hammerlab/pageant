@@ -34,3 +34,9 @@
 [submodule "reads"]
 	path = reads
 	url = https://github.com/hammerlab/genomic-reads.git
+[submodule "iterator"]
+	path = iterator
+	url = git@github.com:hammerlab/iterator.git
+[submodule "args4s"]
+	path = args4s
+	url = git@github.com:hammerlab/args4s.git
