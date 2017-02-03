@@ -456,7 +456,7 @@ object JointHistogram {
             (Pos(contig, locus), depth) ← rdd
             seq = oneHotOpts(rdds.length, idx, depth)
           } yield
-            Pos(if (contig.name.startsWith("chr")) contig.name.drop(3) else contig, locus) → seq
+            Pos(contig, locus) → seq
       )
       .reduceByKey(sumSeqs)
 

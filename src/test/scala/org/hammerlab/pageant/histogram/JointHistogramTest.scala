@@ -4,14 +4,20 @@ import htsjdk.samtools.TextCigarCodec
 import org.bdgenomics.adam.models.{ SequenceDictionary, SequenceRecord }
 import org.bdgenomics.adam.rdd.feature.FeatureRDD
 import org.bdgenomics.formats.avro.{ AlignmentRecord, Feature }
-import org.hammerlab.genomics.reference.test.LocusUtil
-import org.hammerlab.genomics.reference.{ ContigName, Locus, NumLoci }
-import org.hammerlab.pageant.histogram.JointHistogram.{ Depths, JointHistKey, OCN, fromReadsAndFeatures }
+import org.hammerlab.genomics.reference.test.ClearContigNames
+import org.hammerlab.genomics.reference.test.ContigNameConversions.convertOpt
+import org.hammerlab.genomics.reference.test.LociConversions.{ intToLocus, toTupleArray }
+import org.hammerlab.genomics.reference.{ ContigName, Locus, NumLoci, PermissiveRegistrar }
+import org.hammerlab.pageant.histogram.JointHistogram.{ JointHistKey, OCN, fromReadsAndFeatures }
 import org.hammerlab.pageant.utils.PageantSuite
+import org.hammerlab.test.implicits.Templates.convertMap
 
 class JointHistogramTest
   extends PageantSuite
-    with LocusUtil {
+  with ClearContigNames {
+
+  import org.hammerlab.genomics.reference.ContigName.Normalization.Lenient
+  register(new PermissiveRegistrar)
 
   import JointHistogram.jointHistKeyOrd
 
@@ -21,7 +27,10 @@ class JointHistogramTest
       SequenceRecord("chr11", 2000000L)
     )
 
-  def read(start: Locus, end: Locus, cigar: Option[String] = None, contigName: ContigName = "chr2"): AlignmentRecord =
+  def read(start: Locus,
+           end: Locus,
+           cigar: Option[String] = None,
+           contigName: ContigName = "chr2") =
     AlignmentRecord
       .newBuilder()
       .setContigName(contigName.name)
@@ -31,7 +40,9 @@ class JointHistogramTest
       .setCigar(cigar.getOrElse("%sM".format(end - start)))
       .build()
 
-  def feature(start: Locus, end: Locus, contigName: ContigName = "chr2"): Feature =
+  def feature(start: Locus,
+              end: Locus,
+              contigName: ContigName = "chr2") =
     Feature
       .newBuilder()
       .setContigName(contigName.name)
@@ -39,18 +50,8 @@ class JointHistogramTest
       .setEnd(end.locus)
       .build()
 
-  implicit val convertContigName = convertOpt[String, ContigName] _
-  implicit val convertSomeJHK = convertTuple2[Some[String], Depths, OCN, Depths] _
-  implicit val convertSomeJHKDouble = convertTuple2[(Some[String], Depths), Double, JointHistKey, Double] _
-  implicit val convSomeNumLociMap = convertMap[(Some[String], Depths), Int, JointHistKey, NumLoci] _
-
-  implicit val convertJHK = convertTuple2[Option[String], Depths, OCN, Depths] _
   implicit val convNumLociMap = convertMap[JointHistKey, Int, JointHistKey, NumLoci] _
-  implicit val convSumsMap = convertMap[(Option[String], Depths), Double, JointHistKey, Double] _
-
   implicit val convTotalLociMap = convertMap[Option[String], Int, OCN, NumLoci] _
-
-  type DoubleMap = Map[JointHistKey, Double]
 
   def Key(contigName: ContigName, depths: Option[Int]*): JointHistKey = (Some(contigName), depths)
 
@@ -181,9 +182,6 @@ class JointHistogramTest
         makeRead(2, "CGTAAAAACCGG", "3M3I6M")
       )
     )
-
-    implicit val toLocusInt = toLocusKey[Int] _
-    implicit val toLocusIntArray = convertArray[(Int, Int), (Locus, Int)] _
 
     val l: Array[(Locus, Int)] =
       JointHistogram
