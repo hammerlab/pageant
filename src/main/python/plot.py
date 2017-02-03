@@ -52,7 +52,7 @@ trace1 = {
 data = Data([trace1])
 
 layout = {
-    "autosize": False,
+    "autosize": True,
     "height": 400,
     "margin": {
         "r": 60,
@@ -86,15 +86,17 @@ layout = {
         },
         "xaxis": {
             "autorange": True,
+            "title": "Normal Depth",
             "type": "log"
         },
         "yaxis": {
             "autorange": True,
+            "title": "Tumor Depth",
             "type": "log"
-        }
+        },
+        "zaxis": {"title": "Fraction of target loci covered"}
     },
     "title": "",
-    "width": 600,
     "xaxis": {
         "autorange": False,
         "range": [-0.301029995664, 3],
