@@ -22,7 +22,7 @@ lazy val iterator = project.dependsOn(t)
 
 lazy val utils = (project in file("utils")).dependsOn(t, st)
 
-lazy val reference = project.dependsOn(t, st, utils)
+lazy val reference = project.dependsOn(t, st, utils, iterator)
 
 lazy val r = reference % ct
 
