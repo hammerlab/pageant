@@ -1,39 +1,77 @@
 
-//lazy val root = (project in file("."))
-
-//lazy val parentBuild = (project in file("sbt-parent/project")).settings(scalaVersion := "2.10.6")
-
-//lazy val parent = (project in file("sbt-parent")).settings(scalaVersion := "2.10.6")
-
-lazy val tests = (project in file("test-utils"))
-
+// Shorthands for common configurations
 val tt = "test->test"
 val ct = "compile->compile;test->test"
+val tctt = "test->compile;test->test"
 
-lazy val t = tests % tt
+// Project-declaration helpers
+def proj(dir: String, deps: ClasspathDep[ProjectReference]*): Project =
+  Project(dir, new File(dir)).dependsOn(deps: _*)
 
-lazy val sparkTests = (project in file("spark-tests")).dependsOn(tests)
+def sparkProj(dir: String, deps: ClasspathDep[ProjectReference]*): Project =
+  proj(dir, (tests :: sparkTestsDep :: deps.toList): _*)
 
-lazy val st = sparkTests % tt
+// Sub-projects
+lazy val testUtils = (project in file("test-utils"))
+lazy val tests = testUtils % tt
+
+lazy val sparkTests = proj("spark-tests", testUtils)
+
+lazy val sparkTestsDep = sparkTests % tt
 
 lazy val args4s = project
 
-lazy val iterator = project.dependsOn(t)
+lazy val iterator = project.dependsOn(tests)
 
-lazy val utils = (project in file("utils")).dependsOn(t, st)
+lazy val utils = sparkProj("utils")
 
-lazy val reference = project.dependsOn(t, st, utils, iterator)
+lazy val reference = sparkProj("reference", iterator)
+lazy val referenceCompileTest = reference % ct
 
-lazy val r = reference % ct
+lazy val magicRDDs = sparkProj("magic-rdds", iterator)
 
-lazy val magicRDDs = (project in file("magic-rdds")).dependsOn(t, st, iterator)
+lazy val loci =
+  sparkProj(
+    "loci",
+    args4s,
+    iterator,
+    referenceCompileTest
+  )
 
-lazy val loci = project.dependsOn(t, st, r, iterator, args4s)
+lazy val adamCore =
+  sparkProj(
+    "adam-core",
+    referenceCompileTest,
+    loci
+  )
 
-lazy val adamCore = (project in file("adam-core")).dependsOn(t, st, loci, r)
+lazy val reads =
+  sparkProj(
+    "reads",
+    utils % ct,
+    referenceCompileTest,
+    adamCore
+  )
 
-lazy val reads = project.dependsOn(t, st, adamCore, r, utils % ct)
+lazy val readsets =
+  sparkProj(
+    "readsets",
+    iterator,
+    magicRDDs,
+    utils % tctt,
+    referenceCompileTest,
+    loci,
+    adamCore,
+    reads % ct
+  )
 
-lazy val readsets = project.dependsOn(t, st, adamCore, r, reads % ct, iterator, loci, magicRDDs, utils % "test->compile;test->test")
-
-lazy val pageant = project.dependsOn(t, st, adamCore, args4s, readsets, loci, magicRDDs, r)
+lazy val pageant =
+  sparkProj(
+    "pageant",
+    args4s,
+    magicRDDs,
+    referenceCompileTest,
+    loci,
+    adamCore,
+    readsets
+  )
