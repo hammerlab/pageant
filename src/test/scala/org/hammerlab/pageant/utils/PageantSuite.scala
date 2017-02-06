@@ -1,7 +1,8 @@
 package org.hammerlab.pageant.utils
 
-import org.hammerlab.magic.test.spark.KryoSerializerSuite
+import org.hammerlab.pageant.kryo.Registrar
+import org.hammerlab.spark.test.suite.KryoSparkSuite
 
 class PageantSuite
-  extends KryoSerializerSuite("org.hammerlab.pageant.kryo.Registrar")
+  extends KryoSparkSuite(classOf[Registrar])
 

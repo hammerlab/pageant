@@ -1,13 +1,25 @@
 package org.hammerlab.pageant.histogram
 
-import org.bdgenomics.adam.models.{SequenceDictionary, SequenceRecord}
-import org.bdgenomics.adam.rdd.features.FeatureRDD
-import org.bdgenomics.formats.avro.{AlignmentRecord, Feature}
-import org.hammerlab.pageant.histogram.JointHistogram.Contig
+import htsjdk.samtools.TextCigarCodec
+import org.bdgenomics.adam.models.{ SequenceDictionary, SequenceRecord }
+import org.bdgenomics.adam.rdd.feature.FeatureRDD
+import org.bdgenomics.formats.avro.{ AlignmentRecord, Feature }
+import org.hammerlab.genomics.reference.test.ClearContigNames
+import org.hammerlab.genomics.reference.test.ContigNameConversions.convertOpt
+import org.hammerlab.genomics.reference.test.LociConversions.{ intToLocus, toTupleArray }
+import org.hammerlab.genomics.reference.{ ContigName, Locus, NumLoci, PermissiveRegistrar }
+import org.hammerlab.pageant.histogram.JointHistogram.{ JointHistKey, OCN, fromReadsAndFeatures }
 import org.hammerlab.pageant.utils.PageantSuite
+import org.hammerlab.test.implicits.Templates.convertMap
 
 class JointHistogramTest
-  extends PageantSuite {
+  extends PageantSuite
+  with ClearContigNames {
+
+  import org.hammerlab.genomics.reference.ContigName.Normalization.Lenient
+  register(new PermissiveRegistrar)
+
+  import JointHistogram.jointHistKeyOrd
 
   val sd =
     SequenceDictionary(
@@ -15,23 +27,33 @@ class JointHistogramTest
       SequenceRecord("chr11", 2000000L)
     )
 
-  def read(start: Long, end: Long, cigar: Option[String] = None, contigName: Contig = "chr2"): AlignmentRecord =
+  def read(start: Locus,
+           end: Locus,
+           cigar: Option[String] = None,
+           contigName: ContigName = "chr2") =
     AlignmentRecord
       .newBuilder()
-      .setContigName(contigName)
+      .setContigName(contigName.name)
       .setReadMapped(true)
-      .setStart(start)
-      .setEnd(end)
-      .setCigar(cigar.getOrElse("%dM".format(end - start)))
+      .setStart(start.locus)
+      .setEnd(end.locus)
+      .setCigar(cigar.getOrElse("%sM".format(end - start)))
       .build()
 
-  def feature(start: Long, end: Long, contigName: Contig = "chr2"): Feature =
+  def feature(start: Locus,
+              end: Locus,
+              contigName: ContigName = "chr2") =
     Feature
       .newBuilder()
-      .setContigName(contigName)
-      .setStart(start)
-      .setEnd(end)
+      .setContigName(contigName.name)
+      .setStart(start.locus)
+      .setEnd(end.locus)
       .build()
+
+  implicit val convNumLociMap = convertMap[JointHistKey, Int, JointHistKey, NumLoci] _
+  implicit val convTotalLociMap = convertMap[Option[String], Int, OCN, NumLoci] _
+
+  def Key(contigName: ContigName, depths: Option[Int]*): JointHistKey = (Some(contigName), depths)
 
   test("simple") {
 
@@ -44,57 +66,56 @@ class JointHistogramTest
     val reads2 = sc.parallelize(List(read2))
     val features = FeatureRDD(sc.parallelize(List(f)), sd)
 
-    val j = JointHistogram.fromReadsAndFeatures(List(reads1, reads2), List(features))
+    val j = fromReadsAndFeatures(List(reads1, reads2), List(features))
 
-    j.jh.collectAsMap().toMap should be(
+    j.jh.collectAsMap().toMap should ===(
       Map(
-        (Some("2"), List(Some(1), Some(0), Some(1))) ->   3,
-        (Some("2"), List(Some(1), Some(0), Some(0))) ->  10,
-        (Some("2"), List(Some(0), Some(1), Some(0))) -> 100,
-        (Some("2"), List(Some(0), Some(1), Some(1))) ->   3,
-        (Some("2"), List(Some(0), Some(0), Some(1))) ->   4
+        Key("chr2", Some(1), Some(0), Some(1)) →   3,
+        Key("chr2", Some(1), Some(0), Some(0)) →  10,
+        Key("chr2", Some(0), Some(1), Some(0)) → 100,
+        Key("chr2", Some(0), Some(1), Some(1)) →   3,
+        Key("chr2", Some(0), Some(0), Some(1)) →   4
       )
     )
 
-    j.totalLoci should be(
+    j.totalLoci === (
       Map(
-        Some("2") -> 120L,
-        None -> 120L
+        Some("chr2") → 120,
+        None → 120
       )
     )
 
-    j.sums.get(0, 1).collectAsMap().toMap should be(
+    j.sums.get(0, 1).collectAsMap().toMap should === (
       Map(
-        (Some("2"), List(None, None, Some(1))) -> 3.0,
-        (Some("2"), List(None, None, Some(0))) -> 10.0
+        Key("chr2", None, None, Some(1)) → 3.0,
+        Key("chr2", None, None, Some(0)) → 10.0
       )
     )
 
-    j.sqsums.get(0, 1).collectAsMap().toMap should be(
+    j.sqsums.get(0, 1).collectAsMap().toMap should === (
       Map(
-        (Some("2"), List(None, None, Some(1))) -> 3.0,
-        (Some("2"), List(None, None, Some(0))) -> 10.0
+        Key("chr2", None, None, Some(1)) → 3.0,
+        Key("chr2", None, None, Some(0)) → 10.0
       )
     )
 
-    j.dots.get(0, 1).collectAsMap().toMap should be(
+    j.dots.get(0, 1).collectAsMap().toMap should === (
       Map(
-        (Some("2"), List(None, None, Some(1))) -> 0.0,
-        (Some("2"), List(None, None, Some(0))) -> 0.0
+        Key("chr2", None, None, Some(1)) → 0.0,
+        Key("chr2", None, None, Some(0)) → 0.0
       )
     )
 
-    j.ns.get(0, 1).collectAsMap().toMap should be(
+    j.ns.get(0, 1).collectAsMap().toMap should === (
       Map(
-        (Some("2"), List(None, None, Some(1))) -> 10.0,
-        (Some("2"), List(None, None, Some(0))) -> 110.0
+        Key("chr2", None, None, Some(1)) → 10.0,
+        Key("chr2", None, None, Some(0)) → 110.0
       )
     )
 
-    j.weights(0, 1).collectAsMap().toMap should be(
+    j.weights(0, 1).collectAsMap().toMap should === (
       Map(
-        Some("2") ->
-          List(None, None, Some(1)) ->
+        Key("chr2", None, None, Some(1)) →
             (
               RegressionWeights(
                 -0.42857142857142855,
@@ -109,8 +130,7 @@ class JointHistogramTest
                 0.18367346938775508
               )
             ),
-        Some("2") ->
-          List(None, None, Some(0)) ->
+        Key("chr2", None, None, Some(0)) →
             (
               RegressionWeights(-1.0, 1.0, 0.0, 1.0),
               RegressionWeights(-1.0, 1.0, 0.0, 1.0)
@@ -118,13 +138,13 @@ class JointHistogramTest
       )
     )
 
-    j.eigens(0, 1).collectAsMap().toMap should be(
+    j.eigens(0, 1).collectAsMap().toMap should === (
       Map(
-        (Some("2"), List(None, None, Some(1))) -> (
+        Key("chr2", None, None, Some(1)) → (
           Eigen(0.33333333333333337, (0.7071067811865477, -0.7071067811865475), 0.7142857142857143),
           Eigen(0.13333333333333333, (-0.7071067811865475, -0.7071067811865475), 0.2857142857142857)
         ),
-        (Some("2"), List(None, None, Some(0))) -> (
+        Key("chr2", None, None, Some(0)) → (
           Eigen(0.16680567139282737, (0.7071067811865475, -0.7071067811865476), 1.0),
           Eigen(0.0, (-0.7071067811865476, -0.7071067811865475), 0.0)
         )
@@ -137,6 +157,7 @@ class JointHistogramTest
       .setContigName("1")
       .setSequence(sequence)
       .setStart(start)
+      .setEnd(start + TextCigarCodec.decode(cigar).getReferenceLength)
       .setCigar(cigar)
       .setReadMapped(true)
       .build()
@@ -162,14 +183,14 @@ class JointHistogramTest
       )
     )
 
-    val l: Array[(Long, Int)] =
+    val l: Array[(Locus, Int)] =
       JointHistogram
         .readsToDepthMap(reads)
         .collect()
-        .map(p => (p._1._2, p._2))
+        .map(p => (p._1.locus, p._2))
         .sortBy(_._1)
 
-    l should be(
+    l should === (
       Array(
         (1,1),
         (2,2),
