@@ -64,10 +64,10 @@ generating an interactive 2D-histogram like the one shown [above](#CoverageDepth
 
 ## Installation
 
-Download a pre-built assembly-JAR:
+Download a pre-built assembly-JAR, and set `$PAGEANT_JAR` to point to it:
 
 ```bash
-wget https://oss.sonatype.org/content/repositories/snapshots/org/hammerlab/pageant_2.11/1.0.0SNAPSHOT/pageant_2.11-1.0.0-SNAPSHOT-assembly.jar
+wget https://oss.sonatype.org/content/repositories/snapshots/org/hammerlab/pageant_2.11/1.0.0-SNAPSHOT/pageant_2.11-1.0.0-SNAPSHOT-assembly.jar
 export PAGEANT_JAR=$PWD/pageant_2.11-1.0.0-SNAPSHOT-assembly.jar
 ```
 
@@ -86,4 +86,4 @@ Pageant runs on Apache Spark:
 - [Download Spark](http://spark.apache.org/downloads.html)
 - Set `$SPARK_HOME` to the Spark installation directory
 
-Current build is against Spark 2.1.0, but some other versions will also work…
+Pageant currently builds against Spark 2.1.0, but some other versions will also work…
