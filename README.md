@@ -4,9 +4,9 @@ PArallel GEnomic ANalysis Toolkit
 [![Build Status](https://travis-ci.org/hammerlab/pageant.svg?branch=master)](https://travis-ci.org/hammerlab/pageant)
 [![Coverage Status](https://coveralls.io/repos/github/hammerlab/pageant/badge.svg?branch=master)](https://coveralls.io/github/hammerlab/pageant?branch=master)
 
-Currently: one tool, [`CoverageDepth`](https://github.com/hammerlab/pageant/blob/master/src/main/scala/org/hammerlab/pageant/coverage/CoverageDepth.scala), for analyzing coverage in a BAM file or files, optionally intersected with an "interval file" (e.g. an exome capture kit `.bed`).
+Currently: one tool, [`CoverageDepth`][], for analyzing coverage in a BAM file or files, optionally intersected with an "interval file" (e.g. an exome capture kit `.bed`).
 
-## `CoverageDepth`
+## [`CoverageDepth`][]
 
 This tool computes coverage-depth statistics about one or two sets of reads (e.g. `.bam`s), optionally taking an intervals file (e.g. a `.bed`, denoting "targeted loci" of some upstream analysis, e.g. whole-exome sequencing) and generating coverage-depth statistics for on-target loci, off-target loci, and total.
 
@@ -37,20 +37,41 @@ you'll additionally want to fill in:
 
 A full list of arguments/options can be found by running with `-h`:
 
-```bash
-$SPARK_HOME/bin/spark-submit \
+```
+$ $SPARK_HOME/bin/spark-submit \
   --class org.hammerlab.pageant.coverage.CoverageDepth \
   $PAGEANT_JAR \
   -h
+ PATHS                             : Paths to sets of reads: FILE1 FILE2 FILE3
+ --force (-f)                      : Write results file even if it already exists (default: false)
+ --include-duplicates              : Include reads marked as duplicates (default: false)
+ --include-failed-quality-checks   : Include reads that failed vendor quality checks (default: false)
+ --include-single-end              : Include single-end reads (default: false)
+ --interval-partition-bytes (-b) N : Number of bytes per chunk of input interval-file (default: 1048576)
+ --intervals-file (-i) path        : Intervals file or capture kit; print stats for loci matching this intervals file, not matching, and total.
+                                     (default: None)
+ --loci path                       : If set, loci to include. Either 'all' or 'contig[:start[-end]],contig[:start[-end]],…' (default: None)
+ --loci-file path                  : Path to file giving loci to include. (default: None)
+ --min-alignment-quality path      : Minimum read mapping quality for a read (Phred-scaled) (default: None)
+ --no-sequence-dictionary          : If set, get contigs and lengths directly from reads instead of from sequence dictionary. (default: false)
+ --only-mapped-reads               : Include only mapped reads (default: false)
+ --out DIR                         : Path to write results to
+ --persist-distributions (-v)      : When set, persist full PDF and CDF of coverage-depth histogram (default: false)
+ --persist-joint-histogram (-jh)   : When set, save the computed joint-histogram; if one already exists, skip reading it, recompute it, and overwrite
+                                     it (default: false)
+ --sample-names STRING[]           : name1 ... nameN
+ --split-size path                 : Maximum HDFS split size (default: None)
+ -h (-help, --help, -?)            : Print help (default: false)
+ -print_metrics                    : Print metrics to the log on completion (default: false)
 ```
 
 ### Output
-`CoverageDepth` writes out a directory with a few files of note; see [this test-data for a live example](src/test/resources/coverage.intervals.golden2):
+[`CoverageDepth`][] writes out a directory with a few files of note; see [this test-data for a live example](src/test/resources/coverage.intervals.golden2):
 
 - `misc`: plaintext file with high-level stats
 - `cdf.csv`: CSV with stats about the number of loci with "normal" depth ≥X and "tumor" depth ≥Y, for (X,Y) filtered to (a relatively dense set of) "round numbers".
 - `pdf.csv`: same as above, but stats are about loci with depth ==X and ==Y, resp.
-- `pdf`/`cdf`: when `CoverageDepth` is run with the `--persist-distributions` (`-v`) flag, the unfiltered "pdf" and "cdf" above are written out as sharded CSVs.
+- `pdf`/`cdf`: when [`CoverageDepth`][] is run with the `--persist-distributions` (`-v`) flag, the unfiltered "pdf" and "cdf" above are written out as sharded CSVs.
 
 ### Plotting
 [`src/main/python/plot.py`](src/main/python/plot.py) can be used to consume the output directory (`$out`) from [above](#Running) and send it to [plot.ly](https://plot.ly):
@@ -87,3 +108,6 @@ Pageant runs on Apache Spark:
 - Set `$SPARK_HOME` to the Spark installation directory
 
 Pageant currently builds against Spark 2.1.0, but some other versions will also work…
+
+
+[`CoverageDepth`]: src/main/scala/org/hammerlab/pageant/coverage/CoverageDepth.scala
