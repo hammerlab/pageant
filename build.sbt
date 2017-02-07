@@ -1,3 +1,4 @@
+
 name := "pageant"
 version := "1.0.0-SNAPSHOT"
 
@@ -26,3 +27,5 @@ compileAndTestDeps += libs.value('reference)
 takeFirstLog4JProperties
 
 excludeFilter in Test := NothingFilter
+
+publishAssemblyJar
