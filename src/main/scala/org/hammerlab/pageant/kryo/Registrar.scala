@@ -10,6 +10,8 @@ import org.hammerlab.pageant.coverage.two_sample.with_intervals
 import org.hammerlab.pageant.coverage.{ one_sample, two_sample }
 import org.hammerlab.pageant.histogram.{ JointHistogram, Record }
 
+import scala.collection.mutable
+
 class Registrar extends KryoRegistrator {
   override def registerClasses(kryo: Kryo): Unit = {
     kryo.register(classOf[Bases], new BasesSerializer)
@@ -27,9 +29,9 @@ class Registrar extends KryoRegistrator {
 
     kryo.register(classOf[Vector[_]])
     kryo.register(classOf[Array[Vector[_]]])
-    kryo.register(classOf[scala.collection.mutable.WrappedArray.ofLong])
-    kryo.register(classOf[scala.collection.mutable.WrappedArray.ofByte])
-    kryo.register(classOf[scala.collection.mutable.WrappedArray.ofChar])
+    kryo.register(classOf[mutable.WrappedArray.ofLong])
+    kryo.register(classOf[mutable.WrappedArray.ofByte])
+    kryo.register(classOf[mutable.WrappedArray.ofChar])
     kryo.register(classOf[Array[Char]])
 
     // Tuple2[Long, Any], afaict?
@@ -55,7 +57,7 @@ class Registrar extends KryoRegistrator {
     kryo.register(Class.forName("scala.reflect.ClassTag$$anon$1"))
     kryo.register(classOf[java.lang.Class[_]])
 
-    kryo.register(classOf[scala.collection.mutable.WrappedArray.ofRef[_]])
+    kryo.register(classOf[mutable.WrappedArray.ofRef[_]])
     kryo.register(classOf[Array[Array[Byte]]])
 
     kryo.register(classOf[Array[Object]])
