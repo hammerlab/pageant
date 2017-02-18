@@ -1,4 +1,16 @@
 
+/**
+ * Inputs:
+ *
+ *    - one optional argument: a sample identifier
+ *    - stdin: a `cdf.csv` produced by the CoverageDepth program
+ *
+ * Build a 3D-surface plot showing the fraction of on-target loci covered for each {normal,tumor} depth.
+ */
+
+var args = process.argv.slice(2);
+var title = (args.length ? (args[0] + ": ") : "") + "Normal vs. Tumor Coverage";
+
 const fs = require('fs'),
       path = require('path'),
       readline = require('readline'),
@@ -24,6 +36,8 @@ stdin.on('line', line => {
   const x = parseInt(cols[0]);
   if (isNaN(x)) return;
   const y = parseInt(cols[1]);
+
+  // "fracLociOn"
   const z = parseFloat(cols[7]);
 
   xKeys[x] = true;
@@ -55,7 +69,6 @@ stdin.on('close', () => {
     y: yKeys,
     z: zs,
     colorbar: { title: 'Fraction of target loci covered' },
-    name: 'Col5',
     type: 'surface',
     zmax: 1,
     zmin: 0
@@ -107,12 +120,17 @@ stdin.on('close', () => {
         type: 'log'
       },
       zaxis: { title: 'Fraction of target loci covered' }
-    }
+    },
+    title,
+    filename: title
   };
 
   plotly.plot(
         data,
-        { layout: layout },
+        {
+          layout,
+          filename: title
+        },
         function(err, msg) {
           console.error(msg);
         }
