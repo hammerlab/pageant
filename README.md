@@ -12,9 +12,9 @@ This tool computes coverage-depth statistics about one or two sets of reads (e.g
 
 When run on two samples with an interval file, it can plot the fraction of the targeted loci which were covered at at ≥X depth in one sample and ≥Y depth in the other, for all (X,Y):
 
-[![3-D plot preview](https://d3vv6lp55qjaqc.cloudfront.net/items/2q261q1a0U1501381n40/Screen%20Recording%202017-02-06%20at%2008.59%20AM.gif?X-CloudApp-Visitor-Id=486740)](https://plot.ly/~ryan.blake.williams/92.embed?share_key=2XOQGkohwn5UTHEW2F3G07)
+[![3-D plot preview](https://d3vv6lp55qjaqc.cloudfront.net/items/2q261q1a0U1501381n40/Screen%20Recording%202017-02-06%20at%2008.59%20AM.gif)](https://plot.ly/~ryan.blake.williams/92.embed?share_key=2XOQGkohwn5UTHEW2F3G07)
 
-### Running
+### Running Locally
 After [setting `$PAGEANT_JAR` to point to a Pageant assembly JAR](#installation):
 
 ```bash
@@ -27,7 +27,7 @@ $SPARK_HOME/bin/spark-submit \
   $normal $tumor
 ```
 
-you'll additionally want to fill in:
+In the above, you'll want to fill in:
 - `$spark_props`: path to [a Spark properties file](http://spark.apache.org/docs/2.1.0/configuration.html#dynamically-loading-spark-properties)
   - inline Spark-config options will work here as well, per [the Spark docs](http://spark.apache.org/docs/2.1.0/configuration.html).
 - `$intervals`: optional path to e.g. a `.bed` file to view on-/off-target stats about
@@ -74,16 +74,80 @@ $ $SPARK_HOME/bin/spark-submit \
 - `pdf`/`cdf`: when [`CoverageDepth`][] is run with the `--persist-distributions` (`-v`) flag, the unfiltered "pdf" and "cdf" above are written out as sharded CSVs.
 
 ### Plotting
-[`src/main/python/plot.py`](src/main/python/plot.py) can be used to consume the output directory (`$out`) from [above](#Running) and send it to [plot.ly](https://plot.ly):
+The [`plot.js`][] script in this repo can be used to consume the `cdf.csv` produced [above](#Running) and send it to [plot.ly](https://plot.ly):
+
+#### Install JS dependencies
+```bash
+cd src/main/js/plots
+npm install
+```
+
+#### Pipe `cdf.csv` to [`plot.js`][]
 
 ```bash
-# $out argument should be the output directory 
-python src/main/python/plot.py $out
+# $out argument should be the output directory from above
+cat $out/cdf.csv | node plot.js
+```
+
+If `$out` is in a gcloud bucket (`gs://…`), use `gsutil` to pipe the file to the plot script:
+
+```bash
+gsutil cat $out/cdf.csv | node plot.js
 ```
 
 generating an interactive 2D-histogram like the one shown [above](#CoverageDepth).
 
-## Installation
+### Running on GCloud
+Running on an ephemeral Google Cloud Dataproc cluster is easy and cheap (~$0.02/cpu-hr using predominantly pre-emptible nodes, as of current writing).
+
+You'll want to [install the `gcloud` command-line utility](https://cloud.google.com/sdk/docs/#install_the_latest_cloud_tools_version_cloudsdk_current_version) and then follow the steps below.
+
+#### Create a cluster
+e.g. with 51 4-core nodes (2 reserved and 49 pre-emptible), pointing at a GCloud bucket with your data:
+
+```bash
+gcloud dataproc clusters create pageant \
+	--bucket gs://<bucket> \
+	--master-machine-type n1-standard-4 \
+	--worker-machine-type n1-standard-4 \
+	--num-workers 2 \
+	--num-preemptible-workers 49
+```
+
+#### Submit a job
+
+```bash
+gcloud dataproc jobs submit spark \
+	--class org.hammerlab.pageant.coverage.CoverageDepth \
+	--jar gs://hammerlab-lib/pageant-c482335.jar \
+	--intervals-file <path-to-.bed> \
+	--out <out directory> \
+	<path to normal .bam> \
+	<path to tumor .bam>
+```
+
+#### Optional: extra Spark configs
+
+You may wish to include some Spark configs in either the cluster-creation step (to set defaults across multiple jobs that may be run before the cluster is torn down):
+
+```
+--properties spark:spark.speculation=true,spark:spark.speculation.interval=1000,spark:spark.speculation.multiplier=1.3,spark:spark.yarn.maxAppAttempts=1,spark:spark.eventLog.enabled=true,spark:spark.eventLog.dir=hdfs:///user/spark/eventlog
+```
+
+or in the job-creation step:
+
+```
+--properties spark.speculation=true,spark.speculation.interval=1000,spark.speculation.multiplier=1.3,spark.yarn.maxAppAttempts=1,spark.eventLog.enabled=true,spark.eventLog.dir=hdfs:///user/spark/eventlog
+```
+
+#### Tear down the cluster
+
+```bash
+gcloud dataproc clusters delete pageant
+```
+
+
+## Local Installation
 
 Download a pre-built assembly-JAR, and set `$PAGEANT_JAR` to point to it:
 
@@ -111,3 +175,4 @@ Pageant currently builds against Spark 2.1.0, but some other versions will also 
 
 
 [`CoverageDepth`]: src/main/scala/org/hammerlab/pageant/coverage/CoverageDepth.scala
+[`plot.js`]: src/main/js/plots/plot.js
