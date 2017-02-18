@@ -8,12 +8,12 @@ import org.hammerlab.genomics.reference.test.ClearContigNames
 import org.hammerlab.genomics.reference.test.ContigNameConversions.convertOpt
 import org.hammerlab.genomics.reference.test.LociConversions.{ intToLocus, toTupleArray }
 import org.hammerlab.genomics.reference.{ ContigName, Locus, NumLoci, PermissiveRegistrar }
+import org.hammerlab.pageant.Suite
 import org.hammerlab.pageant.histogram.JointHistogram.{ JointHistKey, OCN, fromReadsAndFeatures }
-import org.hammerlab.pageant.utils.PageantSuite
 import org.hammerlab.test.implicits.Templates.convertMap
 
 class JointHistogramTest
-  extends PageantSuite
+  extends Suite
   with ClearContigNames {
 
   import org.hammerlab.genomics.reference.ContigName.Normalization.Lenient
