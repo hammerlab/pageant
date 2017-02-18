@@ -4,7 +4,6 @@ import com.esotericsoftware.kryo.Kryo
 import org.apache.spark.serializer.KryoRegistrator
 import org.bdgenomics.adam.serialization.ADAMKryoRegistrator
 import org.hammerlab.magic.rdd.grid.PartialSumGridRDD
-import org.hammerlab.pageant.bases.{ Bases, Bases5, Bases5Serializer, BasesSerializer }
 import org.hammerlab.pageant.coverage.one_sample.with_intervals.Counts
 import org.hammerlab.pageant.coverage.two_sample.with_intervals
 import org.hammerlab.pageant.coverage.{ one_sample, two_sample }
@@ -14,9 +13,6 @@ import scala.collection.mutable
 
 class Registrar extends KryoRegistrator {
   override def registerClasses(kryo: Kryo): Unit = {
-    kryo.register(classOf[Bases], new BasesSerializer)
-    kryo.register(classOf[Bases5], new Bases5Serializer)
-    kryo.register(classOf[Array[Bases5]])
 
     kryo.register(classOf[Record])
 

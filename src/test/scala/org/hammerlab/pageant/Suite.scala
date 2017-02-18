@@ -1,8 +1,8 @@
-package org.hammerlab.pageant.utils
+package org.hammerlab.pageant
 
 import org.hammerlab.pageant.kryo.Registrar
 import org.hammerlab.spark.test.suite.KryoSparkSuite
 
-class PageantSuite
+abstract class Suite
   extends KryoSparkSuite(classOf[Registrar])
 

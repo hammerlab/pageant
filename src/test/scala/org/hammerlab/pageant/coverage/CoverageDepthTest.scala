@@ -1,11 +1,11 @@
 package org.hammerlab.pageant.coverage
 
 import org.bdgenomics.utils.cli.Args4j
-import org.hammerlab.pageant.utils.PageantSuite
+import org.hammerlab.pageant.Suite
 import org.hammerlab.test.matchers.files.DirMatcher.dirMatch
 import org.hammerlab.test.resources.File
 
-class CoverageDepthTest extends PageantSuite {
+class CoverageDepthTest extends Suite {
   test("one sample with intervals") {
     val outDir = tmpDir()
     val args =
