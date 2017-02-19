@@ -19,6 +19,7 @@ class Arguments
     name = "--out",
     required = true,
     usage = "Path to write results to",
+    aliases = Array("-o"),
     metaVar = "DIR"
   )
   var outPath: String = _
@@ -26,7 +27,7 @@ class Arguments
   @Args4JOption(
     name = "--force",
     aliases = Array("-f"),
-    usage = "Write results file even if it already exists"
+    usage = "Write result files even if they already exist"
   )
   var force: Boolean = false
 
@@ -126,7 +127,13 @@ object CoverageDepth extends SparkCommand[Arguments] {
           writeJointHistogram = writeJointHistogram
         )
       case 2 ⇒
-        with_intervals.Result(jh, contigLengths, intervalsFileOpt.isDefined).save(
+        (if (intervalsFileOpt.isDefined)
+          two_sample.with_intervals.ResultBuilder
+            else
+          two_sample.without_intervals.ResultBuilder
+        )
+        .make(jh, totalReferenceLoci)
+        .save(
           outPath,
           force = force,
           writeFullDistributions = args.writeFullDistributions,

@@ -16,5 +16,14 @@ object ResultBuilder extends one_sample.ResultBuilder[Key, Count, Result] {
                     maxDepth: Depth,
                     firstCounts: Count,
                     totalReferenceLoci: NumLoci): Result =
-    Result(jh, pdf, cdf, maxDepth, firstCounts.bp, filteredCDF, firstCounts.n, totalReferenceLoci)
+    Result(
+      jh,
+      pdf,
+      cdf,
+      maxDepth,
+      firstCounts.bp,
+      filteredCDF,
+      firstCounts.n,
+      totalReferenceLoci
+    )
 }

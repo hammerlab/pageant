@@ -1,4 +1,4 @@
-package org.hammerlab.pageant.coverage.one_sample
+package org.hammerlab.pageant.coverage.two_sample
 
 import java.io.PrintWriter
 
@@ -19,20 +19,20 @@ abstract class Result[C: Monoid, CSVRow <: Product : TypeTag : ClassTag]
   def jh: JointHistogram
   def pdf: PDF[C]
   def cdf: CDF[C]
-  def filteredCDF: Array[(Depth, C)]
 
-  def toCSVRow(depthCounts: (Depth, C)): CSVRow
+  def toCSVRow(d2c: ((Depth, Depth), C)): CSVRow
   def writeMisc(pw: PrintWriter): Unit
 
   def save(dir: String,
            force: Boolean = false,
            writeFullDistributions: Boolean = false,
-           writeJointHistogram: Boolean = false): Unit = {
+           writeJointHistogram: Boolean = false): this.type = {
+
     val fs = new Path(dir).getFileSystem(jh)
 
     if (writeFullDistributions) {
-      WriteRDD(dir, s"pdf", pdf.map(toCSVRow), force, jh)
-      WriteRDD(dir, s"cdf", cdf.map(toCSVRow), force, jh)
+      WriteRDD(dir, s"pdf", pdf.rdd.map(toCSVRow), force, jh)
+      WriteRDD(dir, s"cdf", cdf.rdd.map(toCSVRow), force, jh)
     }
 
     if (writeJointHistogram) {
@@ -45,7 +45,8 @@ abstract class Result[C: Monoid, CSVRow <: Product : TypeTag : ClassTag]
       jh.write(jhPath)
     }
 
-    WriteLines(dir, s"cdf.csv", filteredCDF.map(toCSVRow).toCSV(), force, jh)
+    WriteLines(dir, s"pdf.csv", pdf.filtered.map(toCSVRow).toCSV(), force, jh)
+    WriteLines(dir, s"cdf.csv", cdf.filtered.map(toCSVRow).toCSV(), force, jh)
 
     val miscPath = new Path(dir, "misc")
     if (force || !fs.exists(miscPath)) {
@@ -53,6 +54,7 @@ abstract class Result[C: Monoid, CSVRow <: Product : TypeTag : ClassTag]
       writeMisc(pw)
       pw.close()
     }
-  }
 
+    this
+  }
 }
