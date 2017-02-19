@@ -6,53 +6,51 @@ import org.hammerlab.test.matchers.files.DirMatcher.dirMatch
 import org.hammerlab.test.resources.File
 
 class CoverageDepthTest extends Suite {
+
   test("one sample with intervals") {
-    val outDir = tmpDir()
-    val args =
-      Args4j[Arguments](
-        Array(
-          "--intervals-file", File("intervals.bed").path,
-          "-v",
-          "--out", outDir,
-          File("r1.sam").path
-        )
-      )
-
-    CoverageDepth.run(args, sc)
-
-    outDir should dirMatch("coverage.intervals.golden")
+    check(
+      "coverage.intervals.golden",
+      "--intervals-file", File("intervals.bed"),
+      File("r1.sam"))
   }
 
   test("one sample without intervals") {
-    val outDir = tmpDir()
-    val args =
-      Args4j[Arguments](
-        Array(
-          "-v",
-          "--out", outDir,
-          File("r1.sam").path
-        )
-      )
-
-    CoverageDepth.run(args, sc)
-
-    outDir should dirMatch("coverage.golden")
+    check(
+      "coverage.golden",
+      File("r1.sam")
+    )
   }
 
   test("two samples with intervals") {
+    check(
+      "coverage.intervals.golden2",
+      "--intervals-file", File("intervals.bed"),
+      File("r1.sam"),
+      File("r2.sam")
+    )
+  }
+
+  test("two samples without intervals") {
+    check(
+      "coverage.golden2",
+      File("r1.sam"),
+      File("r2.sam")
+    )
+  }
+
+  def check(expectedDir: String, extraArgs: String*): Unit = {
     val outDir = tmpDir()
     val args =
       Args4j[Arguments](
         Array(
-          "--intervals-file", File("intervals.bed").path,
           "-v",
-          "--out", outDir,
-          File("r1.sam").path, File("r2.sam").path
-        )
+          "--out", outDir
+        ) ++
+          extraArgs
       )
 
     CoverageDepth.run(args, sc)
 
-    outDir should dirMatch("coverage.intervals.golden2")
+    outDir should dirMatch(expectedDir)
   }
 }

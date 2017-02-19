@@ -107,7 +107,6 @@ e.g. with 51 4-core nodes (2 reserved and 49 pre-emptible), pointing at a GCloud
 
 ```bash
 gcloud dataproc clusters create pageant \
-	--bucket gs://<bucket> \
 	--master-machine-type n1-standard-4 \
 	--worker-machine-type n1-standard-4 \
 	--num-workers 2 \
@@ -118,13 +117,17 @@ gcloud dataproc clusters create pageant \
 
 ```bash
 gcloud dataproc jobs submit spark \
+	--cluster pageant \
 	--class org.hammerlab.pageant.coverage.CoverageDepth \
-	--jar gs://hammerlab-lib/pageant-c482335.jar \
-	--intervals-file <path-to-.bed> \
+	--jars gs://hammerlab-lib/pageant-c482335.jar \
+	-- \
+	--intervals-file <path to .bed> \
 	--out <out directory> \
 	<path to normal .bam> \
 	<path to tumor .bam>
 ```
+
+This uses a Pageant JAR that's already on GCloud storage, so that no bandwidth- or time-cost is incurred uploading a JAR.
 
 #### Optional: extra Spark configs
 
@@ -146,6 +149,11 @@ or in the job-creation step:
 gcloud dataproc clusters delete pageant
 ```
 
+Alternatively, you can just resize it down to the minimum 2 reserved nodes:
+
+```bash
+gcloud dataproc clusters update pageant --num-preemptible-workers 0
+```
 
 ## Local Installation
 

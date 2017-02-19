@@ -3,7 +3,7 @@ package org.hammerlab.pageant.coverage.one_sample
 import org.apache.spark.rdd.RDD
 import org.hammerlab.genomics.reference.NumLoci
 import org.hammerlab.math.Steps.roundNumbers
-import org.hammerlab.pageant.coverage.Key
+import org.hammerlab.pageant.coverage.IsKey
 import org.hammerlab.pageant.histogram.JointHistogram
 import org.hammerlab.pageant.histogram.JointHistogram.Depth
 import spire.algebra.Monoid
@@ -11,7 +11,7 @@ import spire.algebra.Monoid
 import scala.math.max
 import scala.reflect.ClassTag
 
-abstract class ResultBuilder[K <: Key[C, Depth] : ClassTag : IsKey, C: Monoid : ClassTag, Result]
+abstract class ResultBuilder[K <: Key[C] : ClassTag : IsKey, C: Monoid : ClassTag, Result]
   extends Serializable {
 
   def make(jh: JointHistogram,

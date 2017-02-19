@@ -32,8 +32,14 @@ case class Result(jh: JointHistogram,
 
   @transient lazy val ReadSetStats(maxDepth, _, onBases) = readsStats
   @transient lazy val totalBases = readsStats.totalBases
+
   override def toCSVRow(depthCounts: DC): CSVRow =
-    CSVRow(depthCounts, totalBases, totalOnLoci, totalOffLoci)
+    CSVRow(
+      depthCounts,
+      totalBases,
+      totalOnLoci,
+      totalOffLoci
+    )
 
   override def writeMisc(pw: PrintWriter): Unit = {
     pw.println(s"Max depth: $maxDepth")
