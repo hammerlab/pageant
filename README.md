@@ -103,7 +103,51 @@ Running on an ephemeral Google Cloud Dataproc cluster is easy and cheap (~$0.02/
 
 You'll want to [install the `gcloud` command-line utility](https://cloud.google.com/sdk/docs/#install_the_latest_cloud_tools_version_cloudsdk_current_version) and then follow the steps below.
 
-#### Create a cluster
+#### [`scripts/run-on-gcloud.py`](scripts/run-on-gcloud.py)
+
+This script uses [hammerlab/dataproc](https://github.com/hammerlab/dataproc) to set up a cluster, run one `CoverageDepth` app, then tear down the cluster; set-up and tear-down typically add just a couple of minutes to the overall run-time.
+
+```bash
+$ scripts/run-on-gcloud -h
+usage: dataproc [-h] [--cluster CLUSTER] [--timestamp-cluster-name]
+                [--cores CORES] [--properties PROPS_FILES] [--jar JAR]
+                [--main MAIN] [--machine-type MACHINE_TYPE] [--dry-run]
+
+Run a Spark job on an ephemeral dataproc cluster
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --cluster CLUSTER     Name of the dataproc cluster to use; defaults to
+                        $CLUSTER env var
+  --timestamp-cluster-name, -t
+                        When true, append "-<TIMESTAMP>" to the dataproc
+                        cluster name
+  --cores CORES         Number of CPU cores to use
+  --properties PROPS_FILES, -p PROPS_FILES
+                        Comma-separated list of Spark properties files; merged
+                        with $SPARK_PROPS_FILES env var
+  --jar JAR             URI of main app JAR; defaults to JAR env var
+  --main MAIN, -m MAIN  JAR main class; defaults to MAIN env var
+  --machine-type MACHINE_TYPE
+                        Machine type to use
+  --dry-run, -n         When set, print some of the parsed and inferred
+                        arguments and exit without running any dataproc
+                        commands
+```
+
+It sets `$CLUSTER`, `$MAIN`, and `$JAR` by default:
+
+```bash
+export JAR=gs://hammerlab-lib/pageant-f147c5d.jar
+export MAIN=org.hammerlab.pageant.coverage.CoverageDepth
+export CLUSTER=pageant
+```
+
+#### Manually
+
+You can manually run the cluster-creation, job-submission, and cluster-deletion commands yourself, as well:
+
+##### Create a cluster
 e.g. with 51 4-core nodes (2 reserved and 49 pre-emptible), pointing at a GCloud bucket with your data:
 
 ```bash
@@ -114,7 +158,7 @@ gcloud dataproc clusters create pageant \
 	--num-preemptible-workers 49
 ```
 
-#### Submit a job
+##### Submit a job
 
 ```bash
 gcloud dataproc jobs submit spark \
@@ -130,7 +174,7 @@ gcloud dataproc jobs submit spark \
 
 This uses a Pageant JAR that's already on GCloud storage, so that no bandwidth- or time-cost is incurred uploading a JAR.
 
-#### Optional: extra Spark configs
+##### Optional: extra Spark configs
 
 You may wish to include some Spark configs in either the cluster-creation step (to set defaults across multiple jobs that may be run before the cluster is torn down):
 
@@ -144,7 +188,7 @@ or in the job-creation step:
 --properties spark.speculation=true,spark.speculation.interval=1000,spark.speculation.multiplier=1.3,spark.yarn.maxAppAttempts=1,spark.eventLog.enabled=true,spark.eventLog.dir=hdfs:///user/spark/eventlog
 ```
 
-#### Tear down the cluster
+##### Tear down the cluster
 
 ```bash
 gcloud dataproc clusters delete pageant
