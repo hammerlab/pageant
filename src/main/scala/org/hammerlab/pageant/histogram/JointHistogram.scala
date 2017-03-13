@@ -112,8 +112,8 @@ case class JointHistogram(jh: JointHist) {
     .reduceByKey(_ + _)
     .collectAsMap()
 
-    val totalOnLoci: NumLoci = totalLociMap.getOrElse(1, 0L: NumLoci)
-    val totalOffLoci: NumLoci = totalLociMap.getOrElse(0, 0L: NumLoci)
+    val totalOnLoci: NumLoci = totalLociMap.getOrElse(1, NumLoci(0))
+    val totalOffLoci: NumLoci = totalLociMap.getOrElse(0, NumLoci(0))
 
     (totalOnLoci, totalOffLoci)
   }
@@ -386,12 +386,12 @@ object JointHistogram {
 
   def readsToDepthMap(reads: RDD[AlignmentRecord]): DepthMap = {
     val rdd = (for {
-      read <- reads if read.getReadMapped
-      contigName <- Option(read.getContigName).toList
-      start <- Option(read.getStart).toList
-      end <- Option(read.getEnd).toList
+      read ← reads if read.getReadMapped
+      contigName ← Option(read.getContigName).toList
+      start ← Option(Locus(read.getStart)).toList
+      end ← Option(Locus(read.getEnd)).toList
       refLen = (end - start).toInt
-      i <- 0 until refLen
+      i ← 0 until refLen
     } yield
       Pos(contigName, start + i) → 1
     )
@@ -403,11 +403,11 @@ object JointHistogram {
     val lociCounts: RDD[Pos] =
       for {
         feature <- features.rdd
-        contigName <- Option(feature.getContigName).toList
-        start <- Option(feature.getStart).toList
-        end <- Option(feature.getEnd).toList
-        refLen = end - start
-        i <- 0 until refLen.toInt
+        contigName ← Option(feature.getContigName).toList
+        start ← Option(Locus(feature.getStart)).toList
+        end ← Option(Locus(feature.getEnd)).toList
+        refLen = (end - start).toInt
+        i ← 0 until refLen
       } yield
         Pos(contigName, start + i)
 
