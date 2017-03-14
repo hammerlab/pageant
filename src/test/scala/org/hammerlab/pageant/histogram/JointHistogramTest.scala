@@ -4,17 +4,16 @@ import htsjdk.samtools.TextCigarCodec
 import org.bdgenomics.adam.models.{ SequenceDictionary, SequenceRecord }
 import org.bdgenomics.adam.rdd.feature.FeatureRDD
 import org.bdgenomics.formats.avro.{ AlignmentRecord, Feature }
-import org.hammerlab.genomics.reference.test.ClearContigNames
-import org.hammerlab.genomics.reference.test.ContigNameConversions.convertOpt
-import org.hammerlab.genomics.reference.test.LociConversions.{ intToLocus, toTupleArray }
+import org.hammerlab.genomics.reference.test.{ ClearContigNames, LenientContigNameConversions }
+import org.hammerlab.genomics.reference.test.LociConversions._
 import org.hammerlab.genomics.reference.{ ContigName, Locus, NumLoci, PermissiveRegistrar }
 import org.hammerlab.pageant.Suite
 import org.hammerlab.pageant.histogram.JointHistogram.{ JointHistKey, OCN, fromReadsAndFeatures }
-import org.hammerlab.test.implicits.Templates.convertMap
 
 class JointHistogramTest
   extends Suite
-  with ClearContigNames {
+    with LenientContigNameConversions
+    with ClearContigNames {
 
   import org.hammerlab.genomics.reference.ContigName.Normalization.Lenient
   register(new PermissiveRegistrar)
@@ -23,8 +22,8 @@ class JointHistogramTest
 
   val sd =
     SequenceDictionary(
-      SequenceRecord("chr2", 10000000L),
-      SequenceRecord("chr11", 2000000L)
+      SequenceRecord("chr2", 10000000),
+      SequenceRecord("chr11", 2000000)
     )
 
   def read(start: Locus,
@@ -50,8 +49,9 @@ class JointHistogramTest
       .setEnd(end.locus)
       .build()
 
-  implicit val convNumLociMap = convertMap[JointHistKey, Int, JointHistKey, NumLoci] _
-  implicit val convTotalLociMap = convertMap[Option[String], Int, OCN, NumLoci] _
+  implicit def convNumLociMap(m: Map[JointHistKey, Int]): Map[JointHistKey, NumLoci] = m.mapValues(NumLoci(_))
+  implicit def convTotalLociMap(m: Map[Option[String], Int]): Map[OCN, NumLoci] =
+    m.map(t => (t._1: Option[ContigName], NumLoci(t._2)))
 
   def Key(contigName: ContigName, depths: Option[Int]*): JointHistKey = (Some(contigName), depths)
 
