@@ -118,51 +118,6 @@ case class JointHistogram(jh: JointHist) {
     (totalOnLoci, totalOffLoci)
   }
 
-  def printPerContigs(pc: Map[(OB, OCN), L], includesTotals: Boolean = false) = {
-    lazy val tl: Map[(OB, OCN), L] =
-      (for {
-        ((gO, cO), nl) <- pc
-        _ <- cO
-      } yield
-        (gO, None: OCN) → nl
-      )
-      .groupBy(_._1)
-      .mapValues(_.values.sum)
-
-    val pct =
-      if (includesTotals)
-        pc
-      else
-        pc ++ tl.map(p => (p._1, None) → p._2)
-
-    val cs = pct.map(_._1._2).toList.distinct
-    val ts = cs.map(c => {
-      val (all, on, off) = (pct.get(None, c), pct.get(Some(true), c), pct.get(Some(false), c))
-      val ratio = on.getOrElse(0L) * 100.0 / all.get
-      (c, all, on, off, ratio)
-    }).sortBy(-_._5)
-
-    val fmt = "%30s:\t%12s\t%12s\t%12s\t%12s"
-    println(fmt.format("contig name", "total bp", "exon bp", "non-exon bp", "% exon bp"))
-    println(
-      ts
-        .map(t =>
-          fmt.format(
-            t._1.getOrElse("all"),
-            t._2.map(_.toString).getOrElse("-"),
-            t._3.map(_.toString).getOrElse("-"),
-            t._4.map(_.toString).getOrElse("-"),
-            "%.3f".format(t._5)
-          )
-        )
-        .mkString("\n")
-    )
-
-    (pct, cs, ts)
-  }
-
-  def ppc = printPerContigs _
-
   @transient lazy val totalLoci: Map[OCN, NumLoci] =
     for {
       ((contig, _), nl) <- (hist(Set()) ++ hist(Set(), sumContigs = true)).collect().toMap
