@@ -40,3 +40,6 @@
 [submodule "args4s"]
 	path = args4s
 	url = git@github.com:hammerlab/args4s.git
+[submodule "spark-commands"]
+	path = spark-commands
+	url = git@github.com:hammerlab/spark-commands.git
