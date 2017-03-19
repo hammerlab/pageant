@@ -8,7 +8,7 @@ import org.hammerlab.csv._
 import scala.reflect.runtime.universe.TypeTag
 
 object WriteRDD {
-  def apply[T <: Product : TypeTag](dir: String, fn: String, rdd: RDD[T], force: Boolean, conf: Configuration): Unit = {
+  def apply[T <: Product : TypeTag](dir: Path, fn: String, rdd: RDD[T], force: Boolean, conf: Configuration): Unit = {
     val path = new Path(dir, fn)
     val fs = path.getFileSystem(conf)
     val csvLines = rdd.mapPartitions(_.toCSV(includeHeaderLine = false))

@@ -301,8 +301,8 @@ object JointHistogram {
   }
 
   def fromFiles(sc: SparkContext,
-                readFiles: Seq[String] = Nil,
-                featureFiles: Seq[String] = Nil,
+                readFiles: Seq[Path] = Nil,
+                featureFiles: Seq[Path] = Nil,
                 dedupeFeatureLoci: Boolean = true,
                 bytesPerIntervalPartition: Int = 1 << 16): JointHistogram = {
 
@@ -322,18 +322,23 @@ object JointHistogram {
         FeatureField.end
       )
 
-    val reads = readFiles.map(file => sc.loadAlignments(file, Some(projection)).rdd)
+    val reads =
+      readFiles.map(
+        file ⇒
+          sc
+            .loadAlignments(file.toString, Some(projection))
+            .rdd
+      )
 
     val features =
       for {
-        file ← featureFiles
-        path = new Path(file)
+        path ← featureFiles
         fs = path.getFileSystem(sc.hadoopConfiguration)
         fileLength = fs.getFileStatus(path).getLen
         numPartitions = (fileLength / bytesPerIntervalPartition).toInt
       } yield {
-        println(s"Loading interval file $file of size $fileLength using $numPartitions")
-        sc.loadFeatures(file, Some(featuresProjection), Some(numPartitions))
+        println(s"Loading interval file $path of size $fileLength using $numPartitions")
+        sc.loadFeatures(path.toString, Some(featuresProjection), Some(numPartitions))
       }
 
     JointHistogram.fromReadsAndFeatures(reads, features, dedupeFeatureLoci)

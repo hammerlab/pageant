@@ -43,25 +43,26 @@ $ $SPARK_HOME/bin/spark-submit \
   $PAGEANT_JAR \
   -h
  PATHS                             : Paths to sets of reads: FILE1 FILE2 FILE3
- --force (-f)                      : Write results file even if it already exists (default: false)
+ --dir (-d) PATH                   : When set, relative paths will be prefixed with this path (default: None)
+ --force (-f)                      : Write result files even if they already exist (default: false)
  --include-duplicates              : Include reads marked as duplicates (default: false)
  --include-failed-quality-checks   : Include reads that failed vendor quality checks (default: false)
  --include-single-end              : Include single-end reads (default: false)
  --interval-partition-bytes (-b) N : Number of bytes per chunk of input interval-file (default: 1048576)
- --intervals-file (-i) path        : Intervals file or capture kit; print stats for loci matching this intervals file, not matching, and total.
+ --intervals-file (-i) PATH        : Intervals file or capture kit; print stats for loci matching this intervals file, not matching, and total.
                                      (default: None)
- --loci path                       : If set, loci to include. Either 'all' or 'contig[:start[-end]],contig[:start[-end]],…' (default: None)
- --loci-file path                  : Path to file giving loci to include. (default: None)
- --min-alignment-quality path      : Minimum read mapping quality for a read (Phred-scaled) (default: None)
+ --loci VAL                        : If set, loci to include. Either 'all' or 'contig[:start[-end]],contig[:start[-end]],…' (default: None)
+ --loci-file VAL                   : Path to file giving loci to include. (default: None)
+ --min-alignment-quality INT       : Minimum read mapping quality for a read (Phred-scaled) (default: None)
  --no-sequence-dictionary          : If set, get contigs and lengths directly from reads instead of from sequence dictionary. (default: false)
  --only-mapped-reads               : Include only mapped reads (default: false)
- --out DIR                         : Path to write results to
+ --out (-o) DIR                    : Directory to write results to
  --persist-distributions (-v)      : When set, persist full PDF and CDF of coverage-depth histogram (default: false)
  --persist-joint-histogram (-jh)   : When set, save the computed joint-histogram; if one already exists, skip reading it, recompute it, and overwrite
                                      it (default: false)
- --sample-names STRING[]           : name1 ... nameN
- --split-size path                 : Maximum HDFS split size (default: None)
- -h (-help, --help, -?)            : Print help (default: false)
+ --sample-names STRING[]           : name1,…,nameN
+ --split-size VAL                  : Maximum HDFS split size (default: None)
+ -h (-help, --help, -?)            : Print help (default: true)
  -print_metrics                    : Print metrics to the log on completion (default: false)
 ```
 

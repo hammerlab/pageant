@@ -24,11 +24,11 @@ abstract class Result[C: Monoid, CSVRow <: Product : TypeTag : ClassTag]
   def toCSVRow(depthCounts: (Depth, C)): CSVRow
   def writeMisc(pw: PrintWriter): Unit
 
-  def save(dir: String,
+  def save(dir: Path,
            force: Boolean = false,
            writeFullDistributions: Boolean = false,
            writeJointHistogram: Boolean = false): Unit = {
-    val fs = new Path(dir).getFileSystem(jh)
+    val fs = dir.getFileSystem(jh)
 
     if (writeFullDistributions) {
       WriteRDD(dir, s"pdf", pdf.map(toCSVRow), force, jh)

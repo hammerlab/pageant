@@ -4,7 +4,7 @@ import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.Path
 
 object WriteLines {
-  def apply(dir: String, fn: String, strs: Iterator[String], force: Boolean, conf: Configuration): Unit = {
+  def apply(dir: Path, fn: String, strs: Iterator[String], force: Boolean, conf: Configuration): Unit = {
     val path = new Path(dir, fn)
     val fs = path.getFileSystem(conf)
     if (!force && fs.exists(path)) {
