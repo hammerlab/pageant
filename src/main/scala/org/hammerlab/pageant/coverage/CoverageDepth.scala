@@ -2,27 +2,28 @@ package org.hammerlab.pageant.coverage
 
 import org.apache.hadoop.fs.Path
 import org.apache.spark.SparkContext
-import org.hammerlab.args4s.StringOptionHandler
 import org.hammerlab.commands.{ Args, SparkCommand }
-import org.hammerlab.genomics.readsets
+import org.hammerlab.genomics.readsets.args.impl.{ Arguments ⇒ ReadsetsArguments }
 import org.hammerlab.genomics.readsets.ReadSets
-import org.hammerlab.pageant.coverage.two_sample.with_intervals
+import org.hammerlab.genomics.readsets.args.path.{ UnprefixedPath, UnprefixedPathHandler, UnprefixedPathOptionHandler }
 import org.hammerlab.pageant.histogram.JointHistogram
 import org.hammerlab.pageant.histogram.JointHistogram.fromFiles
 import org.kohsuke.args4j.{ Option ⇒ Args4JOption }
 
 class Arguments
   extends Args
-    with readsets.args.Arguments {
+    with ReadsetsArguments {
 
   @Args4JOption(
     name = "--out",
     required = true,
-    usage = "Path to write results to",
+    usage = "Directory to write results to",
+    handler = classOf[UnprefixedPathHandler],
     aliases = Array("-o"),
     metaVar = "DIR"
   )
-  var outPath: String = _
+  private var _outPath: UnprefixedPath = _
+  def outPath: Path = _outPath.buildPath
 
   @Args4JOption(
     name = "--force",
@@ -42,9 +43,10 @@ class Arguments
     name = "--intervals-file",
     aliases = Array("-i"),
     usage = "Intervals file or capture kit; print stats for loci matching this intervals file, not matching, and total.",
-    handler = classOf[StringOptionHandler]
+    handler = classOf[UnprefixedPathOptionHandler]
   )
-  var intervalsFileOpt: Option[String] = None
+  var _intervalsFileOpt: Option[UnprefixedPath] = None
+  def intervalsFileOpt: Option[Path] = _intervalsFileOpt.map(_.buildPath)
 
   @Args4JOption(
     name = "--interval-partition-bytes",
@@ -146,5 +148,5 @@ object CoverageDepth extends SparkCommand[Arguments] {
     }
   }
 
-  def getJointHistogramPath(dir: String): Path = new Path(dir, "jh")
+  def getJointHistogramPath(dir: Path): Path = new Path(dir, "jh")
 }
