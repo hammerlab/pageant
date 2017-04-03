@@ -43,3 +43,18 @@
 [submodule "spark-commands"]
 	path = spark-commands
 	url = git@github.com:hammerlab/spark-commands.git
+[submodule "dataproc"]
+	path = dataproc
+	url = git@github.com:hammerlab/dataproc.git
+[submodule "spark-util"]
+	path = spark-util
+	url = git@github.com:hammerlab/spark-util.git
+[submodule "paths"]
+	path = paths
+	url = git@github.com:hammerlab/paths.git
+[submodule "path-utils"]
+	path = paths
+	url = git@github.com:hammerlab/paths.git
+[submodule "utils-cli"]
+	path = utils-cli
+	url = git@github.com:hammerlab/utils.git
