@@ -103,7 +103,7 @@ Running on an ephemeral Google Cloud Dataproc cluster is easy and cheap (~$0.02/
 
 You'll want to [install the `gcloud` command-line utility](https://cloud.google.com/sdk/docs/#install_the_latest_cloud_tools_version_cloudsdk_current_version) and then follow the steps below.
 
-#### [`scripts/run-on-gcloud.py`](scripts/run-on-gcloud.py)
+#### [`scripts/run-on-gcloud`](scripts/run-on-gcloud)
 
 This script uses [hammerlab/dataproc](https://github.com/hammerlab/dataproc) to set up a cluster, run one `CoverageDepth` app, then tear down the cluster; set-up and tear-down typically add just a couple of minutes to the overall run-time.
 
