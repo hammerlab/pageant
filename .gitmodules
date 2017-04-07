@@ -53,7 +53,7 @@
 	path = paths
 	url = git@github.com:hammerlab/paths.git
 [submodule "path-utils"]
-	path = paths
+	path = path-utils
 	url = git@github.com:hammerlab/paths.git
 [submodule "utils-cli"]
 	path = utils-cli
