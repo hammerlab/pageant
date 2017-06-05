@@ -1,3 +1,0 @@
-[submodule "dataproc"]
-	path = dataproc
-	url = https://github.com/hammerlab/dataproc.git

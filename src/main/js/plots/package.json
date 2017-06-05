@@ -1,8 +1,0 @@
-{
-  "name": "pageant-plots",
-  "version": "0.1.0",
-  "dependencies": {
-    "plotly": "^1.0.6",
-    "underscore": "^1.8.3"
-  }
-}
