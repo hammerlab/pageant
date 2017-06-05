@@ -19,9 +19,6 @@
 [submodule "adam-core"]
 	path = adam-core
 	url = https://github.com/hammerlab/adam.git
-[submodule "pageant"]
-	path = pageant
-	url = https://github.com/hammerlab/pageant.git
 [submodule "guacamole"]
 	path = guacamole
 	url = https://github.com/hammerlab/guacamole.git
@@ -58,3 +55,12 @@
 [submodule "utils-cli"]
 	path = utils-cli
 	url = git@github.com:hammerlab/utils.git
+[submodule "hadoop-bam"]
+	path = hadoop-bam
+	url = github.com:hammerlab/hadoop-bam.git
+[submodule "coverage-depth"]
+	path = coverage-depth
+	url = git@github.com:hammerlab/coverage-depth.git
+[submodule "suffix-arrays"]
+	path = suffix-arrays
+	url = git@github.com:hammerlab/suffix-arrays.git
