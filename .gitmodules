@@ -64,3 +64,9 @@
 [submodule "suffix-arrays"]
 	path = suffix-arrays
 	url = git@github.com:hammerlab/suffix-arrays.git
+[submodule "kryo-utils"]
+	path = kryo-utils
+	url = git@github.com:hammerlab/kryo-utils.git
+[submodule "Hadoop-BAM"]
+	path = Hadoop-BAM
+	url = git@github.com:hammerlab/Hadoop-BAM.git
