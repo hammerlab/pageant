@@ -67,3 +67,6 @@
 [submodule "kryo-utils"]
 	path = kryo-utils
 	url = git@github.com:hammerlab/kryo-utils.git
+[submodule "string-utils"]
+	path = string-utils
+	url = git@github.com:hammerlab/string-utils.git
