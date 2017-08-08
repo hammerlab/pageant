@@ -70,3 +70,9 @@
 [submodule "string-utils"]
 	path = string-utils
 	url = git@github.com:hammerlab/string-utils.git
+[submodule "io"]
+	path = io
+	url = git@github.com:hammerlab/io-utils.git
+[submodule "math"]
+	path = math
+	url = git@github.com:hammerlab/math-utils.git
