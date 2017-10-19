@@ -12,6 +12,7 @@ def sparkProj(dir: String, deps: ClasspathDep[ProjectReference]*): Project =
   proj(dir, (tests :: sparkTestsDep :: deps.toList): _*)
 
 // Sub-projects
+/*
 lazy val testUtils = (project in file("test-utils"))
 lazy val tests = testUtils % tt
 
@@ -75,3 +76,4 @@ lazy val pageant =
     adamCore,
     readsets
   )
+*/

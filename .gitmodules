@@ -38,7 +38,7 @@
 	path = args4s
 	url = git@github.com:hammerlab/args4s.git
 [submodule "spark-commands"]
-	path = spark-commands
+	path = cli
 	url = git@github.com:hammerlab/spark-commands.git
 [submodule "dataproc"]
 	path = dataproc
@@ -76,3 +76,6 @@
 [submodule "math"]
 	path = math
 	url = git@github.com:hammerlab/math-utils.git
+[submodule "shapeless"]
+	path = shapeless
+	url = git@github.com:hammerlab/shapeless-utils.git
