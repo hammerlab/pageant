@@ -8,8 +8,8 @@ val tctt = "test->compile;test->test"
 def proj(dir: String, deps: ClasspathDep[ProjectReference]*): Project =
   Project(dir, new File(dir)).dependsOn(deps: _*)
 
-def sparkProj(dir: String, deps: ClasspathDep[ProjectReference]*): Project =
-  proj(dir, (tests :: sparkTestsDep :: deps.toList): _*)
+//def sparkProj(dir: String, deps: ClasspathDep[ProjectReference]*): Project =
+//  proj(dir, (tests :: sparkTestsDep :: deps.toList): _*)
 
 // Sub-projects
 /*
