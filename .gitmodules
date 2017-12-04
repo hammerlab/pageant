@@ -57,7 +57,10 @@
 	url = git@github.com:hammerlab/utils.git
 [submodule "hadoop-bam"]
 	path = hadoop-bam
-	url = github.com:hammerlab/hadoop-bam.git
+	url = github.com:hammerlab/Hadoop-BAM.git
+[submodule "spark-bam"]
+	path = spark-bam
+	url = github.com:hammerlab/spark-bam.git
 [submodule "coverage-depth"]
 	path = coverage-depth
 	url = git@github.com:hammerlab/coverage-depth.git
