@@ -46,9 +46,6 @@
 [submodule "spark-util"]
 	path = spark-util
 	url = git@github.com:hammerlab/spark-util.git
-[submodule "paths"]
-	path = paths
-	url = git@github.com:hammerlab/paths.git
 [submodule "path-utils"]
 	path = path-utils
 	url = git@github.com:hammerlab/paths.git
@@ -67,9 +64,6 @@
 [submodule "suffix-arrays"]
 	path = suffix-arrays
 	url = git@github.com:hammerlab/suffix-arrays.git
-[submodule "kryo-utils"]
-	path = kryo-utils
-	url = git@github.com:hammerlab/kryo-utils.git
 [submodule "string-utils"]
 	path = string-utils
 	url = git@github.com:hammerlab/string-utils.git
