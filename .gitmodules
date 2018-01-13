@@ -33,7 +33,7 @@
 	url = https://github.com/hammerlab/genomic-reads.git
 [submodule "iterator"]
 	path = iterator
-	url = git@github.com:hammerlab/iterator.git
+	url = git@github.com:hammerlab/iterators.git
 [submodule "args4s"]
 	path = args4s
 	url = git@github.com:hammerlab/args4s.git
@@ -48,13 +48,13 @@
 	url = git@github.com:hammerlab/spark-util.git
 [submodule "path-utils"]
 	path = path-utils
-	url = git@github.com:hammerlab/paths.git
+	url = git@github.com:hammerlab/path-utils.git
 [submodule "utils-cli"]
 	path = utils-cli
-	url = git@github.com:hammerlab/utils.git
+	url = git@github.com:hammerlab/bdg-utils.git
 [submodule "hadoop-bam"]
 	path = hadoop-bam
-	url = github.com:hammerlab/Hadoop-BAM.git
+	url = github.com:hammerlab/hadoop-bam.git
 [submodule "spark-bam"]
 	path = spark-bam
 	url = github.com:hammerlab/spark-bam.git
