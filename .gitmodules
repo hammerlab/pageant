@@ -34,9 +34,6 @@
 [submodule "iterator"]
 	path = iterator
 	url = git@github.com:hammerlab/iterators.git
-[submodule "args4s"]
-	path = args4s
-	url = git@github.com:hammerlab/args4s.git
 [submodule "spark-commands"]
 	path = cli
 	url = git@github.com:hammerlab/spark-commands.git
